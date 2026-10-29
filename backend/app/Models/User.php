@@ -62,9 +62,120 @@ class User extends Authenticatable
         return $this->belongsToMany(Role::class)->withTimestamps();
     }
 
+    /**
+     * Check if user has a specific role.
+     */
     public function hasRole(string $roleName): bool
     {
-        return $this->roles->contains('name', $roleName);
+        if ($this->relationLoaded('roles')) {
+            return $this->roles->contains('name', $roleName);
+        }
+
+        return $this->roles()->where('name', $roleName)->exists();
+    }
+
+    /**
+     * Check if user has any of the given roles.
+     *
+     * @param list<string>|string $roles
+     */
+    public function hasAnyRole(array|string ...$roles): bool
+    {
+        $flattened = [];
+        foreach ($roles as $item) {
+            if (is_array($item)) {
+                $flattened = array_merge($flattened, $item);
+            } else {
+                $flattened[] = $item;
+            }
+        }
+
+        if (empty($flattened)) {
+            return false;
+        }
+
+        if ($this->relationLoaded('roles')) {
+            return $this->roles->pluck('name')->intersect($flattened)->isNotEmpty();
+        }
+
+        return $this->roles()->whereIn('name', $flattened)->exists();
+    }
+
+    /**
+     * Assign a role by name or Role instance.
+     */
+    public function assignRole(string|Role $role): void
+    {
+        $roleModel = is_string($role) ? Role::where('name', $role)->firstOrFail() : $role;
+        $this->roles()->syncWithoutDetaching([$roleModel->id]);
+        $this->unsetRelation('roles');
+    }
+
+    /**
+     * Remove a role by name or Role instance.
+     */
+    public function removeRole(string|Role $role): void
+    {
+        $roleModel = is_string($role) ? Role::where('name', $role)->first() : $role;
+        if ($roleModel) {
+            $this->roles()->detach($roleModel->id);
+            $this->unsetRelation('roles');
+        }
+    }
+
+    public function isOwner(): bool
+    {
+        return $this->hasRole('owner');
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->hasRole('admin');
+    }
+
+    public function isReceptionist(): bool
+    {
+        return $this->hasRole('receptionist');
+    }
+
+    public function isTrainer(): bool
+    {
+        return $this->hasRole('trainer');
+    }
+
+    public function isMember(): bool
+    {
+        return $this->hasRole('member');
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === 'active';
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->status === 'suspended';
+    }
+
+    public function isInactive(): bool
+    {
+        return $this->status === 'inactive';
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
+    }
+
+    public function scopeWithRole($query, string $roleName)
+    {
+        return $query->whereHas('roles', fn ($q) => $q->where('name', $roleName));
+    }
+
+    public function scopeRole($query, string $roleName)
+    {
+        return $this->scopeWithRole($query, $roleName);
     }
 
     public function memberProfile(): HasOne
