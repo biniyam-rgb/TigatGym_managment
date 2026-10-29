@@ -1,17 +1,24 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import apiClient from './services/api'
+import { AuthProvider } from './context/AuthContext'
+import { useAuth } from './context/useAuth'
+import LoginForm from './components/LoginForm'
+import RoleDashboard from './components/RoleDashboard'
+import ChangePasswordModal from './components/ChangePasswordModal'
 import './App.css'
 
-function App() {
+function GymCoreApp() {
+  const { user, isAuthenticated, isLoading, logout, primaryRole } = useAuth()
+  const [activeView, setActiveView] = useState('workspace') // 'workspace' or 'architecture'
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [apiStatus, setApiStatus] = useState({
-    state: 'loading', // loading, online, offline
+    state: 'loading',
     data: null,
     error: null,
     lastChecked: null,
   })
 
-  const checkConnection = async () => {
-    setApiStatus((prev) => ({ ...prev, state: 'loading' }))
+  const performCheck = useCallback(async () => {
     try {
       const data = await apiClient.checkStatus()
       setApiStatus({
@@ -28,14 +35,44 @@ function App() {
         lastChecked: new Date().toLocaleTimeString(),
       })
     }
+  }, [])
+
+  const handleManualPing = () => {
+    setApiStatus((prev) => ({ ...prev, state: 'loading' }))
+    performCheck()
   }
 
   useEffect(() => {
-    checkConnection()
+    let ignore = false
+    apiClient.checkStatus()
+      .then((data) => {
+        if (!ignore) {
+          setApiStatus({
+            state: 'online',
+            data,
+            error: null,
+            lastChecked: new Date().toLocaleTimeString(),
+          })
+        }
+      })
+      .catch((err) => {
+        if (!ignore) {
+          setApiStatus({
+            state: 'offline',
+            data: null,
+            error: err.message || 'Could not connect to API server',
+            lastChecked: new Date().toLocaleTimeString(),
+          })
+        }
+      })
+
+    return () => {
+      ignore = true
+    }
   }, [])
 
   const modules = [
-    { title: 'Identity & Access (RBAC)', count: '3 Tables', desc: 'users, roles, role_user (5 system roles ready)', icon: '🛡️' },
+    { title: 'Identity & Access (RBAC)', count: '3 Tables', desc: 'users, roles, role_user (5 system roles live)', icon: '🛡️' },
     { title: 'Profiles & Staff', count: '3 Tables', desc: 'member_profiles, trainer_profiles, assignments', icon: '👤' },
     { title: 'Membership & Plans', count: '2 Tables', desc: 'membership_plans, subscriptions (lifecycle ready)', icon: '💳' },
     { title: 'Finances & Chapa', count: '3 Tables', desc: 'payments, payment_transactions, expenses (ETB)', icon: '📊' },
@@ -45,9 +82,21 @@ function App() {
     { title: 'Inventory & Auditing', count: '3 Tables', desc: 'equipment, notifications, audit_logs', icon: '⚙️' },
   ]
 
+  if (isLoading) {
+    return (
+      <div className="gymcore-container" style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="brand-icon" style={{ margin: '0 auto 16px auto' }}>TG</div>
+          <h3>Initializing GymCore Security Session...</h3>
+          <span className="spinner" style={{ width: 24, height: 24, marginTop: 12 }}></span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="gymcore-container">
-      {/* Top Banner */}
+      {/* Top Banner & User Profile */}
       <header className="header-glass">
         <div className="brand-group">
           <div className="brand-icon">TG</div>
@@ -56,104 +105,166 @@ function App() {
             <span className="brand-subtitle">TIGAT GYM • Enterprise Management System</span>
           </div>
         </div>
+
         <div className="header-actions">
-          <span className="badge scope-badge">Version 1 — Single-Gym Mode</span>
           <div className={`status-pill ${apiStatus.state}`}>
             <span className="status-dot"></span>
             {apiStatus.state === 'loading' && 'Testing Connection...'}
             {apiStatus.state === 'online' && `Backend Online (${apiStatus.data?.brand || 'Connected'})`}
             {apiStatus.state === 'offline' && 'Backend Offline'}
           </div>
-          <button className="btn-ping" onClick={checkConnection} title="Refresh connection test">
-            ↻ Test API
+
+          {isAuthenticated ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div className="user-profile-header-pill">
+                <div className="header-user-avatar">
+                  {user?.name?.charAt(0).toUpperCase()}
+                </div>
+                <div className="header-user-details">
+                  <span className="header-user-name">{user?.name}</span>
+                  <span className="header-user-role">{primaryRole}</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setIsPasswordModalOpen(true)}
+                title="Change Password"
+              >
+                🔑 Password
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-danger btn-sm"
+                onClick={logout}
+                title="Sign out of GymCore"
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <span className="badge">Guest Mode (Sign In Required)</span>
+          )}
+
+          <button className="btn-ping" onClick={handleManualPing} title="Refresh connection test">
+            ↻
           </button>
         </div>
       </header>
 
-      {/* Hero Overview */}
+      {/* Navigation Bar when authenticated */}
+      {isAuthenticated && (
+        <nav style={{ display: 'flex', gap: 10, margin: '8px 0' }}>
+          <button
+            type="button"
+            className={`tab-btn ${activeView === 'workspace' ? 'active' : ''}`}
+            onClick={() => setActiveView('workspace')}
+          >
+            🏢 {primaryRole.toUpperCase()} Workspace
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${activeView === 'architecture' ? 'active' : ''}`}
+            onClick={() => setActiveView('architecture')}
+          >
+            📐 System Architecture & Modules
+          </button>
+        </nav>
+      )}
+
+      {/* Main Content Area */}
       <main className="main-content">
-        <section className="hero-banner">
-          <div className="hero-text">
-            <h2>Foundation & Database Architecture Ready</h2>
-            <p>
-              Environment and database foundation configured for <strong>TIGAT GYM</strong>.
-              All 23 core domain tables, foreign key constraints, indexes, and Laravel Sanctum API security are initialized and verified.
-            </p>
-          </div>
-          <div className="env-meta-card">
-            <div className="meta-row">
-              <span className="meta-label">Gym Brand:</span>
-              <span className="meta-val">TIGAT GYM</span>
-            </div>
-            <div className="meta-row">
-              <span className="meta-label">API Base URL:</span>
-              <code className="meta-val">{import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'}</code>
-            </div>
-            <div className="meta-row">
-              <span className="meta-label">MySQL Database:</span>
-              <span className="meta-val highlight">TigatGym (32 Tables Ready)</span>
-            </div>
-            <div className="meta-row">
-              <span className="meta-label">Auth Engine:</span>
-              <span className="meta-val">Laravel Sanctum + RBAC</span>
-            </div>
-            {apiStatus.lastChecked && (
-              <div className="meta-row timestamp-row">
-                <span className="meta-label">Last Ping:</span>
-                <span className="meta-val">{apiStatus.lastChecked}</span>
-              </div>
-            )}
-          </div>
-        </section>
+        {!isAuthenticated ? (
+          <div>
+            <LoginForm />
 
-        {/* Database Modules Grid */}
-        <section className="modules-section">
-          <div className="section-header">
-            <h3>Version 1 Architectural Schema Matrix</h3>
-            <span className="badge">23 Application Tables + 8 Framework Tables</span>
-          </div>
-          <div className="modules-grid">
-            {modules.map((m, idx) => (
-              <div key={idx} className="module-card">
-                <div className="module-card-header">
-                  <span className="module-icon">{m.icon}</span>
-                  <span className="module-count">{m.count}</span>
-                </div>
-                <h4>{m.title}</h4>
-                <p>{m.desc}</p>
-                <div className="module-footer">
-                  <span className="tag-status">InnoDB • Migrated</span>
-                </div>
+            {/* Architecture Overview for Guests */}
+            <section className="modules-section" style={{ marginTop: 32 }}>
+              <div className="section-header">
+                <h3>Version 1 Architectural Schema Matrix</h3>
+                <span className="badge">23 Application Tables + 8 Framework Tables</span>
               </div>
-            ))}
+              <div className="modules-grid">
+                {modules.map((m, idx) => (
+                  <div key={idx} className="module-card">
+                    <div className="module-card-header">
+                      <span className="module-icon">{m.icon}</span>
+                      <span className="module-count">{m.count}</span>
+                    </div>
+                    <h4>{m.title}</h4>
+                    <p>{m.desc}</p>
+                    <div className="module-footer">
+                      <span className="tag-status">InnoDB • Migrated</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
           </div>
-        </section>
+        ) : activeView === 'workspace' ? (
+          <RoleDashboard />
+        ) : (
+          <section className="modules-section">
+            <div className="section-header">
+              <h3>Version 1 Architectural Schema Matrix</h3>
+              <span className="badge">23 Application Tables + 8 Framework Tables</span>
+            </div>
+            <div className="modules-grid">
+              {modules.map((m, idx) => (
+                <div key={idx} className="module-card">
+                  <div className="module-card-header">
+                    <span className="module-icon">{m.icon}</span>
+                    <span className="module-count">{m.count}</span>
+                  </div>
+                  <h4>{m.title}</h4>
+                  <p>{m.desc}</p>
+                  <div className="module-footer">
+                    <span className="tag-status">InnoDB • Migrated</span>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-        {/* Security & Multi-Branch Roadmap Notice */}
-        <section className="info-cards">
-          <div className="info-card v2-card">
-            <h4>🏢 Future Version 2 Multi-Branch Migration Strategy</h4>
-            <p>
-              Version 1 strictly manages single-location operations for TIGAT GYM without unnecessary multi-tenant complexity.
-              The database schema is cleanly normalized with integer foreign keys, enabling an isolated transition to multi-branch operations in Version 2
-              via a dedicated migration creating a <code>branches</code> table and safely backfilling existing records with Branch #1.
-            </p>
-          </div>
-          <div className="info-card security-card">
-            <h4>🔐 Financial & Security Enforcement</h4>
-            <p>
-              Auditable financial ledger with decimal arithmetic, Ethiopian Birr (ETB) default currency, Chapa webhook idempotency protection,
-              and strict server-side validation. Deletion rules protect financial records (<code>restrictOnDelete</code>).
-            </p>
-          </div>
-        </section>
+            <section className="info-cards" style={{ marginTop: 24 }}>
+              <div className="info-card v2-card">
+                <h4>🏢 Single-Gym Scope & Future Version 2 Strategy</h4>
+                <p>
+                  Version 1 strictly manages single-location operations for TIGAT GYM without unnecessary multi-tenant complexity.
+                  The schema uses strictly normalized integer foreign keys, enabling an isolated transition in Version 2
+                  via a dedicated migration creating a <code>branches</code> table.
+                </p>
+              </div>
+              <div className="info-card security-card">
+                <h4>🔐 Sanctum API Security & Role-Based Authorization</h4>
+                <p>
+                  Protected by Laravel Sanctum personal access tokens, rate-limited login endpoints, generic invalid-credential responses,
+                  inactive/suspended session invalidation, and owner-exclusive audit logging.
+                </p>
+              </div>
+            </section>
+          </section>
+        )}
       </main>
 
+      {/* Password Change Modal */}
+      <ChangePasswordModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+      />
+
       <footer className="footer-glass">
-        <span>GymCore v1.0.0 • Built for TIGAT GYM • Powered by Laravel & React + Vite</span>
+        <span>GymCore v1.0.0 • Built for TIGAT GYM • Powered by Laravel 13 & React 19 + Vite</span>
       </footer>
     </div>
   )
 }
 
-export default App
+export default function App() {
+  return (
+    <AuthProvider>
+      <GymCoreApp />
+    </AuthProvider>
+  )
+}
