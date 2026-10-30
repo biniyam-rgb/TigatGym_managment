@@ -1252,8 +1252,9 @@ body {
 }
 
 .sidebar-brand {
-  padding: 16px 14px 18px 14px;
-  display: block;
+  padding: 12px 14px 12px 14px;
+  display: flex;
+  justify-content: center;
   border-bottom: 1px solid var(--gym-card-border);
 }
 
@@ -1330,6 +1331,26 @@ body {
   background: rgba(255, 138, 0, 0.12);
   color: #ff8a00;
   box-shadow: inset 0 0 0 1px rgba(255, 138, 0, 0.25);
+}
+
+.nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: inherit;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.nav-item-btn:hover .nav-icon {
+  transform: scale(1.08);
+}
+
+.nav-item-btn.active .nav-icon {
+  color: #ff8a00;
+  filter: drop-shadow(0 0 6px rgba(255, 138, 0, 0.5));
 }
 
 .active-glow-pill {
@@ -1440,14 +1461,18 @@ body {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px;
-  font-size: 13px;
+  padding: 6px;
   border-radius: 6px;
-  transition: background 0.2s;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
 }
 
 .btn-user-action:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 138, 0, 0.15);
+  color: #ff8a00;
 }
 
 /* Main Content Wrapper */
@@ -1663,22 +1688,24 @@ body {
    Transforms raw logo into an illuminated luxury sports crest
    ========================================================================== */
 
-/* 1. Sidebar Brand Emblem Card */
+/* 1. Sidebar Brand Emblem Card (Compact, Refined Luxury) */
 .brand-emblem-sidebar {
   position: relative;
   overflow: hidden;
-  border-radius: 14px;
-  padding: 14px 10px 10px 10px;
-  background: linear-gradient(180deg, rgba(19, 24, 34, 0.92) 0%, rgba(9, 11, 16, 0.98) 100%);
-  border: 1px solid rgba(255, 138, 0, 0.26);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), 0 0 16px rgba(255, 138, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 12px;
+  padding: 8px 10px 6px 10px;
+  max-width: 175px;
+  margin: 0 auto;
+  background: linear-gradient(180deg, rgba(18, 22, 31, 0.94) 0%, rgba(9, 11, 16, 0.98) 100%);
+  border: 1px solid rgba(255, 138, 0, 0.24);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), 0 0 12px rgba(255, 138, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   text-align: center;
 }
 
 .brand-emblem-sidebar:hover {
-  border-color: rgba(255, 138, 0, 0.55);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.75), 0 0 24px rgba(255, 138, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 138, 0, 0.45);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 18px rgba(255, 138, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.15);
   transform: translateY(-1px);
 }
 
@@ -1687,10 +1714,10 @@ body {
   top: 36%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 150px;
-  height: 90px;
-  background: radial-gradient(ellipse at center, rgba(255, 138, 0, 0.36) 0%, rgba(255, 138, 0, 0.1) 50%, transparent 75%);
-  filter: blur(14px);
+  width: 90px;
+  height: 50px;
+  background: radial-gradient(ellipse at center, rgba(255, 138, 0, 0.32) 0%, rgba(255, 138, 0, 0.06) 55%, transparent 75%);
+  filter: blur(10px);
   pointer-events: none;
   z-index: 0;
 }
@@ -1707,67 +1734,56 @@ body {
   display: block;
   height: auto;
   mix-blend-mode: screen;
-  filter: drop-shadow(0 0 12px rgba(255, 138, 0, 0.55)) drop-shadow(0 4px 10px rgba(0, 0, 0, 0.8));
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s ease;
+  filter: drop-shadow(0 0 10px rgba(255, 138, 0, 0.5)) drop-shadow(0 3px 6px rgba(0, 0, 0, 0.8));
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), filter 0.25s ease;
 }
 
 .brand-emblem-sidebar:hover .brand-logo-img-stylish {
-  transform: scale(1.03);
-  filter: drop-shadow(0 0 18px rgba(255, 138, 0, 0.8)) drop-shadow(0 6px 14px rgba(0, 0, 0, 0.9));
+  transform: scale(1.02);
+  filter: drop-shadow(0 0 14px rgba(255, 138, 0, 0.7)) drop-shadow(0 4px 10px rgba(0, 0, 0, 0.85));
 }
 
 .brand-meta-badge {
   position: relative;
   z-index: 1;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .brand-metallic-divider {
   height: 1px;
   width: 100%;
-  margin: 6px 0 8px 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(255, 138, 0, 0.3) 20%, rgba(255, 215, 130, 0.8) 50%, rgba(255, 138, 0, 0.3) 80%, transparent 100%);
-}
-
-.brand-meta-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-bottom: 3px;
+  margin: 5px 0 5px 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 138, 0, 0.3) 25%, rgba(255, 215, 130, 0.7) 50%, rgba(255, 138, 0, 0.3) 75%, transparent 100%);
 }
 
 .brand-status-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: #10b981;
-  box-shadow: 0 0 8px #10b981, 0 0 14px rgba(16, 185, 129, 0.7);
+  box-shadow: 0 0 6px #10b981, 0 0 10px rgba(16, 185, 129, 0.6);
   animation: pulseDot 2.2s infinite ease-in-out;
 }
 
-.brand-tagline {
-  font-size: 11px;
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: 0.05em;
-}
-
 .brand-edition-chip {
-  font-size: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 8.5px;
   font-weight: 700;
   color: #ff8a00;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
-/* 2. Login Screen Showcase Emblem */
+/* 2. Login Screen Showcase Emblem (Refined & Compact) */
 .brand-emblem-login {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .brand-aura-ring {
@@ -1775,11 +1791,11 @@ body {
   top: 40%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 240px;
-  height: 160px;
+  width: 140px;
+  height: 90px;
   border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgba(255, 138, 0, 0.32) 0%, rgba(255, 138, 0, 0.08) 55%, transparent 75%);
-  filter: blur(18px);
+  background: radial-gradient(ellipse at center, rgba(255, 138, 0, 0.28) 0%, rgba(255, 138, 0, 0.05) 55%, transparent 75%);
+  filter: blur(14px);
   z-index: 0;
   pointer-events: none;
   animation: pulseAura 4s ease-in-out infinite;
@@ -1788,48 +1804,39 @@ body {
 .brand-login-podium {
   position: relative;
   z-index: 1;
-  padding: 16px 28px 12px 28px;
-  border-radius: 20px;
-  background: linear-gradient(180deg, rgba(21, 26, 38, 0.88) 0%, rgba(9, 12, 18, 0.96) 100%);
-  border: 1px solid rgba(255, 138, 0, 0.38);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), 0 0 28px rgba(255, 138, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  padding: 10px 20px 8px 20px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(20, 25, 36, 0.9) 0%, rgba(9, 12, 17, 0.98) 100%);
+  border: 1px solid rgba(255, 138, 0, 0.32);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7), 0 0 20px rgba(255, 138, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.14);
   backdrop-filter: blur(12px);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .brand-login-podium:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.85), 0 0 36px rgba(255, 138, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.8), 0 0 26px rgba(255, 138, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .brand-login-typography {
   position: relative;
   z-index: 1;
   text-align: center;
-  margin-top: 14px;
-}
-
-.brand-sub-amharic {
-  font-size: 13px;
-  font-weight: 600;
-  color: #ff8a00;
-  letter-spacing: 0.06em;
-  margin-bottom: 6px;
-  text-shadow: 0 0 10px rgba(255, 138, 0, 0.4);
+  margin-top: 10px;
 }
 
 .brand-badge-pill {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 4px 14px;
-  border-radius: 16px;
-  background: rgba(255, 138, 0, 0.1);
-  border: 1px solid rgba(255, 138, 0, 0.3);
+  gap: 6px;
+  padding: 3px 12px;
+  border-radius: 14px;
+  background: rgba(255, 138, 0, 0.08);
+  border: 1px solid rgba(255, 138, 0, 0.24);
   color: #cbd5e1;
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
 }
 
 /* 3. Pass VIP Holographic Seal */
