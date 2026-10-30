@@ -3,7 +3,9 @@
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MemberController;
+use App\Http\Controllers\Api\MembershipPlanController;
 use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -49,6 +51,14 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Module A: Member Management & Profiles
     Route::apiResource('members', MemberController::class);
     Route::post('/members/{member}/regenerate-qr', [MemberController::class, 'regenerateQr']);
+
+    // Module C: Membership Plans & Subscriptions
+    Route::apiResource('membership-plans', MembershipPlanController::class);
+    Route::apiResource('subscriptions', SubscriptionController::class);
+    Route::post('/subscriptions/{subscription}/renew', [SubscriptionController::class, 'renew']);
+    Route::post('/subscriptions/{subscription}/freeze', [SubscriptionController::class, 'freeze']);
+    Route::post('/subscriptions/{subscription}/unfreeze', [SubscriptionController::class, 'unfreeze']);
+    Route::post('/subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel']);
 
     // Roles directory
     Route::get('/roles', [RoleController::class, 'index'])->middleware('role:owner,admin,receptionist');
