@@ -1252,10 +1252,8 @@ body {
 }
 
 .sidebar-brand {
-  padding: 24px 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  padding: 16px 14px 18px 14px;
+  display: block;
   border-bottom: 1px solid var(--gym-card-border);
 }
 
@@ -1658,4 +1656,233 @@ body {
   color: #64748b;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   padding-top: 10px;
+}
+
+/* ==========================================================================
+   TIGAT GYM • Master Luxury Brand Emblem Styling
+   Transforms raw logo into an illuminated luxury sports crest
+   ========================================================================== */
+
+/* 1. Sidebar Brand Emblem Card */
+.brand-emblem-sidebar {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  padding: 14px 10px 10px 10px;
+  background: linear-gradient(180deg, rgba(19, 24, 34, 0.92) 0%, rgba(9, 11, 16, 0.98) 100%);
+  border: 1px solid rgba(255, 138, 0, 0.26);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), 0 0 16px rgba(255, 138, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: center;
+}
+
+.brand-emblem-sidebar:hover {
+  border-color: rgba(255, 138, 0, 0.55);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.75), 0 0 24px rgba(255, 138, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.brand-ambient-glow {
+  position: absolute;
+  top: 36%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 150px;
+  height: 90px;
+  background: radial-gradient(ellipse at center, rgba(255, 138, 0, 0.36) 0%, rgba(255, 138, 0, 0.1) 50%, transparent 75%);
+  filter: blur(14px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.brand-logo-frame {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.brand-logo-img-stylish {
+  display: block;
+  height: auto;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 12px rgba(255, 138, 0, 0.55)) drop-shadow(0 4px 10px rgba(0, 0, 0, 0.8));
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s ease;
+}
+
+.brand-emblem-sidebar:hover .brand-logo-img-stylish {
+  transform: scale(1.03);
+  filter: drop-shadow(0 0 18px rgba(255, 138, 0, 0.8)) drop-shadow(0 6px 14px rgba(0, 0, 0, 0.9));
+}
+
+.brand-meta-badge {
+  position: relative;
+  z-index: 1;
+  margin-top: 4px;
+}
+
+.brand-metallic-divider {
+  height: 1px;
+  width: 100%;
+  margin: 6px 0 8px 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 138, 0, 0.3) 20%, rgba(255, 215, 130, 0.8) 50%, rgba(255, 138, 0, 0.3) 80%, transparent 100%);
+}
+
+.brand-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+.brand-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981, 0 0 14px rgba(16, 185, 129, 0.7);
+  animation: pulseDot 2.2s infinite ease-in-out;
+}
+
+.brand-tagline {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.05em;
+}
+
+.brand-edition-chip {
+  font-size: 9px;
+  font-weight: 700;
+  color: #ff8a00;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* 2. Login Screen Showcase Emblem */
+.brand-emblem-login {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.brand-aura-ring {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 240px;
+  height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(255, 138, 0, 0.32) 0%, rgba(255, 138, 0, 0.08) 55%, transparent 75%);
+  filter: blur(18px);
+  z-index: 0;
+  pointer-events: none;
+  animation: pulseAura 4s ease-in-out infinite;
+}
+
+.brand-login-podium {
+  position: relative;
+  z-index: 1;
+  padding: 16px 28px 12px 28px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(21, 26, 38, 0.88) 0%, rgba(9, 12, 18, 0.96) 100%);
+  border: 1px solid rgba(255, 138, 0, 0.38);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), 0 0 28px rgba(255, 138, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(12px);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.brand-login-podium:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.85), 0 0 36px rgba(255, 138, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.brand-login-typography {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  margin-top: 14px;
+}
+
+.brand-sub-amharic {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ff8a00;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+  text-shadow: 0 0 10px rgba(255, 138, 0, 0.4);
+}
+
+.brand-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 14px;
+  border-radius: 16px;
+  background: rgba(255, 138, 0, 0.1);
+  border: 1px solid rgba(255, 138, 0, 0.3);
+  color: #cbd5e1;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+/* 3. Pass VIP Holographic Seal */
+.brand-emblem-pass {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(255, 138, 0, 0.22), rgba(15, 18, 26, 0.92));
+  border: 1px solid rgba(255, 138, 0, 0.45);
+  box-shadow: 0 4px 14px rgba(255, 138, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.brand-pass-podium {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Pulse animation for aura */
+@keyframes pulseAura {
+  0%, 100% {
+    opacity: 0.7;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+}
+
+/* Legacy class fallbacks */
+.sidebar-brand-img {
+  width: 100%;
+  max-width: 180px;
+  height: auto;
+  display: block;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 14px rgba(255, 138, 0, 0.45));
+}
+
+.login-brand-logo {
+  width: 150px;
+  height: auto;
+  display: block;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 18px rgba(255, 138, 0, 0.5));
+}
+
+.pass-logo-img {
+  width: 50px;
+  height: auto;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 8px rgba(255, 138, 0, 0.6));
 }

@@ -8,7 +8,9 @@ import MemberDirectory from './components/MemberDirectory';
 import RoleDashboard from './components/RoleDashboard';
 import UserManagement from './components/UserManagement';
 import AuditLogViewer from './components/AuditLogViewer';
+import SubscriptionManagement from './components/SubscriptionManagement';
 import ChangePasswordModal from './components/ChangePasswordModal';
+import BrandLogo from './components/BrandLogo';
 import './App.css';
 
 function GymCoreApp() {
@@ -20,8 +22,8 @@ function GymCoreApp() {
     return (
       <div className="gymcore-container" style={{ justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
         <div style={{ textAlign: 'center' }}>
-          <div className="brand-logo-glow" style={{ margin: '0 auto 16px auto', width: 52, height: 52, fontSize: 22 }}>
-            TG
+          <div style={{ marginBottom: 16 }}>
+            <BrandLogo variant="login" size={120} showSubtext={false} />
           </div>
           <h3 style={{ color: '#fff' }}>Connecting to GymCore Security Engine...</h3>
           <span className="spinner" style={{ width: 28, height: 28, marginTop: 12 }}></span>
@@ -74,12 +76,13 @@ function GymCoreApp() {
 
         <main className="gymcore-content-body">
           {activeView === 'members' && <MemberDirectory />}
+          {activeView === 'memberships' && <SubscriptionManagement />}
           {activeView === 'dashboard' && <RoleDashboard />}
           {activeView === 'users' && <UserManagement />}
           {activeView === 'audit' && <AuditLogViewer />}
 
           {/* Roadmap placeholder for subsequent modules */}
-          {!['members', 'dashboard', 'users', 'audit'].includes(activeView) && (
+          {!['members', 'memberships', 'dashboard', 'users', 'audit'].includes(activeView) && (
             <div className="dashboard-card" style={{ padding: 40, textAlign: 'center' }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>🚀</div>
               <h3 style={{ color: '#fff', marginBottom: 8 }}>{currentMeta.title}</h3>

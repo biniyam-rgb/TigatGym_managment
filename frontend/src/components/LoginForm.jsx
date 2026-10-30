@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/useAuth';
+import BrandLogo from './BrandLogo';
 
 export default function LoginForm({ onSuccess }) {
   const { login } = useAuth();
@@ -43,9 +44,9 @@ export default function LoginForm({ onSuccess }) {
     <div className="login-card-container">
       <div className="login-card">
         <div className="login-header">
-          <div className="login-brand-icon">TG</div>
-          <h2>GymCore Sign In</h2>
-          <p>Access your TIGAT GYM management portal</p>
+          <BrandLogo variant="login" />
+          <h2 style={{ marginTop: 4 }}>GymCore Sign In</h2>
+          <p>TIGAT GYM Management Portal</p>
         </div>
 
         {errorMessage && (

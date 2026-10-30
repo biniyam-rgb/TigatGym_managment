@@ -1,4 +1,5 @@
 import { useAuth } from '../context/useAuth';
+import BrandLogo from './BrandLogo';
 
 export default function Sidebar({ activeView, onViewChange, onOpenPasswordModal }) {
   const { user, primaryRole, hasRole, logout } = useAuth();
@@ -26,13 +27,9 @@ export default function Sidebar({ activeView, onViewChange, onOpenPasswordModal 
 
   return (
     <aside className="gymcore-sidebar">
-      {/* Brand Header */}
+      {/* Brand Header with Luxury TIGAT GYM Emblem */}
       <div className="sidebar-brand">
-        <div className="brand-logo-glow">TG</div>
-        <div className="brand-text-block">
-          <h1 className="brand-name">TIGAT GYM</h1>
-          <span className="brand-tagline">GymCore System</span>
-        </div>
+        <BrandLogo variant="sidebar" />
       </div>
 
       {/* Navigation Links */}
