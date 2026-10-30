@@ -45,8 +45,7 @@ export default function LoginForm({ onSuccess }) {
       <div className="login-card">
         <div className="login-header">
           <BrandLogo variant="login" />
-          <h2 style={{ marginTop: 4 }}>GymCore Sign In</h2>
-          <p>TIGAT GYM Management Portal</p>
+          <h2 style={{ marginTop: 6, fontSize: 20 }}>Sign In</h2>
         </div>
 
         {errorMessage && (

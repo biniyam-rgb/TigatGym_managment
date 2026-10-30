@@ -4,7 +4,7 @@ export default function BrandLogo({
   showSubtext = true,
   className = '',
 }) {
-  // 1. Sidebar Brand Emblem Card
+  // 1. Sidebar Brand Emblem Card (Refined, Compact & Luxury)
   if (variant === 'sidebar') {
     return (
       <div className={`brand-emblem-sidebar ${className}`}>
@@ -17,19 +17,16 @@ export default function BrandLogo({
             src="/tigat-logo.png"
             alt="TIGAT GYM • ትጋት ጂም"
             className="brand-logo-img-stylish"
-            style={{ width: size || '100%', maxWidth: size || 185 }}
+            style={{ width: size || 105, maxWidth: '100%', height: 'auto' }}
           />
         </div>
 
         {showSubtext && (
           <div className="brand-meta-badge">
             <div className="brand-metallic-divider" />
-            <div className="brand-meta-row">
-              <span className="brand-status-dot" />
-              <span className="brand-tagline">TIGAT GYM • ትጋት ጂም</span>
-            </div>
             <div className="brand-edition-chip">
-              CORE SUITE • ADDIS ABABA
+              <span className="brand-status-dot" />
+              <span>CORE SUITE • ADDIS ABABA</span>
             </div>
           </div>
         )}
@@ -37,30 +34,28 @@ export default function BrandLogo({
     );
   }
 
-  // 2. Sign-In / Login Screen Showcase Emblem
+  // 2. Sign-In / Login Screen Showcase Emblem (Balanced & Compact)
   if (variant === 'login') {
     return (
       <div className={`brand-emblem-login ${className}`}>
-        {/* Pulsing Concentric Aura Ring */}
+        {/* Soft Radial Ambient Aura Ring */}
         <div className="brand-aura-ring" />
-        <div className="brand-aura-core" />
 
-        {/* Framed Glass Podium */}
+        {/* Compact Framed Glass Podium */}
         <div className="brand-login-podium">
           <img
             src="/tigat-logo.png"
             alt="TIGAT GYM"
-            className="brand-logo-img-stylish brand-logo-large"
-            style={{ width: size || 165 }}
+            className="brand-logo-img-stylish"
+            style={{ width: size || 110, maxWidth: '100%', height: 'auto' }}
           />
         </div>
 
         {showSubtext && (
           <div className="brand-login-typography">
-            <div className="brand-sub-amharic">ትጋት ጂም • ATHLETIC CLUB</div>
             <div className="brand-badge-pill">
               <span className="brand-status-dot" />
-              <span>GYM MANAGEMENT SYSTEM • V1.0</span>
+              <span>GYMCORE • MANAGEMENT PORTAL</span>
             </div>
           </div>
         )}
@@ -68,7 +63,7 @@ export default function BrandLogo({
     );
   }
 
-  // 3. Digital Pass Holographic Seal
+  // 3. Digital Pass Holographic Seal (Compact Crest)
   if (variant === 'pass') {
     return (
       <div className={`brand-emblem-pass ${className}`}>
@@ -77,7 +72,7 @@ export default function BrandLogo({
             src="/tigat-logo.png"
             alt="TIGAT GYM"
             className="brand-logo-img-stylish brand-logo-pass"
-            style={{ width: size || 54 }}
+            style={{ width: size || 38, height: 'auto' }}
           />
         </div>
       </div>
@@ -91,14 +86,14 @@ export default function BrandLogo({
         src="/tigat-logo.png"
         alt="TIGAT GYM"
         className="brand-logo-img-stylish"
-        style={{ width: size || 38, height: 'auto' }}
+        style={{ width: size || 32, height: 'auto' }}
       />
       {showSubtext && (
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '0.05em' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', letterSpacing: '0.04em' }}>
             TIGAT GYM
           </span>
-          <span style={{ fontSize: 10, color: '#ff8a00', fontWeight: 600 }}>
+          <span style={{ fontSize: 9, color: '#ff8a00', fontWeight: 600 }}>
             ትጋት ጂም
           </span>
         </div>
