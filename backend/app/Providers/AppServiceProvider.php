@@ -18,6 +18,9 @@ class AppServiceProvider extends ServiceProvider
     {
         \Illuminate\Support\Facades\Gate::policy(\App\Models\User::class, \App\Policies\UserPolicy::class);
         \Illuminate\Support\Facades\Gate::policy(\App\Models\AuditLog::class, \App\Policies\AuditLogPolicy::class);
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\MemberProfile::class, \App\Policies\MemberPolicy::class);
+
+        \Illuminate\Support\Facades\Route::model('member', \App\Models\MemberProfile::class);
 
         \Illuminate\Support\Facades\RateLimiter::for('login', function (\Illuminate\Http\Request $request) {
             $email = (string) $request->input('email');

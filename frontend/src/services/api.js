@@ -162,6 +162,39 @@ export const apiClient = {
     return this.delete(`/users/${userId}/roles/${role}`);
   },
 
+  // Member management endpoints (Module A)
+  getMembers(params = {}) {
+    const query = new URLSearchParams();
+    if (params.search) query.append('search', params.search);
+    if (params.status) query.append('status', params.status);
+    if (params.gender) query.append('gender', params.gender);
+    if (params.page) query.append('page', params.page);
+    if (params.per_page) query.append('per_page', params.per_page);
+
+    const queryString = query.toString();
+    return this.get(`/members${queryString ? `?${queryString}` : ''}`);
+  },
+
+  getMember(id) {
+    return this.get(`/members/${id}`);
+  },
+
+  createMember(payload) {
+    return this.post('/members', payload);
+  },
+
+  updateMember(id, payload) {
+    return this.put(`/members/${id}`, payload);
+  },
+
+  deleteMember(id) {
+    return this.delete(`/members/${id}`);
+  },
+
+  regenerateMemberQr(id) {
+    return this.post(`/members/${id}/regenerate-qr`);
+  },
+
   // Audit Logs (Owner only)
   getAuditLogs(params = {}) {
     const query = new URLSearchParams();

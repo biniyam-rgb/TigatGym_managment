@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\DB;
@@ -44,6 +45,10 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
     });
+
+    // Module A: Member Management & Profiles
+    Route::apiResource('members', MemberController::class);
+    Route::post('/members/{member}/regenerate-qr', [MemberController::class, 'regenerateQr']);
 
     // Roles directory
     Route::get('/roles', [RoleController::class, 'index'])->middleware('role:owner,admin,receptionist');

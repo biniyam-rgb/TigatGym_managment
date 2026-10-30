@@ -1199,3 +1199,463 @@ body {
   text-transform: uppercase;
   font-weight: 700;
 }
+
+/* ==========================================================================
+   Dark Luxury UI Shell & Member Management Styles (Matching Reference)
+   ========================================================================== */
+
+:root {
+  --gym-dark-bg: #07090e;
+  --gym-sidebar-bg: #0d1118;
+  --gym-card-bg: #141822;
+  --gym-card-border: rgba(255, 255, 255, 0.07);
+  --gym-primary: #ff8a00;
+  --gym-primary-hover: #ff7300;
+  --gym-primary-glow: rgba(255, 138, 0, 0.25);
+  --gym-text-main: #f5f5f5;
+  --gym-text-muted: #8e9bb0;
+  --gym-success: #10b981;
+  --gym-danger: #ef4444;
+}
+
+body {
+  background-color: var(--gym-dark-bg);
+  background-image: radial-gradient(circle at 10% 20%, rgba(255, 138, 0, 0.03) 0%, transparent 40%),
+                    radial-gradient(circle at 90% 80%, rgba(30, 41, 59, 0.2) 0%, transparent 50%);
+  color: var(--gym-text-main);
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+  overflow-x: hidden;
+}
+
+/* App Layout Grid */
+.gymcore-app-shell {
+  display: flex;
+  min-height: 100vh;
+  width: 100vw;
+  background-color: var(--gym-dark-bg);
+}
+
+/* Sidebar */
+.gymcore-sidebar {
+  width: 250px;
+  background-color: var(--gym-sidebar-bg);
+  border-right: 1px solid var(--gym-card-border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 100;
+  overflow-y: auto;
+}
+
+.sidebar-brand {
+  padding: 24px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--gym-card-border);
+}
+
+.brand-logo-glow {
+  width: 42px;
+  height: 42px;
+  background: linear-gradient(135deg, #ff8a00, #ea580c);
+  color: #fff;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 18px;
+  box-shadow: 0 4px 18px rgba(255, 138, 0, 0.4);
+  letter-spacing: 0.5px;
+}
+
+.brand-name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #fff;
+}
+
+.brand-tagline {
+  font-size: 11px;
+  color: var(--gym-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sidebar-nav {
+  padding: 16px 12px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-group-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 1px;
+  padding: 8px 12px 4px 12px;
+}
+
+.nav-item-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: transparent;
+  border: none;
+  color: var(--gym-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  text-align: left;
+  width: 100%;
+}
+
+.nav-item-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+}
+
+.nav-item-btn.active {
+  background: rgba(255, 138, 0, 0.12);
+  color: #ff8a00;
+  box-shadow: inset 0 0 0 1px rgba(255, 138, 0, 0.25);
+}
+
+.active-glow-pill {
+  position: absolute;
+  right: 10px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff8a00;
+  box-shadow: 0 0 8px #ff8a00;
+}
+
+.sidebar-footer {
+  padding: 16px 12px;
+  border-top: 1px solid var(--gym-card-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.live-status-card {
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.status-indicator-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  display: inline-block;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+.status-live-text {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.sidebar-user-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  border: 1px solid var(--gym-card-border);
+}
+
+.user-avatar-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.user-details-text {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.user-display-name {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-role-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 700;
+  display: inline-block;
+  margin-top: 2px;
+}
+
+.user-actions-quick {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-user-action {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 13px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.btn-user-action:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Main Content Wrapper */
+.gymcore-main-wrapper {
+  margin-left: 250px;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Top Header */
+.gymcore-header {
+  padding: 20px 32px;
+  background: rgba(13, 17, 24, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--gym-card-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 90;
+}
+
+.view-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.view-subtitle {
+  margin: 4px 0 0 0;
+  font-size: 12px;
+  color: var(--gym-text-muted);
+}
+
+.header-right-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.badge-scope {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--gym-card-border);
+  color: var(--gym-text-muted);
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 20px;
+}
+
+.btn-header-refresh {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--gym-card-border);
+  color: var(--gym-text-main);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-header-refresh:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.gymcore-content-body {
+  padding: 32px;
+  flex: 1;
+}
+
+/* Member Directory Specific Styles */
+.badge-member-code {
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(255, 138, 0, 0.15);
+  color: #ff8a00;
+  border: 1px solid rgba(255, 138, 0, 0.3);
+  padding: 4px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+}
+
+.badge-active-plan {
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+
+.form-section-title {
+  margin: 16px 0 12px 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  color: #ff8a00;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 6px;
+}
+
+.label-with-hint {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+/* Digital Gym Card */
+.digital-card-container {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+}
+
+.gym-pass-card {
+  width: 100%;
+  max-width: 360px;
+  background: linear-gradient(145deg, #121722, #080b11);
+  border: 1px solid rgba(255, 138, 0, 0.4);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7), 0 0 24px rgba(255, 138, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pass-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 14px;
+}
+
+.brand-icon-sm {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #ff8a00, #ea580c);
+  color: #fff;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.brand-title-sm {
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+.brand-subtitle-xs {
+  font-size: 9px;
+  color: #ff8a00;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.pass-qr-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.pass-details-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.pass-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.pass-label {
+  color: var(--gym-text-muted);
+}
+
+.pass-val {
+  font-weight: 600;
+}
+
+.pass-footer {
+  text-align: center;
+  font-size: 10px;
+  color: #64748b;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 10px;
+}
