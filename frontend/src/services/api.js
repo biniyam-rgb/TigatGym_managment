@@ -205,6 +205,70 @@ export const apiClient = {
     const queryString = query.toString();
     return this.get(`/audit-logs${queryString ? `?${queryString}` : ''}`);
   },
+
+  // Membership Plans (Module C)
+  getMembershipPlans(params = {}) {
+    const query = new URLSearchParams();
+    if (params.search) query.append('search', params.search);
+    if (params.active_only) query.append('active_only', '1');
+
+    const queryString = query.toString();
+    return this.get(`/membership-plans${queryString ? `?${queryString}` : ''}`);
+  },
+
+  getMembershipPlan(id) {
+    return this.get(`/membership-plans/${id}`);
+  },
+
+  createMembershipPlan(payload) {
+    return this.post('/membership-plans', payload);
+  },
+
+  updateMembershipPlan(id, payload) {
+    return this.put(`/membership-plans/${id}`, payload);
+  },
+
+  deleteMembershipPlan(id) {
+    return this.delete(`/membership-plans/${id}`);
+  },
+
+  // Subscriptions (Module C)
+  getSubscriptions(params = {}) {
+    const query = new URLSearchParams();
+    if (params.search) query.append('search', params.search);
+    if (params.status) query.append('status', params.status);
+    if (params.member_id) query.append('member_id', params.member_id);
+    if (params.plan_id) query.append('plan_id', params.plan_id);
+    if (params.page) query.append('page', params.page);
+    if (params.per_page) query.append('per_page', params.per_page);
+
+    const queryString = query.toString();
+    return this.get(`/subscriptions${queryString ? `?${queryString}` : ''}`);
+  },
+
+  getSubscription(id) {
+    return this.get(`/subscriptions/${id}`);
+  },
+
+  createSubscription(payload) {
+    return this.post('/subscriptions', payload);
+  },
+
+  renewSubscription(id, payload = {}) {
+    return this.post(`/subscriptions/${id}/renew`, payload);
+  },
+
+  freezeSubscription(id, payload) {
+    return this.post(`/subscriptions/${id}/freeze`, payload);
+  },
+
+  unfreezeSubscription(id) {
+    return this.post(`/subscriptions/${id}/unfreeze`);
+  },
+
+  cancelSubscription(id, payload) {
+    return this.post(`/subscriptions/${id}/cancel`, payload);
+  },
 };
 
 export default apiClient;

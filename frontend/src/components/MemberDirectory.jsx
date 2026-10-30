@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../services/api';
 import { useAuth } from '../context/useAuth';
 import QRCodeDisplay from './QRCodeDisplay';
+import BrandLogo from './BrandLogo';
 
 export default function MemberDirectory() {
   const { hasRole } = useAuth();
@@ -707,10 +708,10 @@ export default function MemberDirectory() {
               <div className="gym-pass-card">
                 <div className="pass-header">
                   <div className="brand-group">
-                    <div className="brand-icon-sm">TG</div>
+                    <BrandLogo variant="pass" size={48} showSubtext={false} />
                     <div>
                       <div className="brand-title-sm">TIGAT GYM</div>
-                      <span className="brand-subtitle-xs">OFFICIAL MEMBER ACCESS</span>
+                      <span className="brand-subtitle-xs">ትጋት ጂም • MEMBER ACCESS</span>
                     </div>
                   </div>
                   <span className="badge-member-code">{selectedMember.member_code}</span>
