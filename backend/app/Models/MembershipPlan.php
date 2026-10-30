@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class MembershipPlan extends Model
 {
@@ -38,8 +40,35 @@ class MembershipPlan extends Model
         ];
     }
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($plan) {
+            if (empty($plan->slug)) {
+                $plan->slug = Str::slug($plan->name);
+            }
+        });
+    }
+
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
+    }
+
+    /**
+     * Calculate subscription end date based on duration_type and duration_value.
+     */
+    public function calculateEndDate(?Carbon $startDate = null): Carbon
+    {
+        $start = $startDate ? $startDate->copy() : now()->startOfDay();
+
+        return match ($this->duration_type) {
+            'day' => $start->addDays($this->duration_value - 1),
+            'week' => $start->addWeeks($this->duration_value)->subDay(),
+            'month' => $start->addMonths($this->duration_value)->subDay(),
+            'year' => $start->addYears($this->duration_value)->subDay(),
+            default => $start->addDays(30)->subDay(),
+        };
     }
 }
