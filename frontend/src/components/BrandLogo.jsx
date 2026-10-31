@@ -4,32 +4,38 @@ export default function BrandLogo({
   showSubtext = true,
   className = '',
 }) {
-  // 1. Sidebar Brand Emblem Card (Refined, Compact & Luxury)
+  // 1. Sidebar Brand Lockup matching user reference image:
+  // [ Vibrant Orange App Icon ] + TIGAT GYM 📶 + ትጋት ጂም
   if (variant === 'sidebar') {
     return (
-      <div className={`brand-emblem-sidebar ${className}`}>
-        {/* Ambient Backlight Halo */}
-        <div className="brand-ambient-glow" />
-
-        {/* Logo Visual with Screen Blend & Incandescent Orange Drop Shadow */}
-        <div className="brand-logo-frame">
-          <img
-            src="/tigat-logo.png"
-            alt="TIGAT GYM • ትጋት ጂም"
-            className="brand-logo-img-stylish"
-            style={{ width: size || 105, maxWidth: '100%', height: 'auto' }}
-          />
+      <div className={`brand-sidebar-lockup ${className}`}>
+        {/* Vibrant Orange App Icon Tile */}
+        <div className="brand-orange-tile">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 7h16" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" />
+            <path d="M2 9v6a1 1 0 0 0 1 1h2V8H3a1 1 0 0 0-1 1zm18 0v6a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1h-1a1 1 0 0 0-1 1z" fill="#fff" />
+            <circle cx="12" cy="7" r="2.2" fill="#fff" />
+            <path d="M9 13.5l3-3.5 3 3.5M12 10v9M8.5 21h7" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </div>
 
-        {showSubtext && (
-          <div className="brand-meta-badge">
-            <div className="brand-metallic-divider" />
-            <div className="brand-edition-chip">
-              <span className="brand-status-dot" />
-              <span>CORE SUITE • ADDIS ABABA</span>
-            </div>
+        {/* Brand Typography & Green Live Signal Waves */}
+        <div className="brand-title-wrap">
+          <div className="brand-title-line">
+            <span className="brand-title-bold">TIGAT GYM</span>
+            <span className="brand-signal-wifi" title="Live System Connected">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+                <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+                <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                <circle cx="12" cy="20" r="1.2" fill="#10b981" stroke="none" />
+              </svg>
+            </span>
           </div>
-        )}
+          {showSubtext && (
+            <span className="brand-subtext-amharic">ትጋት ጂም • CORE</span>
+          )}
+        </div>
       </div>
     );
   }
@@ -82,15 +88,16 @@ export default function BrandLogo({
   // 4. Compact Header / Minimal Badge
   return (
     <div className={`brand-emblem-compact ${className}`}>
-      <img
-        src="/tigat-logo.png"
-        alt="TIGAT GYM"
-        className="brand-logo-img-stylish"
-        style={{ width: size || 32, height: 'auto' }}
-      />
+      <div className="brand-orange-tile" style={{ width: 32, height: 32, borderRadius: 8 }}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 7h16" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+          <circle cx="12" cy="7" r="2" fill="#fff" />
+          <path d="M9 13l3-3 3 3M12 10v9M8.5 21h7" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
       {showSubtext && (
         <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', letterSpacing: '0.04em' }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: '#fff', letterSpacing: '0.02em' }}>
             TIGAT GYM
           </span>
           <span style={{ fontSize: 9, color: '#ff8a00', fontWeight: 600 }}>
