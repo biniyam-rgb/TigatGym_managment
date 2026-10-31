@@ -82,6 +82,17 @@ export function AuthProvider({ children }) {
     throw new Error('Unexpected login response format');
   };
 
+  const register = async (registrationData) => {
+    const response = await apiClient.register(registrationData);
+    if (response?.token && response?.user) {
+      apiClient.setToken(response.token);
+      setTokenState(response.token);
+      setUser(response.user);
+      return response;
+    }
+    throw new Error('Unexpected registration response format');
+  };
+
   const logout = async () => {
     try {
       await apiClient.logout();
@@ -120,6 +131,7 @@ export function AuthProvider({ children }) {
     isAuthenticated: !!user && !!token,
     isLoading,
     login,
+    register,
     logout,
     changePassword,
     hasRole,
