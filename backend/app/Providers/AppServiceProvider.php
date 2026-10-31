@@ -26,6 +26,14 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Support\Facades\Route::model('subscription', \App\Models\Subscription::class);
         \Illuminate\Support\Facades\Route::model('membership_plan', \App\Models\MembershipPlan::class);
 
+        \Illuminate\Support\Facades\RateLimiter::for('register', function (\Illuminate\Http\Request $request) {
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(5)->by($request->ip())->response(function () {
+                return response()->json([
+                    'message' => 'Too many registration attempts. Please try again in 1 minute.',
+                ], 429);
+            });
+        });
+
         \Illuminate\Support\Facades\RateLimiter::for('login', function (\Illuminate\Http\Request $request) {
             $email = (string) $request->input('email');
             return \Illuminate\Cache\RateLimiting\Limit::perMinute(5)->by($email . '|' . $request->ip())->response(function () {
