@@ -282,4 +282,94 @@ class AuthenticationTest extends TestCase
         $resetResponse->assertStatus(422)
             ->assertJson(['message' => 'This password reset token is invalid or has expired.']);
     }
+
+    public function test_new_member_can_self_register_online_and_receive_token(): void
+    {
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Sara Daniel',
+            'email' => 'sara.daniel@example.com',
+            'phone' => '+251911889900',
+            'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
+            'gender' => 'female',
+            'date_of_birth' => '1998-05-12',
+            'fitness_goals' => 'Strength conditioning & mobility',
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('status', 'success')
+            ->assertJsonStructure([
+                'status',
+                'message',
+                'token',
+                'user' => [
+                    'id',
+                    'name',
+                    'email',
+                    'status',
+                    'role_names',
+                    'primary_role',
+                    'member_profile' => [
+                        'member_code',
+                        'qr_code_token',
+                    ],
+                ],
+            ]);
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'sara.daniel@example.com',
+            'status' => 'active',
+        ]);
+
+        $memberCode = $response->json('user.member_profile.member_code');
+        $this->assertMatchesRegularExpression('/^TG-\d{4}$/', $memberCode);
+
+        $this->assertDatabaseHas('member_profiles', [
+            'member_code' => $memberCode,
+            'gender' => 'female',
+        ]);
+    }
+
+    public function test_registration_fails_with_duplicate_email(): void
+    {
+        $this->createUser(['email' => 'existing@tigatgym.com']);
+
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Another User',
+            'email' => 'existing@tigatgym.com',
+            'phone' => '+251911999999',
+            'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_registration_fails_with_password_mismatch_or_short_password(): void
+    {
+        // Short password
+        $shortResponse = $this->postJson('/api/auth/register', [
+            'name' => 'Short Pass',
+            'email' => 'short@example.com',
+            'phone' => '+251911999999',
+            'password' => 'short',
+            'password_confirmation' => 'short',
+        ]);
+
+        $shortResponse->assertStatus(422)
+            ->assertJsonValidationErrors(['password']);
+
+        // Password mismatch
+        $mismatchResponse = $this->postJson('/api/auth/register', [
+            'name' => 'Mismatch Pass',
+            'email' => 'mismatch@example.com',
+            'phone' => '+251911999999',
+            'password' => 'Password123!',
+            'password_confirmation' => 'DifferentPassword123!',
+        ]);
+
+        $mismatchResponse->assertStatus(422)
+            ->assertJsonValidationErrors(['password']);
+    }
 }
