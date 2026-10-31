@@ -104,6 +104,10 @@ export const apiClient = {
   },
 
   // Auth endpoints
+  register(payload) {
+    return this.post('/auth/register', payload);
+  },
+
   login(credentials) {
     return this.post('/auth/login', credentials);
   },
