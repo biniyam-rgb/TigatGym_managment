@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
+use App\Models\MemberProfile;
+use App\Models\Role;
 use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
@@ -16,6 +18,85 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AuthController extends Controller
 {
+    /**
+     * Register a new member account and issue Sanctum token.
+     */
+    public function register(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+            'phone' => ['required', 'string', 'max:25'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'gender' => ['nullable', 'string', 'in:male,female,other'],
+            'date_of_birth' => ['nullable', 'date', 'before:today'],
+            'emergency_contact_name' => ['nullable', 'string', 'max:100'],
+            'emergency_contact_phone' => ['nullable', 'string', 'max:25'],
+            'emergency_contact_relationship' => ['nullable', 'string', 'max:50'],
+            'fitness_goals' => ['nullable', 'string', 'max:1000'],
+            'health_conditions' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $result = DB::transaction(function () use ($validated) {
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => strtolower(trim($validated['email'])),
+                'phone' => $validated['phone'],
+                'status' => 'active',
+                'password' => Hash::make($validated['password']),
+            ]);
+
+            // Assign default 'member' role
+            $memberRole = Role::where('name', 'member')->firstOrFail();
+            $user->roles()->attach($memberRole->id);
+
+            // Generate next sequential member code & QR token
+            $memberCode = MemberProfile::generateNextMemberCode();
+            $qrToken = MemberProfile::generateUniqueQrToken();
+
+            $profile = MemberProfile::create([
+                'user_id' => $user->id,
+                'member_code' => $memberCode,
+                'qr_code_token' => $qrToken,
+                'gender' => $validated['gender'] ?? null,
+                'date_of_birth' => $validated['date_of_birth'] ?? null,
+                'emergency_contact_name' => $validated['emergency_contact_name'] ?? null,
+                'emergency_contact_phone' => $validated['emergency_contact_phone'] ?? null,
+                'emergency_contact_relationship' => $validated['emergency_contact_relationship'] ?? null,
+                'fitness_goals' => $validated['fitness_goals'] ?? null,
+                'health_conditions' => $validated['health_conditions'] ?? null,
+                'joined_at' => now()->toDateString(),
+            ]);
+
+            AuditLogger::log(
+                action: 'auth.registered',
+                auditable: $user,
+                newValues: [
+                    'member_code' => $memberCode,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                ],
+                notes: "New member self-registered online: {$user->name} ({$memberCode})",
+                userId: $user->id
+            );
+
+            return [$user, $profile];
+        });
+
+        [$user] = $result;
+        $user->load(['roles', 'memberProfile']);
+
+        // Issue Sanctum personal access token for immediate session
+        $token = $user->createToken('gymcore_auth')->plainTextToken;
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Registration successful! Welcome to TIGAT GYM.',
+            'token' => $token,
+            'user' => new UserResource($user),
+        ], Response::HTTP_CREATED);
+    }
+
     /**
      * Authenticate user and issue Sanctum token.
      */
