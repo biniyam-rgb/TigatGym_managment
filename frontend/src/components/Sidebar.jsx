@@ -139,14 +139,13 @@ export default function Sidebar({ activeView, onViewChange, onOpenPasswordModal 
 
   return (
     <aside className="gymcore-sidebar">
-      {/* Brand Header with Luxury TIGAT GYM Emblem */}
+      {/* Brand Header with Horizontal Lockup matching reference image */}
       <div className="sidebar-brand">
         <BrandLogo variant="sidebar" />
       </div>
 
-      {/* Navigation Links with Crisp SVG Icons */}
+      {/* Navigation Links with Crisp SVG Icons & Vibrant Orange Active Pill */}
       <nav className="sidebar-nav">
-        <div className="nav-group-title">MAIN NAVIGATION</div>
         {visibleNav.map((item) => {
           const isActive = activeView === item.id;
           return (
@@ -160,60 +159,52 @@ export default function Sidebar({ activeView, onViewChange, onOpenPasswordModal 
                 <NavIcon id={item.id} />
               </span>
               <span className="nav-label">{item.label}</span>
-              {isActive && <span className="active-glow-pill"></span>}
             </button>
           );
         })}
       </nav>
 
-      {/* Sidebar Footer: System Status & User Card */}
+      {/* Sidebar Footer matching reference image: User Profile + Prominent Sign Out Button */}
       <div className="sidebar-footer">
-        {/* Live sync indicator matching reference screenshot */}
-        <div className="live-status-card">
-          <div className="status-indicator-group">
-            <span className="status-pulse-dot"></span>
-            <span className="status-live-text">Data updated • just now</span>
+        {/* User Profile Row */}
+        <div className="sidebar-user-row">
+          <div className="sidebar-user-avatar">
+            {user?.name?.charAt(0).toUpperCase() || 'U'}
           </div>
-        </div>
-
-        {/* User profile pill matching reference screenshot */}
-        <div className="sidebar-user-card">
-          <div className="user-avatar-circle">
-            {user?.name?.charAt(0).toUpperCase()}
-          </div>
-          <div className="user-details-text">
-            <span className="user-display-name">{user?.name}</span>
-            <span className={`user-role-tag role-badge-${primaryRole}`}>
-              {primaryRole}
+          <div className="sidebar-user-meta">
+            <span className="sidebar-user-name">{user?.name}</span>
+            <span className="sidebar-user-email">
+              {user?.email || `${primaryRole?.toUpperCase()} ACCOUNT`}
             </span>
           </div>
-          <div className="user-actions-quick">
-            <button
-              type="button"
-              className="btn-user-action"
-              onClick={onOpenPasswordModal}
-              title="Change Password"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="7.5" cy="15.5" r="4.5" />
-                <path d="m21 3-9.5 9.5" />
-                <path d="m15.5 7.5 3 3" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              className="btn-user-action"
-              onClick={logout}
-              title="Sign Out"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-            </button>
-          </div>
+          <button
+            type="button"
+            className="sidebar-user-key-btn"
+            onClick={onOpenPasswordModal}
+            title="Change Password"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="7.5" cy="15.5" r="4.5" />
+              <path d="m21 3-9.5 9.5" />
+              <path d="m15.5 7.5 3 3" />
+            </svg>
+          </button>
         </div>
+
+        {/* Dedicated Sign Out Button matching reference */}
+        <button
+          type="button"
+          className="sidebar-signout-btn"
+          onClick={logout}
+          title="Sign out of GymCore"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          <span>SIGN OUT</span>
+        </button>
       </div>
     </aside>
   );
