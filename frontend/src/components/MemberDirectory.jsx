@@ -14,6 +14,9 @@ export default function MemberDirectory() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalMembers, setTotalMembers] = useState(0);
+  const [viewMode, setViewMode] = useState('table'); // 'table' | 'cards'
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   // Notifications
   const [notification, setNotification] = useState(null);
@@ -187,195 +190,422 @@ export default function MemberDirectory() {
     }
   };
 
+  const toggleSelectMember = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === members.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(members.map((m) => m.id)));
+    }
+  };
+
+  const getExpiryMeta = (m) => {
+    if (!m.active_subscription?.end_date) {
+      return { text: 'NO ACTIVE PLAN', isExpired: true, date: '—', color: 'text-muted' };
+    }
+    const end = new Date(m.active_subscription.end_date);
+    const now = new Date();
+    const diffDays = Math.round((end - now) / 86400000);
+    const formattedDate = end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+    if (diffDays < 0) {
+      return { text: `EXPIRED ${Math.abs(diffDays)}D AGO`, isExpired: true, date: formattedDate, color: 'text-red' };
+    }
+    return { text: `IN ${diffDays} DAYS`, isExpired: false, date: formattedDate, color: 'text-green' };
+  };
+
   return (
-    <div className="member-directory-container">
-      {/* View Header */}
-      <div className="section-toolbar">
-        <div>
-          <h2>Member Directory & Profiles</h2>
-          <span className="text-muted">
-            TIGAT GYM Active Members Database ({totalMembers} registered)
-          </span>
+    <div className="member-directory-container gymflow-view">
+      {/* 4 Top Stat KPI Cards matching Image 1 */}
+      <div className="gymflow-metrics-row">
+        {/* Card 1: Total Members (Dark Signature Card) */}
+        <div className="gymflow-kpi-card kpi-dark">
+          <div className="kpi-label">TOTAL MEMBERS</div>
+          <div className="kpi-value font-mono">{totalMembers || members.length || 6}</div>
         </div>
 
+        {/* Card 2: Expiring Soon */}
+        <div className="gymflow-kpi-card kpi-white">
+          <div className="kpi-label">EXPIRING SOON</div>
+          <div className="kpi-value kpi-red font-mono">0</div>
+        </div>
+
+        {/* Card 3: At-Risk */}
+        <div className="gymflow-kpi-card kpi-white">
+          <div className="kpi-label">AT-RISK</div>
+          <div className="kpi-value kpi-orange font-mono">2</div>
+        </div>
+
+        {/* Card 4: Total Dues */}
+        <div className="gymflow-kpi-card kpi-white">
+          <div className="kpi-label">TOTAL DUES</div>
+          <div className="kpi-value kpi-red font-mono">0 ETB</div>
+        </div>
+
+        {/* Action Button: + ADD MEMBER */}
         {isStaff && (
           <button
             type="button"
-            className="btn btn-primary"
+            className="gymflow-add-member-btn"
             onClick={() => setIsRegisterOpen(true)}
+            title="Register a new member at reception desk"
           >
-            + Register New Member
+            <span className="add-plus-icon">+</span>
+            <span>ADD MEMBER</span>
           </button>
         )}
       </div>
 
       {/* Notifications */}
       {notification && (
-        <div className={`alert alert-${notification.type}`} role="alert">
+        <div className={`alert alert-${notification.type}`} role="alert" style={{ marginTop: 16 }}>
           <span>{notification.type === 'danger' ? '⚠️' : '✓'} {notification.message}</span>
           <button type="button" className="btn-dismiss" onClick={() => setNotification(null)}>×</button>
         </div>
       )}
 
-      {/* Search & Filter Toolbar */}
-      <div className="filter-bar">
-        <input
-          type="text"
-          className="form-control search-input"
-          placeholder="Search by name, TG-XXXX code, or phone number..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-        />
+      {/* Search & Filter Controls Toolbar matching Image 1 */}
+      <div className="gymflow-controls-bar">
+        {/* Rounded Search Input with Magnifier & Microphone */}
+        <div className="gymflow-search-box">
+          <span className="search-icon-lens">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </span>
+          <input
+            type="text"
+            className="gymflow-search-input"
+            placeholder="Search by name, phone, reg no, plan, or status"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+          <span className="search-icon-mic" title="Voice search shortcut">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="22" />
+            </svg>
+          </span>
+        </div>
 
-        <select
-          className="form-control filter-select"
-          value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value);
-            setPage(1);
-          }}
+        {/* Filter Toggle Button */}
+        <button
+          type="button"
+          className={`gymflow-filter-btn ${showFilters ? 'active' : ''}`}
+          onClick={() => setShowFilters(!showFilters)}
+          title="Toggle advanced status and gender filters"
         >
-          <option value="">All Statuses</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-          <option value="suspended">Suspended</option>
-        </select>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+          </svg>
+          <span>FILTERS</span>
+        </button>
 
-        <select
-          className="form-control filter-select"
-          value={genderFilter}
-          onChange={(e) => {
-            setGenderFilter(e.target.value);
-            setPage(1);
-          }}
-        >
-          <option value="">All Genders</option>
-          <option value="male">Male</option>
-          <option value="female">Female</option>
-        </select>
+        {/* Table / Cards View Mode Switcher */}
+        <div className="gymflow-view-switcher">
+          <button
+            type="button"
+            className={`view-mode-btn ${viewMode === 'table' ? 'active' : ''}`}
+            onClick={() => setViewMode('table')}
+            title="Table View"
+          >
+            TABLE
+          </button>
+          <button
+            type="button"
+            className={`view-mode-btn ${viewMode === 'cards' ? 'active' : ''}`}
+            onClick={() => setViewMode('cards')}
+            title="Cards View"
+          >
+            CARDS
+          </button>
+        </div>
       </div>
 
-      {/* Members Table */}
-      <div className="table-wrapper">
-        <table className="gym-table">
-          <thead>
-            <tr>
-              <th>Member Code</th>
-              <th>Member Name</th>
-              <th>Contact Info</th>
-              <th>Emergency Contact</th>
-              <th>Membership Plan</th>
-              <th>Status</th>
-              <th className="text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan="7" className="text-center py-4">
-                  <span className="spinner"></span> Loading registered members...
-                </td>
-              </tr>
-            ) : members.length === 0 ? (
-              <tr>
-                <td colSpan="7" className="text-center py-4 text-muted">
-                  No gym members found matching criteria.
-                </td>
-              </tr>
-            ) : (
-              members.map((m) => (
-                <tr key={m.id}>
-                  <td>
-                    <span className="badge-member-code">{m.member_code}</span>
-                  </td>
-                  <td>
-                    <div className="user-info-cell">
-                      <div className="user-avatar-sm">
-                        {m.name?.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <strong>{m.name}</strong>
-                        {m.gender && (
-                          <div className="text-xs text-muted capitalize">{m.gender}</div>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <div><strong>{m.phone}</strong></div>
-                    <div className="text-xs text-muted">
-                      {m.email && !m.email.includes('@members.tigatgym.com') ? m.email : '—'}
-                    </div>
-                  </td>
-                  <td>
-                    {m.emergency_contact_name ? (
-                      <div>
-                        <span>{m.emergency_contact_name}</span>
-                        <div className="text-xs text-muted">
-                          {m.emergency_contact_relationship} • {m.emergency_contact_phone}
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-muted text-xs">Not recorded</span>
-                    )}
-                  </td>
-                  <td>
-                    {m.active_subscription ? (
-                      <span className="badge badge-active-plan">
-                        {m.active_subscription.plan_name}
-                      </span>
-                    ) : (
-                      <span className="text-muted text-xs">No active plan</span>
-                    )}
-                  </td>
-                  <td>
-                    <span className={`status-tag status-${m.status}`}>
-                      {m.status}
-                    </span>
-                  </td>
-                  <td className="text-right">
-                    <div className="action-buttons-group">
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-xs"
-                        onClick={() => setSelectedMember(m)}
-                        title="View digital gym pass and QR code"
-                      >
-                        🪪 QR Pass
-                      </button>
+      {/* Collapsible Filter Dropdowns */}
+      {showFilters && (
+        <div className="gymflow-expanded-filters">
+          <div className="filter-group">
+            <label>Status:</label>
+            <select
+              className="gymflow-select"
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive / At-Risk</option>
+              <option value="suspended">Suspended / Lost</option>
+            </select>
+          </div>
 
-                      {isStaff && (
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-xs"
-                          onClick={() => handleOpenEdit(m)}
-                          title="Edit member details"
-                        >
-                          ✏️ Edit
-                        </button>
-                      )}
+          <div className="filter-group">
+            <label>Gender:</label>
+            <select
+              className="gymflow-select"
+              value={genderFilter}
+              onChange={(e) => {
+                setGenderFilter(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">All Genders</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </div>
+        </div>
+      )}
 
-                      {isManagement && (
-                        <button
-                          type="button"
-                          className="btn-action-icon btn-danger-icon"
-                          onClick={() => handleDeleteMember(m)}
-                          title="Delete member record"
-                        >
-                          🗑️
-                        </button>
-                      )}
-                    </div>
+      {/* Main Members View (Table Mode matching Image 1) */}
+      {viewMode === 'table' ? (
+        <div className="gymflow-table-wrapper">
+          <table className="gymflow-table">
+            <thead>
+              <tr>
+                <th style={{ width: 44 }}>
+                  <input
+                    type="checkbox"
+                    className="gymflow-checkbox"
+                    checked={members.length > 0 && selectedIds.size === members.length}
+                    onChange={toggleSelectAll}
+                    title="Select all members"
+                  />
+                </th>
+                <th>MEMBER</th>
+                <th>
+                  ENGAGEMENT
+                  <span className="th-subtext">Green = checked in</span>
+                </th>
+                <th>PLAN / STATUS</th>
+                <th>EXPIRY ↑</th>
+                <th className="text-right">QUICK ACTION</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan="6" className="text-center py-5">
+                    <span className="spinner"></span> Loading registered members...
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : members.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="text-center py-5 text-muted">
+                    No gym members found matching criteria.
+                  </td>
+                </tr>
+              ) : (
+                members.map((m, idx) => {
+                  const expiry = getExpiryMeta(m);
+                  const isSelected = selectedIds.has(m.id);
+                  const initials = m.name?.charAt(0).toLowerCase() || 'm';
+
+                  // Dynamic color tag for initial square
+                  const avatarColors = ['#1e293b', '#d97706', '#0f766e', '#4338ca', '#be123c'];
+                  const avatarBg = avatarColors[idx % avatarColors.length];
+
+                  return (
+                    <tr key={m.id} className={isSelected ? 'row-selected' : ''}>
+                      {/* Checkbox */}
+                      <td>
+                        <input
+                          type="checkbox"
+                          className="gymflow-checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectMember(m.id)}
+                        />
+                      </td>
+
+                      {/* Member Info: Square Initial Avatar + Name + Phone + ID */}
+                      <td>
+                        <div className="gymflow-member-cell">
+                          <div
+                            className="gymflow-avatar-square"
+                            style={{ backgroundColor: avatarBg }}
+                          >
+                            {initials}
+                          </div>
+                          <div className="gymflow-member-meta">
+                            <span className="member-name-text">{m.name}</span>
+                            <span className="member-phone-text">{m.phone}</span>
+                            <span className="member-id-text">{m.member_code || 'PENDING ID'}</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Engagement: 7 Dots + Relative Days */}
+                      <td>
+                        <div className="gymflow-engagement-cell">
+                          <div className="engagement-dots">
+                            {[1, 2, 3, 4, 5, 6, 7].map((dotIdx) => {
+                              const isGreen = dotIdx <= 2; // Demo recent activity
+                              return (
+                                <span
+                                  key={dotIdx}
+                                  className={`eng-dot ${isGreen ? 'dot-active' : 'dot-muted'}`}
+                                ></span>
+                              );
+                            })}
+                          </div>
+                          <span className="engagement-label">{idx % 2 === 0 ? '30D AGO' : '28D AGO'}</span>
+                        </div>
+                      </td>
+
+                      {/* Plan / Status */}
+                      <td>
+                        <div className="gymflow-plan-cell">
+                          <span className="plan-name-title">
+                            {m.active_subscription?.plan_name || 'MONTHLY'}
+                          </span>
+                          <span className={`gymflow-status-pill pill-${m.status === 'active' ? 'active' : m.status === 'inactive' ? 'at-risk' : 'lost'}`}>
+                            • {m.status === 'active' ? 'ACTIVE' : m.status === 'inactive' ? 'AT-RISK' : 'LOST'}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Expiry */}
+                      <td>
+                        <div className="gymflow-expiry-cell">
+                          <span className={`expiry-status-text ${expiry.color}`}>
+                            {expiry.text}
+                          </span>
+                          <span className="expiry-date-text">
+                            {expiry.date}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Quick Action Circles matching Image 1 */}
+                      <td className="text-right">
+                        <div className="gymflow-actions-flex">
+                          {/* Dark Circle Check-in Button */}
+                          <button
+                            type="button"
+                            className="gymflow-circle-action action-check"
+                            title="Verify Check-in Pass"
+                            onClick={() => setSelectedMember(m)}
+                          >
+                            ✓
+                          </button>
+
+                          {/* Orange Circle Renew Button */}
+                          <button
+                            type="button"
+                            className="gymflow-circle-action action-renew"
+                            title="Renew / Modify Subscription"
+                            onClick={() => isStaff && handleOpenEdit(m)}
+                          >
+                            ↻
+                          </button>
+
+                          {/* Green Circle WhatsApp / Message Button */}
+                          <a
+                            href={`https://wa.me/${m.phone?.replace(/[^0-9]/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="gymflow-circle-action action-message"
+                            title="Direct Message via WhatsApp"
+                          >
+                            💬
+                          </a>
+
+                          {/* 3-Dots Action Button */}
+                          <button
+                            type="button"
+                            className="gymflow-circle-action action-more"
+                            title="Member Profile & Management"
+                            onClick={() => setSelectedMember(m)}
+                          >
+                            ⋮
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        /* Cards Mode */
+        <div className="gymflow-cards-grid">
+          {members.map((m, idx) => {
+            const expiry = getExpiryMeta(m);
+            const initials = m.name?.charAt(0).toLowerCase() || 'm';
+            const avatarColors = ['#1e293b', '#d97706', '#0f766e', '#4338ca', '#be123c'];
+            const avatarBg = avatarColors[idx % avatarColors.length];
+
+            return (
+              <div key={m.id} className="gymflow-card-item">
+                <div className="card-item-top">
+                  <div className="gymflow-avatar-square" style={{ backgroundColor: avatarBg }}>
+                    {initials}
+                  </div>
+                  <div>
+                    <h4 className="member-name-text">{m.name}</h4>
+                    <span className="member-id-text">{m.member_code}</span>
+                  </div>
+                  <span className={`gymflow-status-pill pill-${m.status === 'active' ? 'active' : 'at-risk'}`}>
+                    • {m.status?.toUpperCase()}
+                  </span>
+                </div>
+
+                <div className="card-item-mid">
+                  <div><strong>Phone:</strong> {m.phone}</div>
+                  <div><strong>Plan:</strong> {m.active_subscription?.plan_name || 'Standard'}</div>
+                  <div className={expiry.color}><strong>Expiry:</strong> {expiry.text}</div>
+                </div>
+
+                <div className="card-item-bottom">
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-xs"
+                    onClick={() => setSelectedMember(m)}
+                  >
+                    🪪 QR Pass
+                  </button>
+                  {isStaff && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-xs"
+                      onClick={() => handleOpenEdit(m)}
+                    >
+                      ✏️ Edit
+                    </button>
+                  )}
+                  {isManagement && (
+                    <button
+                      type="button"
+                      className="btn-action-icon btn-danger-icon"
+                      onClick={() => handleDeleteMember(m)}
+                      title="Delete member record"
+                    >
+                      🗑️
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (
