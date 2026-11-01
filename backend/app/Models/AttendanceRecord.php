@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -44,5 +45,36 @@ class AttendanceRecord extends Model
     public function verifiedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    public function scopeAdmitted($query)
+    {
+        return $query->where('status', 'admitted');
+    }
+
+    public function scopeDenied($query)
+    {
+        return $query->where('status', 'denied');
+    }
+
+    public function scopeCurrentlyInside($query)
+    {
+        return $query->where('status', 'admitted')
+            ->whereNull('check_out_time')
+            ->whereDate('check_in_time', Carbon::today());
+    }
+
+    public function isCheckedIn(): bool
+    {
+        return $this->status === 'admitted' && is_null($this->check_out_time);
+    }
+
+    public function getDurationMinutesAttribute(): ?int
+    {
+        if (! $this->check_out_time || ! $this->check_in_time) {
+            return null;
+        }
+
+        return $this->check_in_time->diffInMinutes($this->check_out_time);
     }
 }
