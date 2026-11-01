@@ -1,33 +1,19 @@
 import { useState } from 'react';
 import { useAuth } from '../context/useAuth';
-import BrandLogo from './BrandLogo';
 
 export default function LoginForm({ onSuccess }) {
-  const { login, register } = useAuth();
-  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
-
-  // Login form state
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-
-  // Register form state
-  const [regData, setRegData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    password: '',
-    password_confirmation: '',
-    gender: 'male',
-    date_of_birth: '',
-    fitness_goals: '',
-  });
-
+  const { login } = useAuth();
+  const [activePortal, setActivePortal] = useState('member'); // 'member' | 'staff'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [fieldErrors, setFieldErrors] = useState({});
-  const [showPassword, setShowPassword] = useState(false);
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
+  const [isRegisterNoticeOpen, setIsRegisterNoticeOpen] = useState(false);
 
-  // Demo accounts for quick testing
+  // Demo accounts for instant one-click testing
   const demoAccounts = [
     { role: 'Owner', email: 'owner@tigatgym.com', pass: 'Password123!', icon: '👑' },
     { role: 'Admin', email: 'admin@tigatgym.com', pass: 'Password123!', icon: '🛡️' },
@@ -36,407 +22,301 @@ export default function LoginForm({ onSuccess }) {
     { role: 'Member', email: 'member@tigatgym.com', pass: 'Password123!', icon: '👤' },
   ];
 
-  // Handle Login Submit
-  const handleLoginSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
-    setFieldErrors({});
     setIsLoading(true);
 
     try {
-      await login(loginEmail, loginPassword);
+      await login(email, password);
       if (onSuccess) onSuccess();
     } catch (err) {
-      if (err.errors) {
-        setFieldErrors(err.errors);
-      } else {
-        setErrorMessage(err.message || 'Login failed. Please verify your credentials.');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle Register Submit
-  const handleRegisterSubmit = async (e) => {
-    e.preventDefault();
-    setErrorMessage('');
-    setFieldErrors({});
-
-    if (regData.password !== regData.password_confirmation) {
-      setFieldErrors({ password_confirmation: ['Password confirmation does not match.'] });
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const payload = {
-        name: regData.name,
-        email: regData.email,
-        phone: regData.phone,
-        password: regData.password,
-        password_confirmation: regData.password_confirmation,
-        gender: regData.gender || undefined,
-        date_of_birth: regData.date_of_birth || undefined,
-        fitness_goals: regData.fitness_goals || undefined,
-      };
-
-      await register(payload);
-      if (onSuccess) onSuccess();
-    } catch (err) {
-      if (err.errors) {
-        setFieldErrors(err.errors);
-      } else {
-        setErrorMessage(err.message || 'Registration failed. Please review your details.');
-      }
+      setErrorMessage(err.message || 'Login failed. Please verify your credentials.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const fillDemo = (acc) => {
-    setAuthMode('login');
-    setLoginEmail(acc.email);
-    setLoginPassword(acc.pass);
+    setEmail(acc.email);
+    setPassword(acc.pass);
     setErrorMessage('');
-    setFieldErrors({});
+    if (acc.role === 'Member') {
+      setActivePortal('member');
+    } else {
+      setActivePortal('staff');
+    }
+  };
+
+  const handleForgotSubmit = (e) => {
+    e.preventDefault();
+    setForgotSent(true);
   };
 
   return (
-    <div className="login-card-container">
-      <div className="login-card">
-        {/* Brand Header */}
-        <div className="login-header">
-          <BrandLogo variant="login" />
-          <h2 style={{ marginTop: 6, fontSize: 20 }}>
-            {authMode === 'login' ? 'GymCore Sign In' : 'Create Member Account'}
-          </h2>
-          <p style={{ color: '#94a3b8', fontSize: 13, marginTop: 2 }}>
-            {authMode === 'login'
-              ? 'Enter your credentials to access TIGAT GYM'
-              : 'Join TIGAT GYM and begin your fitness journey'}
-          </p>
+    <div className="tigat-login-page">
+      {/* Background Athlete Photograph */}
+      <div className="tigat-login-bg-photo" aria-hidden="true"></div>
+      <div className="tigat-login-vignette" aria-hidden="true"></div>
+
+      {/* Dynamic Angular Red & Charcoal Geometric Slashes matching exact user image */}
+      {/* Left Slashes */}
+      <div className="tigat-slash-left-charcoal" aria-hidden="true"></div>
+      <div className="tigat-slash-left-red" aria-hidden="true"></div>
+      <div className="tigat-slash-left-accent-line" aria-hidden="true"></div>
+      <div className="tigat-slash-left-bottom-red" aria-hidden="true"></div>
+
+      {/* Right Slashes */}
+      <div className="tigat-slash-right-charcoal" aria-hidden="true"></div>
+      <div className="tigat-slash-right-red" aria-hidden="true"></div>
+      <div className="tigat-slash-right-accent-line" aria-hidden="true"></div>
+
+      {/* Main Center Login Card Column */}
+      <div className="tigat-login-center-column">
+        {/* Exact Tigat Gym Tiger Logo with Crossed Barbells from user image */}
+        <div className="tigat-logo-wrapper">
+          <img
+            src="/tigat-tiger-logo.png"
+            alt="TIGAT GYM"
+            className="tigat-tiger-crest-img"
+          />
         </div>
 
-        {/* Auth Mode Toggle Tabs */}
-        <div className="auth-mode-tabs">
-          <button
-            type="button"
-            className={`auth-tab-btn ${authMode === 'login' ? 'active' : ''}`}
-            onClick={() => {
-              setAuthMode('login');
-              setErrorMessage('');
-              setFieldErrors({});
-            }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-              <polyline points="10 17 15 12 10 7" />
-              <line x1="15" y1="12" x2="3" y2="12" />
-            </svg>
-            Sign In
-          </button>
-          <button
-            type="button"
-            className={`auth-tab-btn ${authMode === 'register' ? 'active' : ''}`}
-            onClick={() => {
-              setAuthMode('register');
-              setErrorMessage('');
-              setFieldErrors({});
-            }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <line x1="19" y1="8" x2="19" y2="14" />
-              <line x1="22" y1="11" x2="16" y2="11" />
-            </svg>
-            Register / Sign Up
-          </button>
-        </div>
+        {/* Title: PLEASE LOG IN */}
+        <h1 className="tigat-login-title">PLEASE LOG IN</h1>
 
-        {/* Global Error Banner */}
+        {/* Error notification */}
         {errorMessage && (
-          <div className="alert alert-danger" role="alert" style={{ marginBottom: 16 }}>
-            <span className="alert-icon">⚠️</span>
-            <span>{errorMessage}</span>
+          <div className="tigat-login-error">
+            <span>⚠️ {errorMessage}</span>
           </div>
         )}
 
-        {/* MODE 1: Login Form */}
-        {authMode === 'login' && (
-          <form onSubmit={handleLoginSubmit} className="login-form">
-            <div className="form-group">
-              <label htmlFor="login-email">Email Address</label>
-              <input
-                id="login-email"
-                type="email"
-                required
-                className="form-control"
-                placeholder="e.g. member@tigatgym.com"
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                disabled={isLoading}
-                autoComplete="username"
-              />
-              {fieldErrors.email && (
-                <span className="auth-field-error">{fieldErrors.email[0]}</span>
-              )}
-            </div>
+        {/* Dual Tab Switcher: Member Login vs Admin / Staff Portal */}
+        <div className="tigat-tabs-header">
+          <button
+            type="button"
+            className={`tigat-tab-btn ${activePortal === 'member' ? 'active' : ''}`}
+            onClick={() => {
+              setActivePortal('member');
+              setEmail('member@tigatgym.com');
+              setPassword('Password123!');
+            }}
+          >
+            Member Login
+          </button>
+          <button
+            type="button"
+            className={`tigat-tab-btn ${activePortal === 'staff' ? 'active' : ''}`}
+            onClick={() => {
+              setActivePortal('staff');
+              setEmail('admin@tigatgym.com');
+              setPassword('Password123!');
+            }}
+          >
+            Admin / Staff Portal
+          </button>
+        </div>
 
-            <div className="form-group">
-              <div className="password-label-row">
-                <label htmlFor="login-password">Password</label>
-                <button
-                  type="button"
-                  className="btn-toggle-pass"
-                  onClick={() => setShowPassword(!showPassword)}
-                  tabIndex="-1"
-                >
-                  {showPassword ? 'Hide' : 'Show'}
-                </button>
-              </div>
-              <input
-                id="login-password"
-                type={showPassword ? 'text' : 'password'}
-                required
-                className="form-control"
-                placeholder="••••••••"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                disabled={isLoading}
-                autoComplete="current-password"
-              />
-              {fieldErrors.password && (
-                <span className="auth-field-error">{fieldErrors.password[0]}</span>
-              )}
-            </div>
+        {/* Translucent Glassmorphism Form Card */}
+        <form onSubmit={handleSubmit} className="tigat-form-card">
+          {/* Email Address Underline Field */}
+          <div className="tigat-input-group">
+            <label htmlFor="tigat-email" className="tigat-input-label">
+              Email Address
+            </label>
+            <input
+              id="tigat-email"
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="tigat-underline-input"
+            />
+          </div>
 
-            <button
-              type="submit"
-              className="btn btn-primary btn-block"
-              disabled={isLoading}
-              style={{ marginTop: 8 }}
-            >
-              {isLoading ? (
-                <span className="spinner-wrapper">
-                  <span className="spinner"></span> Signing in...
-                </span>
-              ) : (
-                'Sign In to GymCore'
-              )}
-            </button>
-
-            <div className="auth-switch-link">
-              Don't have an account yet?{' '}
+          {/* Password Underline Field */}
+          <div className="tigat-input-group">
+            <label htmlFor="tigat-password" className="tigat-input-label">
+              Password
+            </label>
+            <input
+              id="tigat-password"
+              type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="tigat-underline-input"
+            />
+            {/* Forgot your password? Link right-aligned */}
+            <div className="tigat-forgot-wrap">
               <button
                 type="button"
+                className="tigat-forgot-btn"
                 onClick={() => {
-                  setAuthMode('register');
-                  setErrorMessage('');
-                  setFieldErrors({});
+                  setForgotEmail(email);
+                  setForgotSent(false);
+                  setIsForgotModalOpen(true);
                 }}
               >
-                Sign Up as Member
+                Forgot your password?
               </button>
-            </div>
-          </form>
-        )}
-
-        {/* MODE 2: Registration Form */}
-        {authMode === 'register' && (
-          <form onSubmit={handleRegisterSubmit} className="login-form">
-            {/* Full Name */}
-            <div className="form-group">
-              <label htmlFor="reg-name">Full Name *</label>
-              <input
-                id="reg-name"
-                type="text"
-                required
-                className="form-control"
-                placeholder="e.g. Dawit Tsige"
-                value={regData.name}
-                onChange={(e) => setRegData({ ...regData, name: e.target.value })}
-                disabled={isLoading}
-              />
-              {fieldErrors.name && (
-                <span className="auth-field-error">{fieldErrors.name[0]}</span>
-              )}
-            </div>
-
-            {/* Email & Phone in 2 Columns */}
-            <div className="auth-form-row-2">
-              <div className="form-group">
-                <label htmlFor="reg-email">Email Address *</label>
-                <input
-                  id="reg-email"
-                  type="email"
-                  required
-                  className="form-control"
-                  placeholder="name@example.com"
-                  value={regData.email}
-                  onChange={(e) => setRegData({ ...regData, email: e.target.value })}
-                  disabled={isLoading}
-                />
-                {fieldErrors.email && (
-                  <span className="auth-field-error">{fieldErrors.email[0]}</span>
-                )}
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="reg-phone">Phone Number *</label>
-                <input
-                  id="reg-phone"
-                  type="text"
-                  required
-                  className="form-control"
-                  placeholder="+251 91 123 4567"
-                  value={regData.phone}
-                  onChange={(e) => setRegData({ ...regData, phone: e.target.value })}
-                  disabled={isLoading}
-                />
-                {fieldErrors.phone && (
-                  <span className="auth-field-error">{fieldErrors.phone[0]}</span>
-                )}
-              </div>
-            </div>
-
-            {/* Gender & Date of Birth */}
-            <div className="auth-form-row-2">
-              <div className="form-group">
-                <label htmlFor="reg-gender">Gender</label>
-                <select
-                  id="reg-gender"
-                  className="form-control"
-                  value={regData.gender}
-                  onChange={(e) => setRegData({ ...regData, gender: e.target.value })}
-                  disabled={isLoading}
-                >
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="reg-dob">Date of Birth</label>
-                <input
-                  id="reg-dob"
-                  type="date"
-                  className="form-control"
-                  value={regData.date_of_birth}
-                  onChange={(e) => setRegData({ ...regData, date_of_birth: e.target.value })}
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-
-            {/* Password & Confirm Password */}
-            <div className="auth-form-row-2">
-              <div className="form-group">
-                <label htmlFor="reg-password">Password (Min 8) *</label>
-                <input
-                  id="reg-password"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  minLength={8}
-                  className="form-control"
-                  placeholder="••••••••"
-                  value={regData.password}
-                  onChange={(e) => setRegData({ ...regData, password: e.target.value })}
-                  disabled={isLoading}
-                />
-                {fieldErrors.password && (
-                  <span className="auth-field-error">{fieldErrors.password[0]}</span>
-                )}
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="reg-confirm">Confirm Password *</label>
-                <input
-                  id="reg-confirm"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  minLength={8}
-                  className="form-control"
-                  placeholder="••••••••"
-                  value={regData.password_confirmation}
-                  onChange={(e) => setRegData({ ...regData, password_confirmation: e.target.value })}
-                  disabled={isLoading}
-                />
-                {fieldErrors.password_confirmation && (
-                  <span className="auth-field-error">{fieldErrors.password_confirmation[0]}</span>
-                )}
-              </div>
-            </div>
-
-            {/* Fitness Goals (Optional) */}
-            <div className="form-group">
-              <label htmlFor="reg-goals">Fitness Goals (Optional)</label>
-              <input
-                id="reg-goals"
-                type="text"
-                className="form-control"
-                placeholder="e.g. Muscle gain, cardio, weight loss"
-                value={regData.fitness_goals}
-                onChange={(e) => setRegData({ ...regData, fitness_goals: e.target.value })}
-                disabled={isLoading}
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="btn btn-primary btn-block"
-              disabled={isLoading}
-              style={{ marginTop: 8 }}
-            >
-              {isLoading ? (
-                <span className="spinner-wrapper">
-                  <span className="spinner"></span> Creating Account...
-                </span>
-              ) : (
-                'Create Account & Join TIGAT GYM'
-              )}
-            </button>
-
-            <div className="auth-switch-link">
-              Already registered?{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('login');
-                  setErrorMessage('');
-                  setFieldErrors({});
-                }}
-              >
-                Sign In to Your Account
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* Quick Demo Credentials Autofill (Available in login mode) */}
-        {authMode === 'login' && (
-          <div className="demo-accounts-section">
-            <span className="demo-header-label">Quick Sign-in (Verified Test Accounts):</span>
-            <div className="demo-buttons-grid">
-              {demoAccounts.map((acc) => (
-                <button
-                  key={acc.role}
-                  type="button"
-                  className="btn-demo-pill"
-                  onClick={() => fillDemo(acc)}
-                  title={`Autofill as ${acc.role}`}
-                >
-                  <span className="demo-icon">{acc.icon}</span>
-                  <span className="demo-role">{acc.role}</span>
-                </button>
-              ))}
             </div>
           </div>
-        )}
+
+          {/* Solid White Rectangular LOGIN Button */}
+          <button
+            type="submit"
+            className="tigat-login-submit-btn"
+            disabled={isLoading}
+          >
+            {isLoading ? 'LOGGING IN...' : 'LOGIN'}
+          </button>
+
+          {/* Don't have an account? Link */}
+          <div className="tigat-no-account-wrap">
+            <button
+              type="button"
+              className="tigat-no-account-btn"
+              onClick={() => setIsRegisterNoticeOpen(true)}
+            >
+              Don&apos;t have an account?
+            </button>
+          </div>
+        </form>
+
+        {/* Discreet One-Click Role Switcher Pills for Testing */}
+        <div className="tigat-demo-dock">
+          <span className="tigat-demo-label">Quick Demo Fill:</span>
+          <div className="tigat-demo-pills">
+            {demoAccounts.map((acc) => (
+              <button
+                key={acc.role}
+                type="button"
+                className="tigat-demo-pill"
+                onClick={() => fillDemo(acc)}
+                title={`${acc.role} (${acc.email})`}
+              >
+                <span>{acc.icon}</span>
+                <span>{acc.role}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      {isForgotModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-card" style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <h3>Reset Your Password</h3>
+              <button
+                type="button"
+                className="close-btn"
+                onClick={() => setIsForgotModalOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            {forgotSent ? (
+              <div className="modal-body" style={{ textAlign: 'center', padding: '24px 16px' }}>
+                <div style={{ fontSize: 44, marginBottom: 12 }}>📬</div>
+                <h4 style={{ color: '#0f172a', marginBottom: 8 }}>Password Reset Requested</h4>
+                <p style={{ color: '#64748b', fontSize: 13, lineHeight: 1.5 }}>
+                  A reset link has been dispatched to <strong>{forgotEmail}</strong> if an active account exists.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-block"
+                  style={{ marginTop: 20 }}
+                  onClick={() => setIsForgotModalOpen(false)}
+                >
+                  Return to Login
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotSubmit}>
+                <div className="modal-body">
+                  <p style={{ color: '#64748b', fontSize: 13, marginBottom: 16 }}>
+                    Enter your registered email address to receive password reset instructions.
+                  </p>
+                  <div className="form-group">
+                    <label>Email Address</label>
+                    <input
+                      type="email"
+                      required
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      placeholder="e.g. member@tigatgym.com"
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setIsForgotModalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    Send Reset Link
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Reception Desk Policy Notice Modal */}
+      {isRegisterNoticeOpen && (
+        <div className="modal-overlay">
+          <div className="modal-card" style={{ maxWidth: 460 }}>
+            <div className="modal-header">
+              <h3>Tigat Gym Membership Policy</h3>
+              <button
+                type="button"
+                className="close-btn"
+                onClick={() => setIsRegisterNoticeOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body" style={{ padding: '20px 24px' }}>
+              <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 16 }}>
+                <div style={{ fontSize: 36 }}>🏛️</div>
+                <div>
+                  <h4 style={{ color: '#0f172a', margin: '0 0 6px 0' }}>In-Person Desk Registration Only</h4>
+                  <p style={{ color: '#64748b', fontSize: 13, lineHeight: 1.5, margin: 0 }}>
+                    To ensure secure biometric pass allocation and physical facility onboarding, all gym members are registered in-person at our reception desk.
+                  </p>
+                </div>
+              </div>
+              <div style={{ background: 'rgba(255, 122, 0, 0.08)', border: '1px solid rgba(255, 122, 0, 0.25)', borderRadius: 10, padding: 14 }}>
+                <div style={{ fontSize: 13, color: '#ea580c', fontWeight: 600, marginBottom: 4 }}>
+                  📍 Bole Medhanialem Branch, Addis Ababa
+                </div>
+                <div style={{ fontSize: 12, color: '#475569' }}>
+                  Reception staff will register your account and issue your official <strong>TG-XXXX Member ID</strong> and <strong>Digital QR Pass</strong> immediately.
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn btn-primary btn-block"
+                onClick={() => setIsRegisterNoticeOpen(false)}
+              >
+                Understood, Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
