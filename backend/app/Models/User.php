@@ -193,6 +193,23 @@ class User extends Authenticatable
         return $this->hasMany(Subscription::class, 'member_id');
     }
 
+    public function activeSubscription(): ?Subscription
+    {
+        return $this->subscriptions()
+            ->with('plan')
+            ->active()
+            ->orderByDesc('end_date')
+            ->first();
+    }
+
+    public function latestSubscription(): ?Subscription
+    {
+        return $this->subscriptions()
+            ->with('plan')
+            ->orderByDesc('id')
+            ->first();
+    }
+
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
