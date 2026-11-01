@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../services/api';
 
-export default function Header({ title, subtitle, onRefresh }) {
+export default function Header({ title, subtitle, onRefresh, theme = 'light', onToggleTheme }) {
   const [apiStatus, setApiStatus] = useState({
     state: 'loading',
     data: null,
@@ -66,8 +66,15 @@ export default function Header({ title, subtitle, onRefresh }) {
       </div>
 
       <div className="header-right-tools">
-        {/* Scope badge */}
-        <span className="badge-scope">TIGAT GYM • Bole Branch</span>
+        {/* Scope badge with Tigat crest logo */}
+        <span className="badge-scope">
+          <img
+            src="/tigat-tiger-logo.png"
+            alt="Tigat"
+            className="badge-tiger-icon"
+          />
+          TIGAT GYM • Bole Branch
+        </span>
 
         {/* Status pill */}
         <div className={`status-pill ${apiStatus.state}`}>
@@ -86,6 +93,18 @@ export default function Header({ title, subtitle, onRefresh }) {
         >
           ↻ Refresh
         </button>
+
+        {/* Theme Toggle Button (White Theme by default) */}
+        {onToggleTheme && (
+          <button
+            type="button"
+            className="btn-theme-toggle"
+            onClick={onToggleTheme}
+            title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to White Theme'}
+          >
+            {theme === 'light' ? '🌙 Dark Mode' : '☀️ White Theme'}
+          </button>
+        )}
       </div>
     </header>
   );

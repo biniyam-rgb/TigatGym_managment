@@ -5,18 +5,17 @@ export default function BrandLogo({
   className = '',
 }) {
   // 1. Sidebar Brand Lockup matching user reference image:
-  // [ Vibrant Orange App Icon ] + TIGAT GYM 📶 + ትጋት ጂም
+  // [ Authentic Tigat Tiger Crest Logo ] + TIGAT GYM 📶 + ትጋት ጂም
   if (variant === 'sidebar') {
     return (
       <div className={`brand-sidebar-lockup ${className}`}>
-        {/* Vibrant Orange App Icon Tile */}
-        <div className="brand-orange-tile">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M4 7h16" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" />
-            <path d="M2 9v6a1 1 0 0 0 1 1h2V8H3a1 1 0 0 0-1 1zm18 0v6a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1h-1a1 1 0 0 0-1 1z" fill="#fff" />
-            <circle cx="12" cy="7" r="2.2" fill="#fff" />
-            <path d="M9 13.5l3-3.5 3 3.5M12 10v9M8.5 21h7" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+        {/* Authentic Tigat Tiger Crest Tile */}
+        <div className="brand-tiger-tile">
+          <img
+            src="/tigat-tiger-logo.png"
+            alt="Tigat Gym Crest"
+            className="brand-sidebar-tiger-img"
+          />
         </div>
 
         {/* Brand Typography & Green Live Signal Waves */}
@@ -33,7 +32,7 @@ export default function BrandLogo({
             </span>
           </div>
           {showSubtext && (
-            <span className="brand-subtext-amharic">ትጋት ጂም • CORE</span>
+            <span className="brand-subtext-amharic">ትጋት ጂም • BOLE</span>
           )}
         </div>
       </div>
