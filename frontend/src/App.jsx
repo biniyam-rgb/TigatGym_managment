@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
 import LoginForm from './components/LoginForm';
@@ -9,14 +9,35 @@ import RoleDashboard from './components/RoleDashboard';
 import UserManagement from './components/UserManagement';
 import AuditLogViewer from './components/AuditLogViewer';
 import SubscriptionManagement from './components/SubscriptionManagement';
+import PaymentLedger from './components/PaymentLedger';
+import AttendanceScanner from './components/AttendanceScanner';
+import TrainerManagement from './components/TrainerManagement';
+import FitnessClassManagement from './components/FitnessClassManagement';
+import WorkoutManagement from './components/WorkoutManagement';
+import EquipmentManagement from './components/EquipmentManagement';
 import ChangePasswordModal from './components/ChangePasswordModal';
 import BrandLogo from './components/BrandLogo';
 import './App.css';
 
 function GymCoreApp() {
   const { isAuthenticated, isLoading } = useAuth();
-  const [activeView, setActiveView] = useState('members'); // Default to Member Management
+  const [activeView, setActiveView] = useState('dashboard'); // Default to Overview Dashboard matching Image 1
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+
+  // White theme as default, with persistence
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('gymcore_theme') || 'light';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.body.className = `theme-${theme}`;
+    localStorage.setItem('gymcore_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  };
 
   if (isLoading) {
     return (
@@ -25,7 +46,7 @@ function GymCoreApp() {
           <div style={{ marginBottom: 16 }}>
             <BrandLogo variant="login" size={120} showSubtext={false} />
           </div>
-          <h3 style={{ color: '#fff' }}>Connecting to GymCore Security Engine...</h3>
+          <h3 style={{ color: theme === 'light' ? '#0f172a' : '#fff' }}>Connecting to GymCore Security Engine...</h3>
           <span className="spinner" style={{ width: 28, height: 28, marginTop: 12 }}></span>
         </div>
       </div>
@@ -33,11 +54,7 @@ function GymCoreApp() {
   }
 
   if (!isAuthenticated) {
-    return (
-      <div className="gymcore-container" style={{ minHeight: '100vh', justifyContent: 'center' }}>
-        <LoginForm />
-      </div>
-    );
+    return <LoginForm theme={theme} onToggleTheme={toggleTheme} />;
   }
 
   // Titles mapping based on active view
@@ -72,38 +89,26 @@ function GymCoreApp() {
         <Header
           title={currentMeta.title}
           subtitle={currentMeta.subtitle}
+          theme={theme}
+          onToggleTheme={toggleTheme}
         />
 
         <main className="gymcore-content-body">
           {activeView === 'members' && <MemberDirectory />}
           {activeView === 'memberships' && <SubscriptionManagement />}
-          {activeView === 'dashboard' && <RoleDashboard />}
+          {(activeView === 'payments' || activeView === 'expenses') && <PaymentLedger />}
+          {activeView === 'attendance' && (
+            <AttendanceScanner
+              onNavigateToMemberships={() => setActiveView('memberships')}
+            />
+          )}
+          {activeView === 'dashboard' && <RoleDashboard onNavigate={setActiveView} />}
+          {activeView === 'trainers' && <TrainerManagement />}
+          {activeView === 'classes' && <FitnessClassManagement />}
+          {activeView === 'workouts' && <WorkoutManagement />}
+          {activeView === 'equipment' && <EquipmentManagement />}
           {activeView === 'users' && <UserManagement />}
           {activeView === 'audit' && <AuditLogViewer />}
-
-          {/* Roadmap placeholder for subsequent modules */}
-          {!['members', 'memberships', 'dashboard', 'users', 'audit'].includes(activeView) && (
-            <div className="dashboard-card" style={{ padding: 40, textAlign: 'center' }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>🚀</div>
-              <h3 style={{ color: '#fff', marginBottom: 8 }}>{currentMeta.title}</h3>
-              <p style={{ color: '#94a3b8', maxWidth: 540, margin: '0 auto 24px auto', fontSize: 14 }}>
-                {currentMeta.subtitle}. Database tables, constraints, and models are fully migrated and ready.
-                This module will be activated in the next step of our roadmap!
-              </p>
-              <div style={{ display: 'inline-flex', gap: 10 }}>
-                <span className="badge" style={{ background: 'rgba(255, 138, 0, 0.15)', color: '#ff8a00', border: '1px solid rgba(255, 138, 0, 0.3)' }}>
-                  Roadmap Step In Progress
-                </span>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setActiveView('members')}
-                >
-                  ← Return to Member Directory
-                </button>
-              </div>
-            </div>
-          )}
         </main>
       </div>
 
