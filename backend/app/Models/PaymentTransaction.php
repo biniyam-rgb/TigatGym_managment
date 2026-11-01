@@ -40,4 +40,21 @@ class PaymentTransaction extends Model
     {
         return $this->belongsTo(Payment::class);
     }
+
+    /**
+     * Generate a unique transaction reference code: TXN-YYYYMMDD-XXXX
+     */
+    public static function generateTransactionReference(): string
+    {
+        $prefix = 'TXN-' . date('Ymd') . '-';
+        $unique = strtoupper(substr(uniqid(), -4));
+        $ref = $prefix . $unique;
+
+        while (self::where('transaction_reference', $ref)->exists()) {
+            $unique = strtoupper(substr(uniqid(), -4));
+            $ref = $prefix . $unique;
+        }
+
+        return $ref;
+    }
 }

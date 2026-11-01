@@ -42,6 +42,11 @@ class Payment extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function member(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
     public function payable(): MorphTo
     {
         return $this->morphTo();
@@ -60,5 +65,90 @@ class Payment extends Model
     public function isCompleted(): bool
     {
         return $this->status === 'completed';
+    }
+
+    public function isRefunded(): bool
+    {
+        return $this->status === 'refunded';
+    }
+
+    public function isPending(): bool
+    {
+        return $this->status === 'pending';
+    }
+
+    public function scopeCompleted($query)
+    {
+        return $query->where('status', 'completed');
+    }
+
+    public function scopeRefunded($query)
+    {
+        return $query->where('status', 'refunded');
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
+    /**
+     * Generate the next sequential payment number: PAY-0001, PAY-0002...
+     */
+    public static function generateNextPaymentNumber(): string
+    {
+        $existing = self::withTrashed()
+            ->where('payment_number', 'like', 'PAY-%')
+            ->pluck('payment_number');
+
+        $maxNum = 0;
+        foreach ($existing as $code) {
+            if (preg_match('/^PAY-(\d+)$/', $code, $matches)) {
+                $num = (int) $matches[1];
+                if ($num > $maxNum) {
+                    $maxNum = $num;
+                }
+            }
+        }
+
+        $nextNum = $maxNum + 1;
+        $number = sprintf('PAY-%04d', $nextNum);
+
+        while (self::withTrashed()->where('payment_number', $number)->exists()) {
+            $nextNum++;
+            $number = sprintf('PAY-%04d', $nextNum);
+        }
+
+        return $number;
+    }
+
+    /**
+     * Generate the next sequential receipt number: RCT-0001, RCT-0002...
+     */
+    public static function generateNextReceiptNumber(): string
+    {
+        $existing = self::withTrashed()
+            ->where('receipt_number', 'like', 'RCT-%')
+            ->pluck('receipt_number');
+
+        $maxNum = 0;
+        foreach ($existing as $code) {
+            if (preg_match('/^RCT-(\d+)$/', $code, $matches)) {
+                $num = (int) $matches[1];
+                if ($num > $maxNum) {
+                    $maxNum = $num;
+                }
+            }
+        }
+
+        $nextNum = $maxNum + 1;
+        $number = sprintf('RCT-%04d', $nextNum);
+
+        while (self::withTrashed()->where('receipt_number', $number)->exists()) {
+            $nextNum++;
+            $number = sprintf('RCT-%04d', $nextNum);
+        }
+
+        return $number;
     }
 }
