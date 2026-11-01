@@ -104,10 +104,6 @@ export const apiClient = {
   },
 
   // Auth endpoints
-  register(payload) {
-    return this.post('/auth/register', payload);
-  },
-
   login(credentials) {
     return this.post('/auth/login', credentials);
   },
@@ -272,6 +268,222 @@ export const apiClient = {
 
   cancelSubscription(id, payload) {
     return this.post(`/subscriptions/${id}/cancel`, payload);
+  },
+
+  // Module D: Payments & Financial Ledger
+  getPayments(params = {}) {
+    const query = new URLSearchParams();
+    if (params.search) query.append('search', params.search);
+    if (params.status) query.append('status', params.status);
+    if (params.payment_method) query.append('payment_method', params.payment_method);
+    if (params.payment_type) query.append('payment_type', params.payment_type);
+    if (params.member_id) query.append('member_id', params.member_id);
+    if (params.date_from) query.append('date_from', params.date_from);
+    if (params.date_to) query.append('date_to', params.date_to);
+    if (params.page) query.append('page', params.page);
+    if (params.per_page) query.append('per_page', params.per_page);
+
+    const queryString = query.toString();
+    return this.get(`/payments${queryString ? `?${queryString}` : ''}`);
+  },
+
+  getPayment(id) {
+    return this.get(`/payments/${id}`);
+  },
+
+  createPayment(payload) {
+    return this.post('/payments', payload);
+  },
+
+  refundPayment(id, payload) {
+    return this.post(`/payments/${id}/refund`, payload);
+  },
+
+  getPaymentSummary() {
+    return this.get('/payments/summary');
+  },
+
+  // Expenses & Outflows
+  getExpenses(params = {}) {
+    const query = new URLSearchParams();
+    if (params.search) query.append('search', params.search);
+    if (params.category) query.append('category', params.category);
+    if (params.status) query.append('status', params.status);
+    if (params.payment_method) query.append('payment_method', params.payment_method);
+    if (params.date_from) query.append('date_from', params.date_from);
+    if (params.date_to) query.append('date_to', params.date_to);
+    if (params.page) query.append('page', params.page);
+    if (params.per_page) query.append('per_page', params.per_page);
+
+    const queryString = query.toString();
+    return this.get(`/expenses${queryString ? `?${queryString}` : ''}`);
+  },
+
+  getExpense(id) {
+    return this.get(`/expenses/${id}`);
+  },
+
+  createExpense(payload) {
+    return this.post('/expenses', payload);
+  },
+
+  updateExpense(id, payload) {
+    return this.put(`/expenses/${id}`, payload);
+  },
+
+  approveExpense(id) {
+    return this.post(`/expenses/${id}/approve`);
+  },
+
+  deleteExpense(id) {
+    return this.delete(`/expenses/${id}`);
+  },
+
+  getExpenseSummary() {
+    return this.get('/expenses/summary');
+  },
+
+  // Module E: Attendance & QR Check-in
+  getAttendance(params = {}) {
+    const query = new URLSearchParams();
+    if (params.search) query.append('search', params.search);
+    if (params.status) query.append('status', params.status);
+    if (params.method) query.append('method', params.method);
+    if (params.member_id) query.append('member_id', params.member_id);
+    if (params.date) query.append('date', params.date);
+    if (params.date_from) query.append('date_from', params.date_from);
+    if (params.date_to) query.append('date_to', params.date_to);
+    if (params.currently_inside) query.append('currently_inside', '1');
+    if (params.page) query.append('page', params.page);
+    if (params.per_page) query.append('per_page', params.per_page);
+
+    const queryString = query.toString();
+    return this.get(`/attendance${queryString ? `?${queryString}` : ''}`);
+  },
+
+  getAttendanceSummary() {
+    return this.get('/attendance/summary');
+  },
+
+  lookupMember(searchQuery) {
+    const query = new URLSearchParams({ query: searchQuery });
+    return this.get(`/attendance/lookup?${query.toString()}`);
+  },
+
+  checkIn(payload) {
+    return this.post('/attendance/check-in', payload);
+  },
+
+  checkOut(payload) {
+    return this.post('/attendance/check-out', payload);
+  },
+
+  updateAttendance(id, payload) {
+    return this.put(`/attendance/${id}`, payload);
+  },
+
+  // Module B: Trainer Management & PT Sessions
+  getTrainers(params = {}) {
+    const query = new URLSearchParams();
+    if (params.search) query.append('search', params.search);
+    const queryString = query.toString();
+    return this.get(`/trainers${queryString ? `?${queryString}` : ''}`);
+  },
+
+  createTrainer(payload) {
+    return this.post('/trainers', payload);
+  },
+
+  assignTrainer(payload) {
+    return this.post('/trainers/assign', payload);
+  },
+
+  getTrainingSessions(params = {}) {
+    const query = new URLSearchParams();
+    if (params.trainer_id) query.append('trainer_id', params.trainer_id);
+    if (params.status) query.append('status', params.status);
+    const queryString = query.toString();
+    return this.get(`/trainers/sessions${queryString ? `?${queryString}` : ''}`);
+  },
+
+  scheduleTrainingSession(payload) {
+    return this.post('/trainers/sessions', payload);
+  },
+
+  // Module G: Fitness Classes & Reservations
+  getFitnessClasses(params = {}) {
+    const query = new URLSearchParams();
+    if (params.status) query.append('status', params.status);
+    if (params.date) query.append('date', params.date);
+    const queryString = query.toString();
+    return this.get(`/classes${queryString ? `?${queryString}` : ''}`);
+  },
+
+  createFitnessClass(payload) {
+    return this.post('/classes', payload);
+  },
+
+  bookFitnessClass(classId, payload = {}) {
+    return this.post(`/classes/${classId}/book`, payload);
+  },
+
+  cancelFitnessClassBooking(classId, payload = {}) {
+    return this.post(`/classes/${classId}/cancel-booking`, payload);
+  },
+
+  // Module F: Workouts & Exercise Library
+  getExercises(params = {}) {
+    const query = new URLSearchParams();
+    if (params.muscle_group) query.append('muscle_group', params.muscle_group);
+    if (params.category) query.append('category', params.category);
+    if (params.search) query.append('search', params.search);
+    const queryString = query.toString();
+    return this.get(`/exercises${queryString ? `?${queryString}` : ''}`);
+  },
+
+  createExercise(payload) {
+    return this.post('/exercises', payload);
+  },
+
+  getWorkoutPlans() {
+    return this.get('/workouts/plans');
+  },
+
+  createWorkoutPlan(payload) {
+    return this.post('/workouts/plans', payload);
+  },
+
+  logWorkoutSet(payload) {
+    return this.post('/workouts/logs', payload);
+  },
+
+  getWorkoutLogs(params = {}) {
+    const query = new URLSearchParams();
+    if (params.member_id) query.append('member_id', params.member_id);
+    const queryString = query.toString();
+    return this.get(`/workouts/logs${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Module H: Equipment & Maintenance Inventory
+  getEquipment(params = {}) {
+    const query = new URLSearchParams();
+    if (params.category) query.append('category', params.category);
+    if (params.status) query.append('status', params.status);
+    if (params.search) query.append('search', params.search);
+    const queryString = query.toString();
+    return this.get(`/equipment${queryString ? `?${queryString}` : ''}`);
+  },
+
+  createEquipment(payload) {
+    return this.post('/equipment', payload);
+  },
+
+  updateEquipment(id, payload) {
+    return this.put(`/equipment/${id}`, payload);
+  },
+
+  deleteEquipment(id) {
+    return this.delete(`/equipment/${id}`);
   },
 };
 
