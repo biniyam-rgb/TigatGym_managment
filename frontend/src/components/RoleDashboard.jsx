@@ -3,22 +3,102 @@ import { useAuth } from '../context/useAuth';
 import apiClient from '../services/api';
 import UserManagement from './UserManagement';
 import AuditLogViewer from './AuditLogViewer';
+import ReceptionDashboard from './ReceptionDashboard';
+
+// Clean SVG Icons for zero-emoji compliance
+function DeskIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19h16" />
+      <path d="M4 15h16" />
+      <path d="M4 11h16" />
+      <path d="M8 7h8" />
+      <path d="M6 7v12" />
+      <path d="M18 7v12" />
+    </svg>
+  );
+}
+
+function ChartIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10" />
+      <line x1="12" y1="20" x2="12" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="14" />
+    </svg>
+  );
+}
+
+function UsersIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
+function ShieldIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+
+function CreditCardIcon({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <line x1="2" y1="10" x2="22" y2="10" />
+    </svg>
+  );
+}
+
+function ClockIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function CheckCircleIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  );
+}
+
+function ArrowUpRightIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="7" y1="17" x2="17" y2="7" />
+      <polyline points="7 7 17 7 17 17" />
+    </svg>
+  );
+}
 
 export default function RoleDashboard({ onNavigate }) {
-  const { user, primaryRole, hasRole } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'users' | 'audit'
+  const { hasRole, primaryRole } = useAuth();
+  const [activeTab, setActiveTab] = useState('reception'); // 'reception' | 'finance' | 'users' | 'audit'
 
   const isOwner = hasRole('owner');
   const isAdmin = hasRole('admin');
-  const isReceptionist = hasRole('receptionist');
 
-  // Metrics from API
+  // Operational Metrics
   const [metrics, setMetrics] = useState({
     totalMembers: 89,
     activeSubscriptions: 89,
     currentlyInside: 56,
     totalTrainers: 12,
     todayCheckIns: 56,
+    expiringCount: 7,
     monthRevenue: 45300,
     monthExpenses: 16200,
     capacityLimit: 100,
@@ -27,7 +107,7 @@ export default function RoleDashboard({ onNavigate }) {
 
   const [trainersList, setTrainersList] = useState([]);
 
-  // Default featured coaches matching Image 1
+  // Featured coaches for the business analytics view
   const defaultTrainers = [
     {
       id: 1,
@@ -68,38 +148,42 @@ export default function RoleDashboard({ onNavigate }) {
   ];
 
   useEffect(() => {
+    if (primaryRole === 'receptionist') {
+      return;
+    }
+
     let ignore = false;
 
-    // Load metrics from endpoints
+    // Load live metrics from API
     Promise.allSettled([
       apiClient.getAttendanceSummary(),
-      (isOwner || isAdmin || isReceptionist) ? apiClient.getPaymentSummary() : Promise.resolve({ data: {} }),
-      (isOwner || isAdmin || isReceptionist) ? apiClient.getMembers({ per_page: 1 }) : Promise.resolve({ meta: {} }),
-      (isOwner || isAdmin || isReceptionist) ? apiClient.getSubscriptions({ status: 'active', per_page: 1 }) : Promise.resolve({ meta: {} }),
+      apiClient.getPaymentSummary(),
+      apiClient.getMembers({ per_page: 1 }),
+      apiClient.getSubscriptions({ status: 'active', per_page: 1 }),
       apiClient.getTrainers(),
-    ]).then(([attRes, payRes, memRes, subRes, trainRes]) => {
-      if (!ignore) {
-        const att = attRes.status === 'fulfilled' ? attRes.value?.data : {};
-        const pay = payRes.status === 'fulfilled' ? payRes.value?.data : {};
-        const mem = memRes.status === 'fulfilled' ? memRes.value?.meta : {};
-        const sub = subRes.status === 'fulfilled' ? subRes.value?.meta : {};
-        const trainers = trainRes.status === 'fulfilled' ? trainRes.value?.data : [];
+    ]).then(([attSumRes, payRes, memRes, subRes, trainRes]) => {
+      if (ignore) return;
 
-        if (trainers && trainers.length > 0) {
-          setTrainersList(trainers.slice(0, 4));
-        }
+      const attSum = attSumRes.status === 'fulfilled' ? attSumRes.value?.data : {};
+      const pay = payRes.status === 'fulfilled' ? payRes.value?.data : {};
+      const mem = memRes.status === 'fulfilled' ? memRes.value?.meta : {};
+      const sub = subRes.status === 'fulfilled' ? subRes.value?.meta : {};
+      const trainers = trainRes.status === 'fulfilled' ? trainRes.value?.data : [];
 
-        setMetrics((prev) => ({
-          ...prev,
-          totalMembers: mem?.total || prev.totalMembers,
-          activeSubscriptions: sub?.total || prev.activeSubscriptions,
-          currentlyInside: att?.currently_inside || prev.currentlyInside,
-          todayCheckIns: att?.today_admitted || prev.todayCheckIns,
-          totalTrainers: trainers?.length || prev.totalTrainers,
-          monthRevenue: pay?.month_revenue || pay?.total_revenue || prev.monthRevenue,
-          isLoading: false,
-        }));
+      if (trainers && trainers.length > 0) {
+        setTrainersList(trainers.slice(0, 4));
       }
+
+      setMetrics((prev) => ({
+        ...prev,
+        totalMembers: mem?.total || prev.totalMembers,
+        activeSubscriptions: sub?.total || prev.activeSubscriptions,
+        currentlyInside: attSum?.currently_inside ?? prev.currentlyInside,
+        todayCheckIns: attSum?.today_admitted ?? prev.todayCheckIns,
+        totalTrainers: trainers?.length || prev.totalTrainers,
+        monthRevenue: pay?.month_revenue || pay?.total_revenue || prev.monthRevenue,
+        isLoading: false,
+      }));
     }).catch((err) => {
       console.error('Failed to load dashboard metrics:', err);
       if (!ignore) {
@@ -110,19 +194,12 @@ export default function RoleDashboard({ onNavigate }) {
     return () => {
       ignore = true;
     };
-  }, [isOwner, isAdmin, isReceptionist]);
+  }, [primaryRole]);
 
-  // Capacity calculation
+  // Floor Capacity count
   const capacitySpots = metrics.currentlyInside || 56;
-  const totalCapacity = metrics.capacityLimit || 100;
-  const capacityPercent = Math.min(100, Math.round((capacitySpots / totalCapacity) * 100));
 
-  // Determine capacity label
-  let capacityLevel = 'Moderate';
-  if (capacityPercent < 35) capacityLevel = 'Low Traffic';
-  else if (capacityPercent > 75) capacityLevel = 'High / Peak';
-
-  // Revenue analytics monthly series matching Image 1
+  // Revenue analytics monthly series
   const monthlyData = [
     { month: 'Jan', rev: 850, exp: 420 },
     { month: 'Feb', rev: 1100, exp: 510 },
@@ -134,99 +211,86 @@ export default function RoleDashboard({ onNavigate }) {
     { month: 'Aug', rev: 1350, exp: 690 },
   ];
 
-  // Coaches to display
   const displayTrainers = trainersList.length > 0 ? trainersList : defaultTrainers;
+
+  // Dedicated Receptionist view without administrator tabs
+  if (primaryRole === 'receptionist') {
+    return <ReceptionDashboard onNavigate={onNavigate} />;
+  }
 
   return (
     <div className="iron-dashboard-wrapper">
-      {/* Secondary Management Tabs (when Staff or Owner logged in) */}
-      {(isOwner || isAdmin || isReceptionist) && (
+      {/* Role-Based Secondary Navigation Tabs */}
+      {(isOwner || isAdmin) && (
         <div className="iron-dashboard-subtabs">
           <button
             type="button"
-            className={`subtab-pill ${activeTab === 'overview' ? 'active' : ''}`}
-            onClick={() => setActiveTab('overview')}
+            className={`subtab-pill ${activeTab === 'reception' ? 'active' : ''}`}
+            onClick={() => setActiveTab('reception')}
           >
-            📊 Business Overview
+            <DeskIcon size={16} />
+            <span>Front Desk Reception</span>
           </button>
+
+          <button
+            type="button"
+            className={`subtab-pill ${activeTab === 'finance' ? 'active' : ''}`}
+            onClick={() => setActiveTab('finance')}
+          >
+            <ChartIcon size={16} />
+            <span>Revenue & Analytics</span>
+          </button>
+
           <button
             type="button"
             className={`subtab-pill ${activeTab === 'users' ? 'active' : ''}`}
             onClick={() => setActiveTab('users')}
           >
-            👥 Staff Accounts
+            <UsersIcon size={16} />
+            <span>Staff Accounts</span>
           </button>
+
           {isOwner && (
             <button
               type="button"
               className={`subtab-pill ${activeTab === 'audit' ? 'active' : ''}`}
               onClick={() => setActiveTab('audit')}
             >
-              🛡️ Audit Trail
+              <ShieldIcon size={16} />
+              <span>Audit Trail</span>
             </button>
           )}
         </div>
       )}
 
-      {/* Tab 1: Business Overview matching Image 1 */}
-      {activeTab === 'overview' && (
+      {/* =========================================================================
+          TAB 1: FRONT DESK RECEPTION OPERATIONS COCKPIT
+          ========================================================================= */}
+      {activeTab === 'reception' && (
+        <ReceptionDashboard onNavigate={onNavigate} />
+      )}
+            {/* =========================================================================
+          TAB 2: FINANCIAL & BUSINESS ANALYTICS (OWNER / ADMIN)
+          ========================================================================= */}
+      {activeTab === 'finance' && (isOwner || isAdmin) && (
         <>
-          {/* Top Welcome Title & Utility Controls */}
-          <div className="iron-welcome-header">
-            <div className="iron-welcome-left">
-              <h1 className="iron-main-title">Manage your Fitness business</h1>
-              <p className="iron-sub-title">
-                Welcome back! Here&apos;s your fitness business overview.
+          <div className="reception-header-banner">
+            <div>
+              <h2 className="reception-welcome-title">Financial & Revenue Analytics</h2>
+              <p className="reception-welcome-desc">
+                Revenue streams, operational expenses, and trainer performance metrics.
               </p>
-            </div>
-
-            <div className="iron-welcome-right">
-              {/* Quick Search Button */}
-              <button
-                type="button"
-                className="iron-circle-btn"
-                title="Search athletes or invoices"
-                onClick={() => onNavigate && onNavigate('members')}
-              >
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-              </button>
-
-              {/* Notification Bell with Badge */}
-              <button
-                type="button"
-                className="iron-circle-btn has-notification"
-                title="Recent front desk alerts"
-                onClick={() => onNavigate && onNavigate('attendance')}
-              >
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-                <span className="iron-notification-dot"></span>
-              </button>
-
-              {/* User Avatar with Dropdown Arrow */}
-              <div className="iron-user-pill" title={`${user?.name} (${primaryRole?.toUpperCase()})`}>
-                <div className="iron-user-avatar">
-                  {user?.name?.charAt(0).toUpperCase() || 'U'}
-                </div>
-                <span className="iron-user-name-text">
-                  {user?.name?.split(' ')[0]}
-                </span>
-                <span className="iron-user-chevron">▼</span>
-              </div>
             </div>
           </div>
 
-          {/* 4 Stat KPI Cards matching Image 1 & 2 */}
+          {/* 4 Stat KPI Cards */}
           <div className="iron-stat-cards-grid">
             {/* Card 1: Revenue */}
             <div className="iron-stat-card card-revenue">
               <div className="stat-card-top">
-                <span className="stat-card-icon">💲</span>
+                <span className="stat-card-icon icon-orange" style={{ padding: 6, borderRadius: 8 }}>
+                  <CreditCardIcon size={20} />
+                </span>
                 <span className="stat-card-label">Revenue</span>
               </div>
               <div className="stat-card-main-val font-mono">
@@ -248,7 +312,9 @@ export default function RoleDashboard({ onNavigate }) {
               onClick={() => onNavigate && onNavigate('members')}
             >
               <div className="stat-card-top">
-                <span className="stat-card-icon">👥</span>
+                <span className="stat-card-icon icon-blue" style={{ padding: 6, borderRadius: 8 }}>
+                  <UsersIcon size={20} />
+                </span>
                 <span className="stat-card-label">Members</span>
               </div>
               <div className="stat-card-main-val font-mono">
@@ -262,33 +328,37 @@ export default function RoleDashboard({ onNavigate }) {
               </div>
             </div>
 
-            {/* Card 3: Trainer */}
+            {/* Card 3: Trainers */}
             <div
               className="iron-stat-card card-trainers clickable-card"
               onClick={() => onNavigate && onNavigate('trainers')}
             >
               <div className="stat-card-top">
-                <span className="stat-card-icon">🏋️</span>
-                <span className="stat-card-label">Trainer</span>
+                <span className="stat-card-icon icon-green" style={{ padding: 6, borderRadius: 8 }}>
+                  <DeskIcon size={20} />
+                </span>
+                <span className="stat-card-label">Trainers</span>
               </div>
               <div className="stat-card-main-val font-mono">
                 {metrics.totalTrainers}
               </div>
               <div className="stat-card-bottom">
-                <span className="stat-card-period">Active Trainers</span>
+                <span className="stat-card-period">Active Coaches</span>
                 <span className="stat-pill-badge badge-green">
                   ↗ +3.0%
                 </span>
               </div>
             </div>
 
-            {/* Card 4: Visited / Attendance */}
+            {/* Card 4: Daily Visits */}
             <div
               className="iron-stat-card card-visited clickable-card"
               onClick={() => onNavigate && onNavigate('attendance')}
             >
               <div className="stat-card-top">
-                <span className="stat-card-icon">🚶</span>
+                <span className="stat-card-icon icon-purple" style={{ padding: 6, borderRadius: 8 }}>
+                  <CheckCircleIcon size={20} />
+                </span>
                 <span className="stat-card-label">Visited</span>
               </div>
               <div className="stat-card-main-val font-mono">
@@ -296,163 +366,101 @@ export default function RoleDashboard({ onNavigate }) {
               </div>
               <div className="stat-card-bottom">
                 <span className="stat-card-period">Daily Average</span>
-                <span className="stat-pill-badge badge-red">
-                  ↘ -1.2%
+                <span className="stat-pill-badge badge-green">
+                  ↗ Active
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Middle Row: Revenue Analytics & Gym Capacity Dot Matrix */}
-          <div className="iron-middle-grid">
-            {/* Left Card: Revenue Analytics Chart */}
-            <div className="iron-card-panel iron-revenue-panel">
-              <div className="panel-header">
-                <div>
-                  <h3 className="panel-title">Revenue Analytics</h3>
-                  <span className="panel-subtitle">Jan – Aug 2026</span>
-                </div>
-                <div className="chart-legend">
-                  <span className="legend-item">
-                    <span className="legend-dot dot-orange"></span>
-                    <span>Revenue</span>
-                  </span>
-                  <span className="legend-item">
-                    <span className="legend-dot dot-grey"></span>
-                    <span>Expense</span>
-                  </span>
-                </div>
+          {/* Revenue Analytics Chart */}
+          <div className="iron-card-panel iron-revenue-panel" style={{ marginBottom: 24 }}>
+            <div className="panel-header">
+              <div>
+                <h3 className="panel-title">Revenue & Expense Analytics</h3>
+                <span className="panel-subtitle">Jan – Aug 2026 (ETB in thousands)</span>
               </div>
-
-              {/* Modern Paired Bar Chart */}
-              <div className="revenue-chart-container">
-                {/* Y-Axis scale */}
-                <div className="chart-y-axis">
-                  <span>1400</span>
-                  <span>1200</span>
-                  <span>1000</span>
-                  <span>800</span>
-                  <span>$0</span>
-                </div>
-
-                {/* Bars & Grid */}
-                <div className="chart-bars-wrap">
-                  {/* Subtle Gridlines */}
-                  <div className="chart-gridlines" aria-hidden="true">
-                    <div className="gridline"></div>
-                    <div className="gridline"></div>
-                    <div className="gridline"></div>
-                    <div className="gridline"></div>
-                    <div className="gridline"></div>
-                  </div>
-
-                  {/* Paired Columns */}
-                  <div className="chart-columns-flex">
-                    {monthlyData.map((item) => {
-                      const maxScale = 1600;
-                      const revHeight = (item.rev / maxScale) * 100;
-                      const expHeight = (item.exp / maxScale) * 100;
-
-                      return (
-                        <div key={item.month} className="monthly-column-group">
-                          <div className="bars-pair">
-                            {/* Revenue Bar (Orange) */}
-                            <div
-                              className="bar bar-revenue"
-                              style={{ height: `${revHeight}%` }}
-                              title={`Revenue: ${item.rev} ETB`}
-                            ></div>
-                            {/* Expense Bar (Dark Grey) */}
-                            <div
-                              className="bar bar-expense"
-                              style={{ height: `${expHeight}%` }}
-                              title={`Expense: ${item.exp} ETB`}
-                            ></div>
-                          </div>
-                          <span className="month-label">{item.month}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+              <div className="chart-legend">
+                <span className="legend-item">
+                  <span className="legend-dot dot-orange"></span>
+                  <span>Revenue</span>
+                </span>
+                <span className="legend-item">
+                  <span className="legend-dot dot-grey"></span>
+                  <span>Expense</span>
+                </span>
               </div>
             </div>
 
-            {/* Right Card: Gym Capacity with 10x10 Dot Matrix matching Image 1 */}
-            <div className="iron-card-panel iron-capacity-panel">
-              <div className="panel-header">
-                <h3 className="panel-title">Gym Capacity</h3>
-                <button
-                  type="button"
-                  className="iron-mini-action-btn"
-                  title="Live Floor Scanner"
-                  onClick={() => onNavigate && onNavigate('attendance')}
-                >
-                  ↗
-                </button>
+            <div className="revenue-chart-container">
+              <div className="chart-y-axis">
+                <span>1400</span>
+                <span>1200</span>
+                <span>1000</span>
+                <span>800</span>
+                <span>$0</span>
               </div>
 
-              {/* 10 x 10 Dot Matrix Grid matching Image 1 */}
-              <div className="capacity-matrix-container">
-                <div className="dot-matrix-grid">
-                  {Array.from({ length: 100 }).map((_, idx) => {
-                    const isOccupied = idx < capacitySpots;
+              <div className="chart-bars-wrap">
+                <div className="chart-gridlines" aria-hidden="true">
+                  <div className="gridline"></div>
+                  <div className="gridline"></div>
+                  <div className="gridline"></div>
+                  <div className="gridline"></div>
+                  <div className="gridline"></div>
+                </div>
+
+                <div className="chart-columns-flex">
+                  {monthlyData.map((item) => {
+                    const maxScale = 1600;
+                    const revHeight = (item.rev / maxScale) * 100;
+                    const expHeight = (item.exp / maxScale) * 100;
+
                     return (
-                      <span
-                        key={idx}
-                        className={`matrix-dot ${isOccupied ? 'dot-occupied' : 'dot-unoccupied'}`}
-                        title={isOccupied ? `Occupied Spot #${idx + 1}` : `Open Spot #${idx + 1}`}
-                      ></span>
+                      <div key={item.month} className="monthly-column-group">
+                        <div className="bars-pair">
+                          <div
+                            className="bar bar-revenue"
+                            style={{ height: `${revHeight}%` }}
+                            title={`Revenue: ${item.rev} ETB`}
+                          ></div>
+                          <div
+                            className="bar bar-expense"
+                            style={{ height: `${expHeight}%` }}
+                            title={`Expense: ${item.exp} ETB`}
+                          ></div>
+                        </div>
+                        <span className="month-label">{item.month}</span>
+                      </div>
                     );
                   })}
                 </div>
               </div>
-
-              {/* Capacity Status & Percentage */}
-              <div className="capacity-footer-meta">
-                <div className="capacity-numbers">
-                  <strong>{capacitySpots} / {totalCapacity} spots</strong>
-                  <span className="capacity-pct-text">{capacityPercent}%</span>
-                </div>
-                <span className="capacity-status-badge">
-                  {capacityLevel}
-                </span>
-              </div>
-
-              {/* Solid Orange Capsule Progress Bar matching Image 1 */}
-              <div className="capacity-capsule-track">
-                <div
-                  className="capacity-capsule-fill"
-                  style={{ width: `${capacityPercent}%` }}
-                ></div>
-              </div>
             </div>
           </div>
 
-          {/* Bottom Section: Personal Trainer matching Image 1 */}
+          {/* Featured Coaches Roster */}
           <div className="iron-trainers-section">
             <div className="trainers-section-header">
-              <h3 className="section-heading">Personal Trainer</h3>
+              <h3 className="section-heading">Featured Personal Trainers</h3>
               <button
                 type="button"
                 className="view-all-link-btn"
                 onClick={() => onNavigate && onNavigate('trainers')}
               >
-                View All
+                <span>View All Coaches</span>
+                <ArrowUpRightIcon size={14} />
               </button>
             </div>
 
-            {/* 4 Trainer Cards matching Image 1 */}
             <div className="iron-trainers-row">
               {displayTrainers.map((coach, idx) => (
                 <div key={coach.id || idx} className="iron-coach-card">
-                  {/* Top Coach Badge with Indicator Dot */}
                   <div className="coach-top-badge">
                     <span className="coach-status-dot"></span>
                     <span className="coach-badge-name">{coach.name}</span>
                   </div>
 
-                  {/* Coach Photo / High Quality Silhouette Portrait */}
                   <div className="coach-photo-wrap">
                     {coach.avatar ? (
                       <img
@@ -469,7 +477,6 @@ export default function RoleDashboard({ onNavigate }) {
                     </div>
                   </div>
 
-                  {/* Action Icons matching Image 1 */}
                   <div className="coach-actions-bar">
                     <button
                       type="button"
@@ -477,7 +484,7 @@ export default function RoleDashboard({ onNavigate }) {
                       title="Direct Consultation"
                       onClick={() => onNavigate && onNavigate('trainers')}
                     >
-                      💬
+                      <DeskIcon size={15} />
                     </button>
                     <button
                       type="button"
@@ -485,14 +492,14 @@ export default function RoleDashboard({ onNavigate }) {
                       title="Schedule PT Session"
                       onClick={() => onNavigate && onNavigate('trainers')}
                     >
-                      ⏱️
+                      <ClockIcon size={15} />
                     </button>
                     <button
                       type="button"
                       className="coach-action-btn check-btn"
-                      title="Assigned Coach"
+                      title="Certified Coach"
                     >
-                      ✓
+                      <CheckCircleIcon size={15} />
                     </button>
                   </div>
                 </div>
@@ -502,14 +509,18 @@ export default function RoleDashboard({ onNavigate }) {
         </>
       )}
 
-      {/* Tab 2: User & Staff Management */}
-      {activeTab === 'users' && (isOwner || isAdmin || isReceptionist) && (
+      {/* =========================================================================
+          TAB 3: STAFF ACCOUNTS MANAGEMENT
+          ========================================================================= */}
+      {activeTab === 'users' && (isOwner || isAdmin) && (
         <div className="subtab-pane">
           <UserManagement />
         </div>
       )}
 
-      {/* Tab 3: Security Audit Ledger */}
+      {/* =========================================================================
+          TAB 4: SYSTEM AUDIT TRAIL (OWNER ONLY)
+          ========================================================================= */}
       {activeTab === 'audit' && isOwner && (
         <div className="subtab-pane">
           <AuditLogViewer />
