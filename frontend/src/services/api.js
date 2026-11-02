@@ -6,6 +6,11 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 const TOKEN_KEY = 'gymcore_token';
 
+// In-flight request deduplication and ultra-fast client cache (4s TTL)
+const inFlightRequests = new Map();
+const getCache = new Map();
+const CACHE_TTL_MS = 4000;
+
 export class ApiError extends Error {
   constructor(message, status, data = null) {
     super(message);
@@ -33,10 +38,32 @@ export const apiClient = {
 
   clearToken() {
     localStorage.removeItem(TOKEN_KEY);
+    getCache.clear();
   },
 
   async request(endpoint, options = {}) {
+    const method = (options.method || 'GET').toUpperCase();
     const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+
+    // Mutations invalidate cached GET reads
+    if (method !== 'GET') {
+      getCache.clear();
+    }
+
+    // Check fast cache for GET requests
+    const isForceRefresh = endpoint.includes('refresh=1') || options.noCache;
+    if (method === 'GET' && !isForceRefresh) {
+      const cached = getCache.get(url);
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+        return cached.data;
+      }
+
+      // Share identical in-flight requests
+      if (inFlightRequests.has(url)) {
+        return inFlightRequests.get(url);
+      }
+    }
+
     const token = this.getToken();
 
     const headers = {
@@ -51,27 +78,43 @@ export const apiClient = {
       headers,
     };
 
-    try {
-      const response = await fetch(url, config);
-      const data = await response.json().catch(() => null);
+    const fetchPromise = (async () => {
+      try {
+        const response = await fetch(url, config);
+        const data = await response.json().catch(() => null);
 
-      if (!response.ok) {
-        // If unauthenticated or token revoked, dispatch unauthorized event
-        if (response.status === 401) {
-          window.dispatchEvent(new CustomEvent('gymcore:unauthorized'));
+        if (!response.ok) {
+          // If unauthenticated or token revoked, dispatch unauthorized event
+          if (response.status === 401) {
+            window.dispatchEvent(new CustomEvent('gymcore:unauthorized'));
+          }
+
+          const errorMessage = data?.message || `HTTP error ${response.status}: ${response.statusText}`;
+          throw new ApiError(errorMessage, response.status, data);
         }
 
-        const errorMessage = data?.message || `HTTP error ${response.status}: ${response.statusText}`;
-        throw new ApiError(errorMessage, response.status, data);
-      }
+        if (method === 'GET' && !isForceRefresh && data) {
+          getCache.set(url, { timestamp: Date.now(), data });
+        }
 
-      return data;
-    } catch (error) {
-      if (!(error instanceof ApiError)) {
-        console.error(`Network or API Error on ${url}:`, error);
+        return data;
+      } catch (error) {
+        if (!(error instanceof ApiError)) {
+          console.error(`Network or API Error on ${url}:`, error);
+        }
+        throw error;
+      } finally {
+        if (method === 'GET') {
+          inFlightRequests.delete(url);
+        }
       }
-      throw error;
+    })();
+
+    if (method === 'GET' && !isForceRefresh) {
+      inFlightRequests.set(url, fetchPromise);
     }
+
+    return fetchPromise;
   },
 
   get(endpoint, headers = {}) {
@@ -123,6 +166,12 @@ export const apiClient = {
   // Role endpoints
   getRoles() {
     return this.get('/roles');
+  },
+
+  // Reception Overview Dashboard (Dedicated Operational Aggregation)
+  getReceptionDashboard(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.get(`/reception/dashboard${query ? `?${query}` : ''}`);
   },
 
   // User management endpoints
