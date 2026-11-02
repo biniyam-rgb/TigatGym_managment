@@ -6,6 +6,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import MemberDirectory from './components/MemberDirectory';
 import RoleDashboard from './components/RoleDashboard';
+import ReceptionDashboard from './components/ReceptionDashboard';
 import UserManagement from './components/UserManagement';
 import AuditLogViewer from './components/AuditLogViewer';
 import SubscriptionManagement from './components/SubscriptionManagement';
@@ -20,9 +21,16 @@ import BrandLogo from './components/BrandLogo';
 import './App.css';
 
 function GymCoreApp() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, primaryRole } = useAuth();
   const [activeView, setActiveView] = useState('dashboard'); // Default to Overview Dashboard matching Image 1
+  const [navParams, setNavParams] = useState(null);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+
+  // Seamless navigation with parameters (e.g. { openRegister: true })
+  const handleNavigate = (view, params = null) => {
+    setNavParams(params);
+    setActiveView(view);
+  };
 
   // White theme as default, with persistence
   const [theme, setTheme] = useState(() => {
@@ -58,8 +66,11 @@ function GymCoreApp() {
   }
 
   // Titles mapping based on active view
+  const isReceptionist = primaryRole === 'receptionist';
   const viewTitles = {
-    dashboard: { title: 'Operational Analytics & Overview', subtitle: 'Real-time TIGAT GYM performance indicators' },
+    dashboard: isReceptionist
+      ? { title: 'Reception Dashboard', subtitle: 'Front-desk operations, member admissions & daily activities' }
+      : { title: 'Operational Analytics & Overview', subtitle: 'Real-time TIGAT GYM performance indicators' },
     members: { title: 'Member Directory & Profiles', subtitle: 'Module A — Membership records and digital QR pass generation' },
     memberships: { title: 'Membership Plans & Subscriptions', subtitle: 'Module C — Package duration, pricing in ETB, and lifecycle management' },
     payments: { title: 'Payments & Financial Ledger', subtitle: 'Module D — Cash, Bank Slip, POS & Chapa transactions (ETB)' },
@@ -80,7 +91,7 @@ function GymCoreApp() {
       {/* Fixed Left Sidebar matching reference image */}
       <Sidebar
         activeView={activeView}
-        onViewChange={setActiveView}
+        onViewChange={(v) => handleNavigate(v, null)}
         onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
       />
 
@@ -94,15 +105,25 @@ function GymCoreApp() {
         />
 
         <main className="gymcore-content-body">
-          {activeView === 'members' && <MemberDirectory />}
+          {activeView === 'members' && (
+            <MemberDirectory initialOpenRegister={Boolean(navParams?.openRegister)} />
+          )}
           {activeView === 'memberships' && <SubscriptionManagement />}
-          {(activeView === 'payments' || activeView === 'expenses') && <PaymentLedger />}
+          {(activeView === 'payments' || activeView === 'expenses') && (
+            <PaymentLedger initialOpenRecordPayment={Boolean(navParams?.openRecordPayment)} />
+          )}
           {activeView === 'attendance' && (
             <AttendanceScanner
-              onNavigateToMemberships={() => setActiveView('memberships')}
+              onNavigateToMemberships={() => handleNavigate('memberships')}
             />
           )}
-          {activeView === 'dashboard' && <RoleDashboard onNavigate={setActiveView} />}
+          {activeView === 'dashboard' && (
+            primaryRole === 'receptionist' ? (
+              <ReceptionDashboard onNavigate={handleNavigate} />
+            ) : (
+              <RoleDashboard onNavigate={handleNavigate} />
+            )
+          )}
           {activeView === 'trainers' && <TrainerManagement />}
           {activeView === 'classes' && <FitnessClassManagement />}
           {activeView === 'workouts' && <WorkoutManagement />}
