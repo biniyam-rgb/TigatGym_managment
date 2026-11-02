@@ -1,25 +1,87 @@
 import { useState } from 'react';
 import { useAuth } from '../context/useAuth';
 
+// Crisp SVG Icons (Replacing all emojis)
+const AlertCircleIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" y1="8" x2="12" y2="12" />
+    <line x1="12" y1="16" x2="12.01" y2="16" />
+  </svg>
+);
+
+const EyeIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+const EyeOffIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+    <line x1="1" y1="1" x2="23" y2="23" />
+  </svg>
+);
+
+const CrownIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z" />
+    <path d="M5 20h14" />
+  </svg>
+);
+
+const ShieldIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </svg>
+);
+
+const ClipboardIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+    <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+  </svg>
+);
+
+const DumbbellIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 5v14M18 5v14M2 9v6M22 9v6M6 12h12" />
+  </svg>
+);
+
+const UserIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
+const MailCheckIcon = () => (
+  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="4" width="20" height="16" rx="2" />
+    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+  </svg>
+);
+
 export default function LoginForm({ onSuccess }) {
   const { login } = useAuth();
-  const [activePortal, setActivePortal] = useState('member'); // 'member' | 'staff'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
-  const [isRegisterNoticeOpen, setIsRegisterNoticeOpen] = useState(false);
 
-  // Demo accounts for instant one-click testing
+  // Quick Demo fill accounts with SVG icons
   const demoAccounts = [
-    { role: 'Owner', email: 'owner@tigatgym.com', pass: 'Password123!', icon: '👑' },
-    { role: 'Admin', email: 'admin@tigatgym.com', pass: 'Password123!', icon: '🛡️' },
-    { role: 'Receptionist', email: 'receptionist@tigatgym.com', pass: 'Password123!', icon: '📋' },
-    { role: 'Trainer', email: 'trainer@tigatgym.com', pass: 'Password123!', icon: '🏋️' },
-    { role: 'Member', email: 'member@tigatgym.com', pass: 'Password123!', icon: '👤' },
+    { role: 'Owner', email: 'owner@tigatgym.com', pass: 'Password123!', icon: <CrownIcon /> },
+    { role: 'Admin', email: 'admin@tigatgym.com', pass: 'Password123!', icon: <ShieldIcon /> },
+    { role: 'Receptionist', email: 'receptionist@tigatgym.com', pass: 'Password123!', icon: <ClipboardIcon /> },
+    { role: 'Trainer', email: 'trainer@tigatgym.com', pass: 'Password123!', icon: <DumbbellIcon /> },
+    { role: 'Member', email: 'member@tigatgym.com', pass: 'Password123!', icon: <UserIcon /> },
   ];
 
   const handleSubmit = async (e) => {
@@ -41,11 +103,6 @@ export default function LoginForm({ onSuccess }) {
     setEmail(acc.email);
     setPassword(acc.pass);
     setErrorMessage('');
-    if (acc.role === 'Member') {
-      setActivePortal('member');
-    } else {
-      setActivePortal('staff');
-    }
   };
 
   const handleForgotSubmit = (e) => {
@@ -59,22 +116,21 @@ export default function LoginForm({ onSuccess }) {
       <div className="tigat-login-bg-photo" aria-hidden="true"></div>
       <div className="tigat-login-vignette" aria-hidden="true"></div>
 
-      {/* Dynamic Angular Red & Charcoal Geometric Slashes matching exact user image */}
-      {/* Left Slashes */}
+      {/* Dynamic Angular Red & Charcoal Geometric Slashes */}
       <div className="tigat-slash-left-charcoal" aria-hidden="true"></div>
       <div className="tigat-slash-left-red" aria-hidden="true"></div>
       <div className="tigat-slash-left-accent-line" aria-hidden="true"></div>
       <div className="tigat-slash-left-bottom-red" aria-hidden="true"></div>
 
-      {/* Right Slashes */}
       <div className="tigat-slash-right-charcoal" aria-hidden="true"></div>
       <div className="tigat-slash-right-red" aria-hidden="true"></div>
       <div className="tigat-slash-right-accent-line" aria-hidden="true"></div>
 
-      {/* Main Center Login Card Column */}
+      {/* Main Single Full-Screen Center Column */}
       <div className="tigat-login-center-column">
-        {/* Exact Tigat Gym Tiger Logo with Crossed Barbells from user image */}
+        {/* Tigat Gym Tiger Logo with Glowing Aura */}
         <div className="tigat-logo-wrapper">
+          <div className="tigat-logo-glow-aura" aria-hidden="true"></div>
           <img
             src="/tigat-tiger-logo.png"
             alt="TIGAT GYM"
@@ -88,37 +144,12 @@ export default function LoginForm({ onSuccess }) {
         {/* Error notification */}
         {errorMessage && (
           <div className="tigat-login-error">
-            <span>⚠️ {errorMessage}</span>
+            <AlertCircleIcon />
+            <span>{errorMessage}</span>
           </div>
         )}
 
-        {/* Dual Tab Switcher: Member Login vs Admin / Staff Portal */}
-        <div className="tigat-tabs-header">
-          <button
-            type="button"
-            className={`tigat-tab-btn ${activePortal === 'member' ? 'active' : ''}`}
-            onClick={() => {
-              setActivePortal('member');
-              setEmail('member@tigatgym.com');
-              setPassword('Password123!');
-            }}
-          >
-            Member Login
-          </button>
-          <button
-            type="button"
-            className={`tigat-tab-btn ${activePortal === 'staff' ? 'active' : ''}`}
-            onClick={() => {
-              setActivePortal('staff');
-              setEmail('admin@tigatgym.com');
-              setPassword('Password123!');
-            }}
-          >
-            Admin / Staff Portal
-          </button>
-        </div>
-
-        {/* Translucent Glassmorphism Form Card */}
+        {/* Unified Glassmorphism Form Card */}
         <form onSubmit={handleSubmit} className="tigat-form-card">
           {/* Email Address Underline Field */}
           <div className="tigat-input-group">
@@ -133,24 +164,38 @@ export default function LoginForm({ onSuccess }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="tigat-underline-input"
+              placeholder="e.g. member@tigatgym.com"
             />
           </div>
 
-          {/* Password Underline Field */}
+          {/* Password Underline Field with Eye SVG Toggle */}
           <div className="tigat-input-group">
             <label htmlFor="tigat-password" className="tigat-input-label">
               Password
             </label>
-            <input
-              id="tigat-password"
-              type="password"
-              required
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="tigat-underline-input"
-            />
-            {/* Forgot your password? Link right-aligned */}
+            <div className="tigat-password-input-wrap">
+              <input
+                id="tigat-password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="tigat-underline-input"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                className="tigat-pwd-toggle-btn"
+                onClick={() => setShowPassword(!showPassword)}
+                title={showPassword ? 'Hide password' : 'Show password'}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+              </button>
+            </div>
+
+            {/* Forgot your password? Link */}
             <div className="tigat-forgot-wrap">
               <button
                 type="button"
@@ -174,22 +219,11 @@ export default function LoginForm({ onSuccess }) {
           >
             {isLoading ? 'LOGGING IN...' : 'LOGIN'}
           </button>
-
-          {/* Don't have an account? Link */}
-          <div className="tigat-no-account-wrap">
-            <button
-              type="button"
-              className="tigat-no-account-btn"
-              onClick={() => setIsRegisterNoticeOpen(true)}
-            >
-              Don&apos;t have an account?
-            </button>
-          </div>
         </form>
 
-        {/* Discreet One-Click Role Switcher Pills for Testing */}
+        {/* Discreet One-Click Quick Demo Autofill Pills with SVGs */}
         <div className="tigat-demo-dock">
-          <span className="tigat-demo-label">Quick Demo Fill:</span>
+          <span className="tigat-demo-label">Quick Demo Sign-In:</span>
           <div className="tigat-demo-pills">
             {demoAccounts.map((acc) => (
               <button
@@ -197,9 +231,9 @@ export default function LoginForm({ onSuccess }) {
                 type="button"
                 className="tigat-demo-pill"
                 onClick={() => fillDemo(acc)}
-                title={`${acc.role} (${acc.email})`}
+                title={`${acc.role}: ${acc.email}`}
               >
-                <span>{acc.icon}</span>
+                <span className="demo-pill-icon">{acc.icon}</span>
                 <span>{acc.role}</span>
               </button>
             ))}
@@ -223,7 +257,9 @@ export default function LoginForm({ onSuccess }) {
             </div>
             {forgotSent ? (
               <div className="modal-body" style={{ textAlign: 'center', padding: '24px 16px' }}>
-                <div style={{ fontSize: 44, marginBottom: 12 }}>📬</div>
+                <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
+                  <MailCheckIcon />
+                </div>
                 <h4 style={{ color: '#0f172a', marginBottom: 8 }}>Password Reset Requested</h4>
                 <p style={{ color: '#64748b', fontSize: 13, lineHeight: 1.5 }}>
                   A reset link has been dispatched to <strong>{forgotEmail}</strong> if an active account exists.
@@ -268,52 +304,6 @@ export default function LoginForm({ onSuccess }) {
                 </div>
               </form>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Reception Desk Policy Notice Modal */}
-      {isRegisterNoticeOpen && (
-        <div className="modal-overlay">
-          <div className="modal-card" style={{ maxWidth: 460 }}>
-            <div className="modal-header">
-              <h3>Tigat Gym Membership Policy</h3>
-              <button
-                type="button"
-                className="close-btn"
-                onClick={() => setIsRegisterNoticeOpen(false)}
-              >
-                ×
-              </button>
-            </div>
-            <div className="modal-body" style={{ padding: '20px 24px' }}>
-              <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 16 }}>
-                <div style={{ fontSize: 36 }}>🏛️</div>
-                <div>
-                  <h4 style={{ color: '#0f172a', margin: '0 0 6px 0' }}>In-Person Desk Registration Only</h4>
-                  <p style={{ color: '#64748b', fontSize: 13, lineHeight: 1.5, margin: 0 }}>
-                    To ensure secure biometric pass allocation and physical facility onboarding, all gym members are registered in-person at our reception desk.
-                  </p>
-                </div>
-              </div>
-              <div style={{ background: 'rgba(255, 122, 0, 0.08)', border: '1px solid rgba(255, 122, 0, 0.25)', borderRadius: 10, padding: 14 }}>
-                <div style={{ fontSize: 13, color: '#ea580c', fontWeight: 600, marginBottom: 4 }}>
-                  📍 Bole Medhanialem Branch, Addis Ababa
-                </div>
-                <div style={{ fontSize: 12, color: '#475569' }}>
-                  Reception staff will register your account and issue your official <strong>TG-XXXX Member ID</strong> and <strong>Digital QR Pass</strong> immediately.
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-primary btn-block"
-                onClick={() => setIsRegisterNoticeOpen(false)}
-              >
-                Understood, Close
-              </button>
-            </div>
           </div>
         </div>
       )}
