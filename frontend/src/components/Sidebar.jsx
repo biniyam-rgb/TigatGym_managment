@@ -7,10 +7,8 @@ function NavIcon({ id }) {
     case 'dashboard':
       return (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="3" width="7" height="7" rx="1.5" />
-          <rect x="14" y="3" width="7" height="7" rx="1.5" />
-          <rect x="14" y="14" width="7" height="7" rx="1.5" />
-          <rect x="3" y="14" width="7" height="7" rx="1.5" />
+          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <polyline points="9 22 9 12 15 12 15 22" />
         </svg>
       );
     case 'members':
@@ -25,24 +23,24 @@ function NavIcon({ id }) {
     case 'memberships':
       return (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="2" y="5" width="20" height="14" rx="2" />
-          <line x1="2" y1="10" x2="22" y2="10" />
-          <path d="m14 15 2 2 4-4" />
+          <path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14" />
         </svg>
       );
     case 'payments':
       return (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="2" y="6" width="20" height="12" rx="2" />
-          <circle cx="12" cy="12" r="2.5" />
-          <path d="M6 12h.01M18 12h.01" />
+          <rect x="2" y="5" width="20" height="14" rx="2" />
+          <line x1="2" y1="10" x2="22" y2="10" />
         </svg>
       );
     case 'attendance':
       return (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="9" />
-          <polyline points="12 7 12 12 15 15" />
+          <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+          <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+          <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+          <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+          <line x1="7" y1="12" x2="17" y2="12" />
         </svg>
       );
     case 'trainers':
@@ -117,25 +115,36 @@ export default function Sidebar({ activeView, onViewChange, onOpenPasswordModal 
   const { user, primaryRole, hasRole, logout } = useAuth();
 
   // Navigation items structured by permissions
-  const navItems = [
-    { id: 'dashboard', label: 'Overview', roles: ['owner', 'admin', 'receptionist', 'trainer', 'member'] },
-    { id: 'members', label: 'Members', roles: ['owner', 'admin', 'receptionist', 'trainer'] },
-    { id: 'memberships', label: 'Memberships', roles: ['owner', 'admin', 'receptionist', 'member'] },
-    { id: 'payments', label: 'Payments', roles: ['owner', 'admin', 'receptionist', 'member'] },
-    { id: 'attendance', label: 'Attendance', roles: ['owner', 'admin', 'receptionist', 'trainer', 'member'] },
-    { id: 'trainers', label: 'Trainers', roles: ['owner', 'admin', 'receptionist', 'trainer'] },
+  const defaultNavItems = [
+    { id: 'dashboard', label: 'Overview', roles: ['owner', 'admin', 'trainer', 'member'] },
+    { id: 'members', label: 'Members', roles: ['owner', 'admin', 'trainer'] },
+    { id: 'memberships', label: 'Memberships', roles: ['owner', 'admin', 'member'] },
+    { id: 'payments', label: 'Payments', roles: ['owner', 'admin', 'member'] },
+    { id: 'attendance', label: 'Attendance', roles: ['owner', 'admin', 'trainer', 'member'] },
+    { id: 'trainers', label: 'Trainers', roles: ['owner', 'admin', 'trainer'] },
     { id: 'workouts', label: 'Workouts', roles: ['owner', 'admin', 'trainer', 'member'] },
-    { id: 'classes', label: 'Classes', roles: ['owner', 'admin', 'receptionist', 'trainer', 'member'] },
+    { id: 'classes', label: 'Classes', roles: ['owner', 'admin', 'trainer', 'member'] },
     { id: 'equipment', label: 'Equipment', roles: ['owner', 'admin'] },
     { id: 'expenses', label: 'Expenses', roles: ['owner', 'admin'] },
     { id: 'users', label: 'Staff Accounts', roles: ['owner', 'admin'] },
     { id: 'audit', label: 'Audit Logs', roles: ['owner'] },
   ];
 
+  // Specific Receptionist navigation specified by Section 3:
+  // 1. Dashboard, 2. Check-in, 3. Members, 4. Memberships, 5. Payments, 6. Classes
+  const receptionNavItems = [
+    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'attendance', label: 'Check-in' },
+    { id: 'members', label: 'Members' },
+    { id: 'memberships', label: 'Memberships' },
+    { id: 'payments', label: 'Payments' },
+    { id: 'classes', label: 'Classes' },
+  ];
+
   // Filter items based on active role
-  const visibleNav = navItems.filter((item) =>
-    item.roles.some((r) => hasRole(r))
-  );
+  const visibleNav = primaryRole === 'receptionist'
+    ? receptionNavItems
+    : defaultNavItems.filter((item) => item.roles.some((r) => hasRole(r)));
 
   return (
     <aside className="gymcore-sidebar">
@@ -174,7 +183,7 @@ export default function Sidebar({ activeView, onViewChange, onOpenPasswordModal 
           <div className="sidebar-user-meta">
             <span className="sidebar-user-name">{user?.name}</span>
             <span className="sidebar-user-email">
-              {user?.email || `${primaryRole?.toUpperCase()} ACCOUNT`}
+              {primaryRole === 'receptionist' ? 'Receptionist' : (user?.email || `${primaryRole?.toUpperCase()} ACCOUNT`)}
             </span>
           </div>
           <button
@@ -203,7 +212,7 @@ export default function Sidebar({ activeView, onViewChange, onOpenPasswordModal 
             <polyline points="16 17 21 12 16 7" />
             <line x1="21" y1="12" x2="9" y2="12" />
           </svg>
-          <span>SIGN OUT</span>
+          <span>Logout</span>
         </button>
       </div>
     </aside>
