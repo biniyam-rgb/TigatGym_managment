@@ -4,7 +4,7 @@ import { useAuth } from '../context/useAuth';
 import BrandLogo from './BrandLogo';
 import QRCodeDisplay from './QRCodeDisplay';
 
-export default function PaymentLedger() {
+export default function PaymentLedger({ initialOpenRecordPayment = false }) {
   const { user, hasRole } = useAuth();
   const isStaff = hasRole('owner') || hasRole('admin') || hasRole('receptionist');
   const isOwnerOrAdmin = hasRole('owner') || hasRole('admin');
@@ -40,7 +40,7 @@ export default function PaymentLedger() {
   const [membersList, setMembersList] = useState([]);
 
   // Modals state
-  const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(false);
+  const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(initialOpenRecordPayment);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
   const [isRecordExpenseOpen, setIsRecordExpenseOpen] = useState(false);
@@ -981,7 +981,7 @@ export default function PaymentLedger() {
                 Gym Operating Expenditures & Outflows
               </h3>
               <p style={{ margin: '4px 0 0 0', color: '#a1a1aa', fontSize: 13 }}>
-                Track facility overhead: Bole facility rent, utilities, equipment maintenance, and supplies.
+                Track facility overhead: Facility rent, utilities, equipment maintenance, and supplies.
               </p>
             </div>
 
@@ -1480,7 +1480,7 @@ export default function PaymentLedger() {
                   OFFICIAL PAYMENT RECEIPT
                 </div>
                 <div style={{ fontSize: 11, color: '#a1a1aa', marginTop: 4 }}>
-                  Bole Medhanialem Branch • Addis Ababa, Ethiopia
+                  Tigat Gym • Addis Ababa, Ethiopia
                 </div>
               </div>
 
@@ -1788,7 +1788,7 @@ export default function PaymentLedger() {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="e.g. TotalEnergies Bole Medhanialem"
+                  placeholder="e.g. Utility & Electricity Authority, Vendor"
                   value={expenseForm.recipient}
                   onChange={(e) => setExpenseForm(prev => ({ ...prev, recipient: e.target.value }))}
                 />

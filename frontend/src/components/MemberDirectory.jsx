@@ -4,7 +4,7 @@ import { useAuth } from '../context/useAuth';
 import QRCodeDisplay from './QRCodeDisplay';
 import BrandLogo from './BrandLogo';
 
-export default function MemberDirectory() {
+export default function MemberDirectory({ initialOpenRegister = false }) {
   const { hasRole } = useAuth();
   const [members, setMembers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,7 +22,7 @@ export default function MemberDirectory() {
   const [notification, setNotification] = useState(null);
 
   // Modals state
-  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [isRegisterOpen, setIsRegisterOpen] = useState(initialOpenRegister);
   const [selectedMember, setSelectedMember] = useState(null);
   const [editingMember, setEditingMember] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -717,7 +717,7 @@ export default function MemberDirectory() {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="e.g. Bole Subcity, Woreda 03, Addis Ababa"
+                  placeholder="e.g. Woreda 03, Addis Ababa"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 />
