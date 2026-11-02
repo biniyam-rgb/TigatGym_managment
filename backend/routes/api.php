@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\FitnessClassController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\MembershipPlanController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\ReceptionDashboardController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\TrainerController;
@@ -54,6 +55,9 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
     });
+
+    // Receptionist Overview Dashboard
+    Route::get('/reception/dashboard', [ReceptionDashboardController::class, 'index'])->middleware('role:owner,admin,receptionist');
 
     // Module A: Member Management & Profiles
     Route::apiResource('members', MemberController::class);

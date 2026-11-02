@@ -465,7 +465,8 @@ class AttendanceController extends Controller
         if (! empty($validated['attendance_id'])) {
             $query->where('id', $validated['attendance_id']);
         } elseif (! empty($validated['member_id'])) {
-            $query->where('member_id', $validated['member_id'])->whereDate('check_in_time', Carbon::today());
+            $query->where('member_id', $validated['member_id'])
+                ->where('check_in_time', '>=', Carbon::now()->subHours(24));
         } elseif (! empty($validated['qr_token'])) {
             $token = trim($validated['qr_token']);
             if (preg_match('/TIGAT-[A-Za-z0-9_-]+/', $token, $matches)) {
@@ -473,7 +474,8 @@ class AttendanceController extends Controller
             }
             $profile = MemberProfile::where('qr_code_token', $token)->first();
             if ($profile) {
-                $query->where('member_id', $profile->user_id)->whereDate('check_in_time', Carbon::today());
+                $query->where('member_id', $profile->user_id)
+                    ->where('check_in_time', '>=', Carbon::now()->subHours(24));
             } else {
                 return response()->json([
                     'status' => 'error',
