@@ -73,8 +73,8 @@ function GymCoreApp() {
   const viewTitles = {
     dashboard: isReceptionist
       ? {
-          title: 'Reception Dashboard',
-          subtitle: `Welcome back, ${receptionistFirstName}! Here's today's gym activity.`,
+          title: `Welcome back, ${receptionistFirstName}!`,
+          subtitle: '',
         }
       : {
           title: 'Operational Analytics & Overview',
