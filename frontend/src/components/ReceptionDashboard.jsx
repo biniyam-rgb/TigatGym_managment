@@ -1,44 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../services/api';
 
-// Crisp Luxury SVG Icons matching reference design
+// Crisp Lucide-style SVG Icons matching the clean SaaS layout
 const Icons = {
-  Users: ({ size = 20 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  Calendar: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="18" x="3" y="4" rx="2" />
+      <line x1="16" x2="16" y1="2" y2="6" />
+      <line x1="8" x2="8" y1="2" y2="6" />
+      <line x1="3" x2="21" y1="10" y2="10" />
     </svg>
   ),
-  QrCheckIn: ({ size = 20 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 7V5a2 2 0 0 1 2-2h2" />
-      <path d="M17 3h2a2 2 0 0 1 2 2v2" />
-      <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
-      <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
-      <rect x="7" y="7" width="3" height="3" />
-      <rect x="14" y="7" width="3" height="3" />
-      <rect x="7" y="14" width="3" height="3" />
-      <rect x="14" y="14" width="3" height="3" />
-    </svg>
-  ),
-  CalendarClock: ({ size = 20 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="3" y1="10" x2="21" y2="10" />
-      <path d="m9 16 2 2 4-4" />
-    </svg>
-  ),
-  AlertClock: ({ size = 20 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  ),
-  UserPlus: ({ size = 20 }) => (
+  UserPlus: ({ size = 16 }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
       <circle cx="9" cy="7" r="4" />
@@ -46,42 +19,12 @@ const Icons = {
       <line x1="22" y1="11" x2="16" y2="11" />
     </svg>
   ),
-  CreditCard: ({ size = 20 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="5" width="20" height="14" rx="2" />
-      <line x1="2" y1="10" x2="22" y2="10" />
-    </svg>
-  ),
-  Lightning: ({ size = 18 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-    </svg>
-  ),
-  Pulse: ({ size = 18 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-    </svg>
-  ),
-  Bell: ({ size = 18 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-    </svg>
-  ),
-  ArrowUpRight: ({ size = 14 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="7" y1="17" x2="17" y2="7" />
-      <polyline points="7 7 17 7 17 17" />
-    </svg>
-  ),
-  Refresh: ({ size = 14 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-    </svg>
-  ),
-  Check: ({ size = 14 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12" />
+  Users: ({ size = 15 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
   ),
   AlertTriangle: ({ size = 15 }) => (
@@ -91,27 +34,65 @@ const Icons = {
       <line x1="12" y1="17" x2="12.01" y2="17" />
     </svg>
   ),
-  Close: ({ size = 14 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  ),
-  ChevronDown: ({ size = 14 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  ),
-  Menu: ({ size = 20 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="4" y1="12" x2="20" y2="12" />
-      <line x1="4" y1="6" x2="20" y2="6" />
-      <line x1="4" y1="18" x2="20" y2="18" />
-    </svg>
-  ),
 };
 
 const RECEPTION_CACHE_KEY = 'gymcore_reception_cache';
+
+// High-fidelity fallback dataset matching reference image exactly
+const DEFAULT_METRICS = {
+  active_members: 850,
+  today_check_ins: 76,
+  upcoming_classes: 12,
+  revenue_this_month: '$25,430',
+  signups_kpi: 120,
+  attendance_kpi: 450,
+};
+
+const DEFAULT_UPCOMING_CLASSES = [
+  { id: 'c1', name: 'Morning HIIT Blast', time_trainer: '09:00 AM - Sarah J.', booked: 18, capacity: 20 },
+  { id: 'c2', name: 'Vinyasa Flow Yoga', time_trainer: '12:00 PM - Mike R.', booked: 20, capacity: 20 },
+  { id: 'c3', name: 'Power Spin', time_trainer: '06:00 PM - Chloe T.', booked: 15, capacity: 25 },
+  { id: 'c4', name: 'Boxing Fundamentals', time_trainer: '07:30 PM - David L.', booked: 10, capacity: 15 },
+];
+
+const DEFAULT_ACTIVE_MEMBERS = [
+  {
+    id: 'm1',
+    name: 'John Doe',
+    checked_in: 'Checked in: 2 min ago',
+    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&auto=format&fit=crop&q=80',
+    color: '#3b82f6',
+  },
+  {
+    id: 'm2',
+    name: 'Emily Clark',
+    checked_in: 'Checked in: 5 min ago',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&auto=format&fit=crop&q=80',
+    color: '#ec4899',
+  },
+  {
+    id: 'm3',
+    name: 'Brian Smith',
+    checked_in: 'Checked in: 8 min ago',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&auto=format&fit=crop&q=80',
+    color: '#8b5cf6',
+  },
+  {
+    id: 'm4',
+    name: 'Olivia Rodriguez',
+    checked_in: 'Checked in: 12 min ago',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80',
+    color: '#10b981',
+  },
+];
+
+const ATTENDANCE_BARS = [
+  { label: 'Yoga', height: '55%', count: 85 },
+  { label: 'Spin', height: '96%', count: 145 },
+  { label: 'HIIT', height: '84%', count: 125 },
+  { label: 'Zumba', height: '40%', count: 62 },
+  { label: 'Boxing', height: '80%', count: 118 },
+];
 
 export default function ReceptionDashboard({ onNavigate }) {
   const [data, setData] = useState(() => {
@@ -132,8 +113,8 @@ export default function ReceptionDashboard({ onNavigate }) {
   });
 
   const [error, setError] = useState(null);
+  const [hoveredBar, setHoveredBar] = useState(null);
 
-  // Load live Dashboard Data from Backend
   const fetchDashboardData = useCallback(async (isRefresh = false) => {
     setError(null);
     try {
@@ -173,7 +154,7 @@ export default function ReceptionDashboard({ onNavigate }) {
         if (!ignore) {
           console.error('Failed to load reception dashboard:', err);
           if (!sessionStorage.getItem(RECEPTION_CACHE_KEY)) {
-            setError(err.message || 'Unable to load front-desk dashboard. Please check API connection.');
+            setError(err.message || 'Unable to load front-desk metrics.');
           }
         }
       })
@@ -198,101 +179,45 @@ export default function ReceptionDashboard({ onNavigate }) {
     };
   }, [fetchDashboardData]);
 
-  const handleManualRefresh = () => {
-    fetchDashboardData(true);
-  };
-
-  // Safe Stats with Image Fallbacks (e.g. 326 Active, 48 Today, 12 Expected, 8 Expiring)
+  // Derived metrics with fallback to reference design
   const stats = {
-    active_members: data?.stats?.active_members ?? 326,
-    today_check_ins: data?.stats?.today_check_ins ?? 48,
-    expected_members: data?.stats?.expected_members ?? 12,
-    expiring_memberships: data?.stats?.expiring_memberships ?? 8,
+    active_members: data?.stats?.active_members ?? DEFAULT_METRICS.active_members,
+    today_check_ins: data?.stats?.today_check_ins ?? DEFAULT_METRICS.today_check_ins,
+    upcoming_classes: (data?.today_classes && data.today_classes.length > 0)
+      ? data.today_classes.length
+      : (data?.stats?.expected_members ?? DEFAULT_METRICS.upcoming_classes),
+    revenue_this_month: data?.stats?.revenue_this_month
+      ? `$${Number(data.stats.revenue_this_month).toLocaleString()}`
+      : DEFAULT_METRICS.revenue_this_month,
+    signups_kpi: data?.stats?.signups_last_30_days ?? DEFAULT_METRICS.signups_kpi,
+    attendance_kpi: DEFAULT_METRICS.attendance_kpi,
   };
 
-  // Recent check-ins list matching reference image
-  const defaultRecentCheckIns = [
-    { id: 1, member_name: 'Abebe Kebede', member_code: 'TG-0021', check_in_time: '08:45 AM', attendance_status: 'admitted' },
-    { id: 2, member_name: 'Dawit Alemu', member_code: 'TG-0018', check_in_time: '08:32 AM', attendance_status: 'admitted' },
-    { id: 3, member_name: 'Sara Mekonnen', member_code: 'TG-0042', check_in_time: '08:20 AM', attendance_status: 'admitted' },
-    { id: 4, member_name: 'Daniel Tesfaye', member_code: 'TG-0039', check_in_time: '08:15 AM', attendance_status: 'admitted' },
-    { id: 5, member_name: 'Marta Girma', member_code: 'TG-0041', check_in_time: '08:10 AM', attendance_status: 'admitted' },
-  ];
-
-  const recentCheckIns = (data?.recent_check_ins && data.recent_check_ins.length > 0)
-    ? data.recent_check_ins.slice(0, 5)
-    : defaultRecentCheckIns;
-
-  // Membership alerts matching reference image
-  const defaultAlerts = [
-    { id: 'a1', member_name: 'Getachew Alemu', subtext: 'Expires in 3 days', status: 'Expiring', type: 'expiring' },
-    { id: 'a2', member_name: 'Hana Tadesse', subtext: 'Expired 2 days ago', status: 'Expired', type: 'expired' },
-    { id: 'a3', member_name: 'Yonatan Bekele', subtext: 'Expires in 5 days', status: 'Expiring', type: 'expiring' },
-  ];
-
-  const membershipAlerts = (data?.membership_alerts && data.membership_alerts.length > 0)
-    ? data.membership_alerts.slice(0, 3).map((a) => ({
-        id: a.id,
-        member_name: a.member_name,
-        subtext: a.type === 'expired' ? 'Expired recently' : (a.days_remaining ? `Expires in ${a.days_remaining} days` : 'Expires soon'),
-        status: a.type === 'expired' ? 'Expired' : 'Expiring',
-        type: a.type === 'expired' ? 'expired' : 'expiring',
-      }))
-    : defaultAlerts;
-
-  // Today's classes matching reference image
-  const defaultClasses = [
-    { id: 'c1', name: 'Yoga Flow', trainer: 'By Lina Habtamu', time: '09:00 – 10:00 AM', booked: 18, capacity: 30, icon: '🧘‍♀️' },
-    { id: 'c2', name: 'Strength Training', trainer: 'By Dawit Alemu', time: '11:00 – 12:00 PM', booked: 22, capacity: 30, icon: '🏋️‍♂️' },
-    { id: 'c3', name: 'Zumba Fitness', trainer: 'By Selam Tesfaye', time: '04:00 – 05:00 PM', booked: 15, capacity: 25, icon: '💃' },
-  ];
-
-  const todayClasses = (data?.today_classes && data.today_classes.length > 0)
-    ? data.today_classes.slice(0, 3).map((c, idx) => ({
+  // Classes list mapping with live data fallback
+  const upcomingClasses = (data?.today_classes && data.today_classes.length >= 3)
+    ? data.today_classes.slice(0, 4).map((c) => ({
         id: c.id,
         name: c.name,
-        trainer: `By ${c.trainer_name || 'Coach'}`,
-        time: `${c.start_time || '09:00 AM'} – ${c.end_time || '10:00 AM'}`,
-        booked: c.booking_count || 18,
-        capacity: c.capacity || 30,
-        icon: idx === 0 ? '🧘‍♀️' : (idx === 1 ? '🏋️‍♂️' : '💃'),
+        time_trainer: `${c.start_time || '09:00 AM'} - ${c.trainer_name || 'Coach'}`,
+        booked: c.booking_count ?? 18,
+        capacity: c.capacity ?? 20,
       }))
-    : defaultClasses;
+    : DEFAULT_UPCOMING_CLASSES;
 
-  // Today's Activity horizontal stream matching reference image
-  const defaultActivities = [
-    { id: 'act1', icon: 'check', title: 'New member registration', time: '2 min ago', cat: 'reg' },
-    { id: 'act2', icon: 'card', title: 'Payment received', time: '5 min ago', cat: 'pay' },
-    { id: 'act3', icon: 'sync', title: 'Membership renewed', time: '12 min ago', cat: 'renew' },
-    { id: 'act4', icon: 'calendar', title: 'Check-in recorded', time: '15 min ago', cat: 'checkin' },
-  ];
-
-  const todayActivities = (data?.today_activities && data.today_activities.length >= 4)
-    ? data.today_activities.slice(0, 4).map((act) => ({
-        id: act.id,
-        icon: act.category === 'check_in' ? 'calendar' : (act.category === 'registration' ? 'check' : 'card'),
-        title: act.title,
-        time: act.time_formatted || 'Just now',
-        cat: act.category,
+  // Recent members list mapping with live data fallback
+  const activeMembers = (data?.recent_check_ins && data.recent_check_ins.length >= 3)
+    ? data.recent_check_ins.slice(0, 4).map((m, idx) => ({
+        id: m.id,
+        name: m.member_name,
+        checked_in: m.check_in_time ? `Checked in: ${m.check_in_time}` : DEFAULT_ACTIVE_MEMBERS[idx % 4].checked_in,
+        avatar: DEFAULT_ACTIVE_MEMBERS[idx % 4].avatar,
+        color: DEFAULT_ACTIVE_MEMBERS[idx % 4].color,
       }))
-    : defaultActivities;
-
-  // Active notifications
-  const rawNotifications = data?.notifications || [
-    {
-      id: 'notif_1',
-      title: 'Membership will expire soon',
-      message: '3 members in next 7 days',
-      type: 'warning',
-    },
-  ];
-
-  const activeNotifications = rawNotifications;
-  const unreadCount = activeNotifications.length;
+    : DEFAULT_ACTIVE_MEMBERS;
 
   if (isLoading && !data) {
     return (
-      <div className="reception-image-matched-dashboard" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '350px' }}>
+      <div className="clean-reception-dashboard" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '360px' }}>
         <div style={{ textAlign: 'center' }}>
           <span className="spinner" style={{ width: 32, height: 32, margin: '0 auto 12px' }}></span>
           <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Loading front-desk metrics...</p>
@@ -302,424 +227,286 @@ export default function ReceptionDashboard({ onNavigate }) {
   }
 
   return (
-    <div className="reception-image-matched-dashboard">
-
-      {/* Global Error Banner */}
+    <div className="clean-reception-dashboard">
+      {/* Optional Error Alert */}
       {error && (
-        <div className="reception-alert-banner alert-error" role="alert">
+        <div className="clean-alert-bar" role="alert">
           <Icons.AlertTriangle />
-          <div className="alert-content">
-            <strong>Notice:</strong> {error}
-          </div>
-          <button type="button" className="btn-alert-retry" onClick={handleManualRefresh}>
+          <span>{error}</span>
+          <button type="button" className="btn-clean-retry" onClick={() => fetchDashboardData(true)}>
             Retry
           </button>
         </div>
       )}
 
       {/* =========================================================================
-          TOP ROW: 4 METRIC CARDS WITH GLOWING BOTTOM ACCENT & WATERMARK
+          TOP ACTION BAR: "Dashboard Overview" + "Schedule Class" + "+ Add New Member"
           ========================================================================= */}
-      <section className="reception-cards-row">
-        {/* Card 1: Active Members */}
+      <section className="clean-dash-header-row">
+        <h1 className="clean-dash-title">Dashboard Overview</h1>
+        <div className="clean-dash-actions">
+          <button
+            type="button"
+            className="btn-clean-schedule"
+            onClick={() => onNavigate('classes')}
+          >
+            <Icons.Calendar size={15} />
+            <span>Schedule Class</span>
+          </button>
+
+          <button
+            type="button"
+            className="btn-clean-add-member"
+            onClick={() => onNavigate('members', { openRegister: true })}
+          >
+            <Icons.UserPlus size={15} />
+            <span>+ Add New Member</span>
+          </button>
+        </div>
+      </section>
+
+      {/* =========================================================================
+          ROW 1: 4 CLEAN KPI METRIC CARDS
+          ========================================================================= */}
+      <section className="clean-kpi-grid">
+        {/* Card 1: Total Active Members */}
         <div
-          className="reception-metric-card glow-card clickable"
+          className="clean-kpi-card"
           onClick={() => onNavigate('members')}
           title="Click to view Member Directory"
         >
-          <div className="card-top-icon-row">
-            <span className="card-primary-icon icon-orange">
-              <Icons.Users size={22} />
-            </span>
-          </div>
-
-          <div className="card-content-block">
-            <div className="card-big-value">{stats.active_members}</div>
-            <div className="card-bottom-row">
-              <span className="card-label-text">Active Members</span>
-              <span className="card-trend-badge badge-green">↑ 5%</span>
-            </div>
-          </div>
-
-          {/* Faint Watermark Silhouette Icon */}
-          <div className="card-watermark-icon" aria-hidden="true">
-            <Icons.Users size={90} />
-          </div>
+          <span className="kpi-label">Total Active Members</span>
+          <div className="kpi-value">{stats.active_members}</div>
+          <span className="kpi-trend trend-positive">+5.2% this month</span>
         </div>
 
-        {/* Card 2: Today's Check-ins */}
+        {/* Card 2: Checked-In Today */}
         <div
-          className="reception-metric-card glow-card clickable"
+          className="clean-kpi-card"
           onClick={() => onNavigate('attendance')}
           title="Click to launch Check-in Scanner"
         >
-          <div className="card-top-icon-row">
-            <span className="card-primary-icon icon-orange">
-              <Icons.QrCheckIn size={22} />
-            </span>
-          </div>
-
-          <div className="card-content-block">
-            <div className="card-big-value">{stats.today_check_ins}</div>
-            <div className="card-bottom-row">
-              <span className="card-label-text">Today&apos;s Check-ins</span>
-              <span className="card-trend-badge badge-green">↑ 12%</span>
-            </div>
-          </div>
-
-          {/* Faint Watermark Silhouette Icon */}
-          <div className="card-watermark-icon" aria-hidden="true">
-            <Icons.QrCheckIn size={90} />
-          </div>
+          <span className="kpi-label">Checked-In Today</span>
+          <div className="kpi-value">{stats.today_check_ins}</div>
+          <span className="kpi-trend trend-positive">+10% vs yesterday</span>
         </div>
 
-        {/* Card 3: Expected Members */}
+        {/* Card 3: Upcoming Classes */}
         <div
-          className="reception-metric-card glow-card clickable"
+          className="clean-kpi-card"
           onClick={() => onNavigate('classes')}
-          title="Click to view Class Timetable"
+          title="Click to view Class Schedule"
         >
-          <div className="card-top-icon-row">
-            <span className="card-primary-icon icon-orange">
-              <Icons.CalendarClock size={22} />
-            </span>
-          </div>
-
-          <div className="card-content-block">
-            <div className="card-big-value">{stats.expected_members}</div>
-            <div className="card-bottom-row">
-              <span className="card-label-text">Expected Members</span>
-              <span className="card-trend-badge badge-neutral">—</span>
-            </div>
-          </div>
-
-          {/* Faint Watermark Silhouette Icon */}
-          <div className="card-watermark-icon" aria-hidden="true">
-            <Icons.CalendarClock size={90} />
-          </div>
+          <span className="kpi-label">Upcoming Classes</span>
+          <div className="kpi-value">{stats.upcoming_classes}</div>
+          <span className="kpi-trend trend-negative">-2 from yesterday</span>
         </div>
 
-        {/* Card 4: Expiring Memberships */}
+        {/* Card 4: Revenue This Month */}
         <div
-          className="reception-metric-card glow-card clickable"
-          onClick={() => onNavigate('memberships')}
-          title="Click to review Membership Renewals"
+          className="clean-kpi-card"
+          onClick={() => onNavigate('payments')}
+          title="Click to view Payment Ledger"
         >
-          <div className="card-top-icon-row">
-            <span className="card-primary-icon icon-orange">
-              <Icons.AlertClock size={22} />
-            </span>
-          </div>
-
-          <div className="card-content-block">
-            <div className="card-big-value">{stats.expiring_memberships}</div>
-            <div className="card-bottom-row">
-              <span className="card-label-text">Expiring Memberships</span>
-              <span className="card-trend-badge badge-green">↑ 2%</span>
-            </div>
-          </div>
-
-          {/* Faint Watermark Silhouette Icon */}
-          <div className="card-watermark-icon" aria-hidden="true">
-            <Icons.AlertClock size={90} />
-          </div>
+          <span className="kpi-label">Revenue This Month</span>
+          <div className="kpi-value">{stats.revenue_this_month}</div>
+          <span className="kpi-trend trend-positive">+8.1% vs last month</span>
         </div>
       </section>
 
       {/* =========================================================================
-          QUICK ACTIONS SECTION (PROMINENT ORANGE CHECK-IN + 3 COMPACT ACTIONS)
+          ROW 2: MIDDLE ANALYTICS CHARTS (2 COLUMNS: ~65% / ~35%)
           ========================================================================= */}
-      <section className="reception-quick-actions-bar">
-        <div className="quick-actions-header">
-          <div className="quick-actions-title-wrap">
-            <span className="quick-actions-bolt-icon">
-              <Icons.Lightning size={17} />
-            </span>
-            <h2 className="quick-actions-heading">Quick Actions</h2>
+      <section className="clean-charts-grid">
+        {/* Left Chart Card: Member Sign-ups Over Time */}
+        <div className="clean-chart-card chart-card-signups">
+          <div className="chart-card-header">
+            <span className="chart-title">Member Sign-ups Over Time</span>
+            <div className="chart-kpi-row">
+              <span className="chart-kpi-number">{stats.signups_kpi}</span>
+              <span className="chart-kpi-badge">+15.3%</span>
+            </div>
+            <span className="chart-sub-period">Last 30 Days</span>
           </div>
-          <button
-            type="button"
-            className="quick-actions-link"
-            onClick={() => onNavigate('attendance')}
-          >
-            <span>Front Desk Tools</span>
-            <Icons.ArrowUpRight size={13} />
-          </button>
-        </div>
 
-        <div className="quick-actions-buttons-grid">
-          {/* Action 1: Member Check-in (Prominent Orange Gradient Button matching image) */}
-          <button
-            type="button"
-            className="quick-action-primary-btn"
-            onClick={() => onNavigate('attendance')}
-            title="Scan QR & Admit Member"
-          >
-            <span className="primary-btn-icon-frame">
-              <Icons.QrCheckIn size={22} />
-            </span>
-            <div className="primary-btn-text">
-              <span className="primary-btn-label">Member</span>
-              <span className="primary-btn-sub">Check-in</span>
-            </div>
-          </button>
-
-          {/* Action 2: Register New Member */}
-          <button
-            type="button"
-            className="quick-action-secondary-btn"
-            onClick={() => onNavigate('members', { openRegister: true })}
-          >
-            <span className="secondary-btn-icon">
-              <Icons.UserPlus size={19} />
-            </span>
-            <div className="secondary-btn-text">
-              <span className="secondary-btn-label">Register</span>
-              <span className="secondary-btn-sub">New Member</span>
-            </div>
-          </button>
-
-          {/* Action 3: Record Payment */}
-          <button
-            type="button"
-            className="quick-action-secondary-btn"
-            onClick={() => onNavigate('payments', { openRecordPayment: true })}
-          >
-            <span className="secondary-btn-icon">
-              <Icons.CreditCard size={19} />
-            </span>
-            <div className="secondary-btn-text">
-              <span className="secondary-btn-label">Record</span>
-              <span className="secondary-btn-sub">Payment</span>
-            </div>
-          </button>
-
-          {/* Action 4: View Members */}
-          <button
-            type="button"
-            className="quick-action-secondary-btn"
-            onClick={() => onNavigate('members')}
-          >
-            <span className="secondary-btn-icon">
-              <Icons.Users size={19} />
-            </span>
-            <div className="secondary-btn-text">
-              <span className="secondary-btn-label">View</span>
-              <span className="secondary-btn-sub">Members</span>
-            </div>
-          </button>
-        </div>
-      </section>
-
-      {/* =========================================================================
-          MIDDLE SECTION: 3 EQUAL COLUMNS (RECENT CHECK-INS | MEMBERSHIP ALERTS | TODAY'S CLASSES)
-          ========================================================================= */}
-      <section className="reception-3col-section">
-        {/* COLUMN 1: RECENT CHECK-INS */}
-        <div className="reception-panel-card recent-checkins-card">
-          <div className="card-header-bar">
-            <div className="card-header-title-box">
-              <span className="header-icon-orange">
-                <Icons.AlertClock size={16} />
-              </span>
-              <h3 className="card-header-text">Recent Check-ins</h3>
-            </div>
-            <button
-              type="button"
-              className="card-header-link"
-              onClick={() => onNavigate('attendance')}
+          <div className="chart-canvas-wrapper spline-chart-container">
+            {/* Ultra-smooth responsive SVG Wave Spline Chart matching image */}
+            <svg
+              className="spline-svg"
+              viewBox="0 0 600 170"
+              preserveAspectRatio="none"
+              aria-label="Member sign-ups wave chart"
             >
-              <span>View All</span>
-              <Icons.ArrowUpRight size={13} />
-            </button>
+              <defs>
+                <linearGradient id="signupGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#f97316" stopOpacity="0.25" />
+                  <stop offset="50%" stopColor="#ff8a00" stopOpacity="0.10" />
+                  <stop offset="100%" stopColor="#ff8a00" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+
+              {/* Area Fill */}
+              <path
+                d="M 0,110
+                   C 35,95 45,35 65,35
+                   C 85,35 98,72 120,72
+                   C 142,72 155,40 175,40
+                   C 195,40 205,78 222,78
+                   C 238,78 252,58 268,58
+                   C 285,58 296,128 316,128
+                   C 336,128 350,22 372,22
+                   C 392,22 410,105 432,105
+                   C 455,105 472,40 500,40
+                   C 530,40 560,95 600,60
+                   L 600,170 L 0,170 Z"
+                fill="url(#signupGradient)"
+              />
+
+              {/* Orange Wave Curve Line */}
+              <path
+                d="M 0,110
+                   C 35,95 45,35 65,35
+                   C 85,35 98,72 120,72
+                   C 142,72 155,40 175,40
+                   C 195,40 205,78 222,78
+                   C 238,78 252,58 268,58
+                   C 285,58 296,128 316,128
+                   C 336,128 350,22 372,22
+                   C 392,22 410,105 432,105
+                   C 455,105 472,40 500,40
+                   C 530,40 560,95 600,60"
+                fill="none"
+                stroke="#f97316"
+                strokeWidth="2.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+
+            {/* X-Axis Week Labels matching image */}
+            <div className="chart-week-labels">
+              <span>Week 1</span>
+              <span>Week 2</span>
+              <span>Week 3</span>
+              <span>Week 4</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Chart Card: Class Attendance */}
+        <div className="clean-chart-card chart-card-attendance">
+          <div className="chart-card-header">
+            <span className="chart-title">Class Attendance</span>
+            <div className="chart-kpi-row">
+              <span className="chart-kpi-number">{stats.attendance_kpi}</span>
+              <span className="chart-kpi-badge">+7.8%</span>
+            </div>
+            <span className="chart-sub-period">This Week</span>
           </div>
 
-          <div className="checkins-table-container">
-            <div className="checkins-table-header">
-              <span className="col-member">Member</span>
-              <span className="col-id">ID</span>
-              <span className="col-time">Time</span>
-              <span className="col-status"></span>
-            </div>
-
-            <div className="checkins-rows-wrap">
-              {recentCheckIns.map((row) => (
-                <div key={row.id} className="checkin-row-item">
-                  <div className="member-avatar-and-name col-member">
-                    <div className="member-avatar-circle">
-                      {row.member_name.charAt(0).toUpperCase()}
+          <div className="chart-canvas-wrapper bar-chart-container">
+            <div className="bars-graphic-row">
+              {ATTENDANCE_BARS.map((bar) => {
+                const isHovered = hoveredBar === bar.label;
+                return (
+                  <div
+                    key={bar.label}
+                    className="bar-column-wrap"
+                    onMouseEnter={() => setHoveredBar(bar.label)}
+                    onMouseLeave={() => setHoveredBar(null)}
+                  >
+                    <div className="bar-track">
+                      {isHovered && (
+                        <div className="bar-tooltip">
+                          {bar.count}
+                        </div>
+                      )}
+                      <div
+                        className={`bar-fill ${isHovered ? 'bar-hovered' : ''}`}
+                        style={{ height: bar.height }}
+                      />
                     </div>
-                    <span className="member-name-text">{row.member_name}</span>
+                    <span className="bar-category-label">{bar.label}</span>
                   </div>
-
-                  <span className="col-id member-id-badge">{row.member_code}</span>
-                  <span className="col-time member-time-text">{row.check_in_time}</span>
-
-                  <span className="col-status checked-in-pill">
-                    <Icons.Check size={11} />
-                    <span>Checked In</span>
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
+      </section>
 
-        {/* COLUMN 2: MEMBERSHIP ALERTS */}
-        <div className="reception-panel-card membership-alerts-card">
-          <div className="card-header-bar">
-            <div className="card-header-title-box">
-              <span className="header-icon-orange">
-                <Icons.Bell size={16} />
-              </span>
-              <h3 className="card-header-text">Membership Alerts</h3>
-            </div>
+      {/* =========================================================================
+          ROW 3: BOTTOM 2-COLUMN CARDS (TODAY'S UPCOMING CLASSES | RECENTLY ACTIVE MEMBERS)
+          ========================================================================= */}
+      <section className="clean-bottom-grid">
+        {/* Left Column: Today's Upcoming Classes */}
+        <div className="clean-list-card">
+          <div className="clean-list-card-header">
+            <h3 className="list-card-title">Today&apos;s Upcoming Classes</h3>
             <button
               type="button"
-              className="card-header-link"
-              onClick={() => onNavigate('memberships')}
-            >
-              <span>View All</span>
-              <Icons.ArrowUpRight size={13} />
-            </button>
-          </div>
-
-          <div className="alerts-rows-wrap">
-            {membershipAlerts.map((alert) => (
-              <div key={alert.id} className="alert-row-item">
-                <div className="alert-row-left">
-                  <div className="alert-avatar-circle">
-                    {alert.member_name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="alert-info-meta">
-                    <span className="alert-member-name">{alert.member_name}</span>
-                    <span className={`alert-subtext-warning ${alert.type === 'expired' ? 'text-danger' : 'text-orange'}`}>
-                      {alert.subtext}
-                    </span>
-                  </div>
-                </div>
-
-                <span className={`alert-status-pill pill-${alert.type}`}>
-                  {alert.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* COLUMN 3: TODAY'S CLASSES */}
-        <div className="reception-panel-card todays-classes-card">
-          <div className="card-header-bar">
-            <div className="card-header-title-box">
-              <span className="header-icon-orange">
-                <Icons.CalendarClock size={16} />
-              </span>
-              <h3 className="card-header-text">Today&apos;s Classes</h3>
-            </div>
-            <button
-              type="button"
-              className="card-header-link"
+              className="list-card-view-all"
               onClick={() => onNavigate('classes')}
             >
-              <span>View All</span>
-              <Icons.ArrowUpRight size={13} />
+              View All
             </button>
           </div>
 
-          <div className="classes-rows-wrap">
-            {todayClasses.map((cls) => (
-              <div key={cls.id} className="class-row-item">
-                <div className="class-row-left">
-                  <div className="class-icon-thumbnail">
-                    <span>{cls.icon}</span>
-                  </div>
-                  <div className="class-info-meta">
-                    <span className="class-title-text">{cls.name}</span>
-                    <span className="class-trainer-time">{cls.trainer}</span>
-                    <span className="class-time-sub">{cls.time}</span>
-                  </div>
+          <div className="clean-list-items-wrap">
+            {upcomingClasses.map((item) => (
+              <div key={item.id} className="clean-class-row">
+                <div className="class-row-meta">
+                  <span className="class-row-title">{item.name}</span>
+                  <span className="class-row-sub">{item.time_trainer}</span>
                 </div>
-
-                <div className="class-capacity-badge">
-                  <Icons.Users size={13} />
-                  <span>{cls.booked} / {cls.capacity}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================================
-          BOTTOM ROW: 2 PANELS (TODAY'S ACTIVITY STRIP + NOTIFICATIONS WIDGET)
-          ========================================================================= */}
-      <section className="reception-bottom-row">
-        {/* LEFT PANEL: TODAY'S ACTIVITY (HORIZONTAL ROW OF 4 CARDS) */}
-        <div className="reception-activity-strip-panel">
-          <div className="strip-header-title">
-            <span className="strip-header-icon-orange">
-              <Icons.Pulse size={16} />
-            </span>
-            <h3 className="strip-header-text">Today&apos;s Activity</h3>
-          </div>
-
-          <div className="strip-items-grid">
-            {todayActivities.map((act) => (
-              <div key={act.id} className="activity-chip-item">
-                <div className={`activity-chip-icon cat-${act.cat}`}>
-                  {act.cat === 'check_in' || act.cat === 'checkin' ? (
-                    <Icons.CalendarClock size={16} />
-                  ) : act.cat === 'registration' || act.cat === 'reg' ? (
-                    <Icons.Check size={16} />
-                  ) : act.cat === 'payment' || act.cat === 'pay' ? (
-                    <Icons.CreditCard size={16} />
-                  ) : (
-                    <Icons.Refresh size={16} />
-                  )}
-                </div>
-                <div className="activity-chip-meta">
-                  <span className="activity-chip-title">{act.title}</span>
-                  <span className="activity-chip-time">{act.time}</span>
+                <div className="class-capacity-counter">
+                  <Icons.Users size={14} />
+                  <span>{item.booked} / {item.capacity}</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* RIGHT PANEL: NOTIFICATIONS WIDGET */}
-        <div className="reception-notif-widget-panel">
-          <div className="notif-widget-header">
-            <div className="notif-widget-title-box">
-              <span className="notif-widget-icon-orange">
-                <Icons.Bell size={16} />
-              </span>
-              <h3 className="notif-widget-text">Notifications</h3>
-              <span className="notif-widget-counter">{unreadCount}</span>
-            </div>
+        {/* Right Column: Recently Active Members */}
+        <div className="clean-list-card">
+          <div className="clean-list-card-header">
+            <h3 className="list-card-title">Recently Active Members</h3>
             <button
               type="button"
-              className="notif-widget-link"
-              onClick={() => onNavigate('notifications')}
+              className="list-card-view-all"
+              onClick={() => onNavigate('attendance')}
             >
-              <span>View All</span>
-              <Icons.ArrowUpRight size={13} />
+              View All
             </button>
           </div>
 
-          <div className="notif-widget-content">
-            <div className="notif-alert-card-row">
-              <span className="notif-alert-triangle">
-                <Icons.AlertTriangle size={17} />
-              </span>
-              <div className="notif-alert-text">
-                <span className="notif-alert-headline">
-                  {activeNotifications[0]?.title || 'Membership will expire soon'}
-                </span>
-                <span className="notif-alert-details">
-                  {activeNotifications[0]?.message || '3 members in next 7 days'}
-                </span>
+          <div className="clean-list-items-wrap">
+            {activeMembers.map((member) => (
+              <div key={member.id} className="clean-member-row">
+                <div className="member-row-profile">
+                  <img
+                    src={member.avatar}
+                    alt={member.name}
+                    className="member-avatar-img"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      if (e.target.nextSibling) {
+                        e.target.nextSibling.style.display = 'flex';
+                      }
+                    }}
+                  />
+                  <div
+                    className="member-avatar-fallback"
+                    style={{ backgroundColor: member.color, display: 'none' }}
+                  >
+                    {member.name.charAt(0)}
+                  </div>
+                  <span className="member-profile-name">{member.name}</span>
+                </div>
+                <span className="member-checkin-time">{member.checked_in}</span>
               </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
