@@ -1,17 +1,32 @@
 import { useAuth } from '../context/useAuth';
 import BrandLogo from './BrandLogo';
 
-// Crisp, luxury SVG icons for navigation items
+// Crisp, consistent Lucide-style SVG icons for navigation items
 function NavIcon({ id }) {
   switch (id) {
     case 'dashboard':
+      // Lucide LayoutDashboard
       return (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-          <polyline points="9 22 9 12 15 12 15 22" />
+          <rect width="7" height="9" x="3" y="3" rx="1" />
+          <rect width="7" height="5" x="14" y="3" rx="1" />
+          <rect width="7" height="9" x="14" y="12" rx="1" />
+          <rect width="7" height="5" x="3" y="16" rx="1" />
+        </svg>
+      );
+    case 'attendance':
+      // Lucide CalendarCheck
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8 2v4" />
+          <path d="M16 2v4" />
+          <rect width="18" height="18" x="3" y="4" rx="2" />
+          <path d="M3 10h18" />
+          <path d="m9 16 2 2 4-4" />
         </svg>
       );
     case 'members':
+      // Lucide Users
       return (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -21,26 +36,59 @@ function NavIcon({ id }) {
         </svg>
       );
     case 'memberships':
+      // Lucide Crown
       return (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14" />
         </svg>
       );
     case 'payments':
+      // Lucide CreditCard
       return (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="2" y="5" width="20" height="14" rx="2" />
-          <line x1="2" y1="10" x2="22" y2="10" />
+          <rect width="20" height="14" x="2" y="5" rx="2" />
+          <line x1="2" x2="22" y1="10" y2="10" />
         </svg>
       );
-    case 'attendance':
+    case 'classes':
+      // Lucide CalendarDays
       return (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 7V5a2 2 0 0 1 2-2h2" />
-          <path d="M17 3h2a2 2 0 0 1 2 2v2" />
-          <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
-          <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
-          <line x1="7" y1="12" x2="17" y2="12" />
+          <rect width="18" height="18" x="3" y="4" rx="2" />
+          <line x1="16" x2="16" y1="2" y2="6" />
+          <line x1="8" x2="8" y1="2" y2="6" />
+          <line x1="3" x2="21" y1="10" y2="10" />
+          <path d="M8 14h.01" />
+          <path d="M12 14h.01" />
+          <path d="M16 14h.01" />
+          <path d="M8 18h.01" />
+          <path d="M12 18h.01" />
+          <path d="M16 18h.01" />
+        </svg>
+      );
+    case 'notifications':
+      // Lucide Bell
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+          <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+        </svg>
+      );
+    case 'profile':
+      // Lucide User
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+      );
+    case 'logout':
+      // Lucide LogOut
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" x2="9" y1="12" y2="12" />
         </svg>
       );
     case 'trainers':
@@ -63,15 +111,6 @@ function NavIcon({ id }) {
           <path d="M9 12h6" />
           <path d="M9 16h6" />
           <path d="M9 8h2" />
-        </svg>
-      );
-    case 'classes':
-      return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-          <line x1="16" y1="2" x2="16" y2="6" />
-          <line x1="8" y1="2" x2="8" y2="6" />
-          <line x1="3" y1="10" x2="21" y2="10" />
         </svg>
       );
     case 'equipment':
@@ -130,15 +169,17 @@ export default function Sidebar({ activeView, onViewChange, onOpenPasswordModal 
     { id: 'audit', label: 'Audit Logs', roles: ['owner'] },
   ];
 
-  // Specific Receptionist navigation specified by Section 3:
-  // 1. Dashboard, 2. Check-in, 3. Members, 4. Memberships, 5. Payments, 6. Classes
+  // Specific Receptionist navigation with the 8 requested menu items:
+  // 1. Dashboard, 2. Attendance, 3. Members, 4. Memberships, 5. Payments, 6. Classes, 7. Notifications, 8. My Profile
   const receptionNavItems = [
     { id: 'dashboard', label: 'Dashboard' },
-    { id: 'attendance', label: 'Check-in' },
+    { id: 'attendance', label: 'Attendance' },
     { id: 'members', label: 'Members' },
     { id: 'memberships', label: 'Memberships' },
     { id: 'payments', label: 'Payments' },
     { id: 'classes', label: 'Classes' },
+    { id: 'notifications', label: 'Notifications' },
+    { id: 'profile', label: 'My Profile' },
   ];
 
   // Filter items based on active role
@@ -148,12 +189,12 @@ export default function Sidebar({ activeView, onViewChange, onOpenPasswordModal 
 
   return (
     <aside className="gymcore-sidebar">
-      {/* Brand Header with Horizontal Lockup matching reference image */}
+      {/* Brand Header with Horizontal Lockup matching Tigat Gym branding */}
       <div className="sidebar-brand">
         <BrandLogo variant="sidebar" />
       </div>
 
-      {/* Navigation Links with Crisp SVG Icons & Vibrant Orange Active Pill */}
+      {/* Navigation Links with Consistent Lucide SVG Icons & Orange Active Highlight (#FF8A00) */}
       <nav className="sidebar-nav">
         {visibleNav.map((item) => {
           const isActive = activeView === item.id;
@@ -173,45 +214,44 @@ export default function Sidebar({ activeView, onViewChange, onOpenPasswordModal 
         })}
       </nav>
 
-      {/* Sidebar Footer matching reference image: User Profile + Prominent Sign Out Button */}
+      {/* Sidebar Footer: Logout separately placed at the bottom */}
       <div className="sidebar-footer">
-        {/* User Profile Row */}
-        <div className="sidebar-user-row">
-          <div className="sidebar-user-avatar">
-            {user?.name?.charAt(0).toUpperCase() || 'U'}
+        {primaryRole !== 'receptionist' && (
+          <div className="sidebar-user-row">
+            <div className="sidebar-user-avatar">
+              {user?.name?.charAt(0).toUpperCase() || 'U'}
+            </div>
+            <div className="sidebar-user-meta">
+              <span className="sidebar-user-name">{user?.name}</span>
+              <span className="sidebar-user-email">
+                {user?.email || `${primaryRole?.toUpperCase()} ACCOUNT`}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="sidebar-user-key-btn"
+              onClick={onOpenPasswordModal}
+              title="Change Password"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="7.5" cy="15.5" r="4.5" />
+                <path d="m21 3-9.5 9.5" />
+                <path d="m15.5 7.5 3 3" />
+              </svg>
+            </button>
           </div>
-          <div className="sidebar-user-meta">
-            <span className="sidebar-user-name">{user?.name}</span>
-            <span className="sidebar-user-email">
-              {primaryRole === 'receptionist' ? 'Receptionist' : (user?.email || `${primaryRole?.toUpperCase()} ACCOUNT`)}
-            </span>
-          </div>
-          <button
-            type="button"
-            className="sidebar-user-key-btn"
-            onClick={onOpenPasswordModal}
-            title="Change Password"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="7.5" cy="15.5" r="4.5" />
-              <path d="m21 3-9.5 9.5" />
-              <path d="m15.5 7.5 3 3" />
-            </svg>
-          </button>
-        </div>
+        )}
 
-        {/* Dedicated Sign Out Button matching reference */}
+        {/* Dedicated Separate Logout Button matching prompt specifications */}
         <button
           type="button"
           className="sidebar-signout-btn"
           onClick={logout}
           title="Sign out of GymCore"
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <polyline points="16 17 21 12 16 7" />
-            <line x1="21" y1="12" x2="9" y2="12" />
-          </svg>
+          <span className="nav-icon">
+            <NavIcon id="logout" />
+          </span>
           <span>Logout</span>
         </button>
       </div>
