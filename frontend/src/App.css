@@ -2062,13 +2062,14 @@ body.theme-light .modal-header .close-btn:hover,
    TIGAT GYM FULL-SCREEN ZERO-SCROLL LOGIN PAGE
    ========================================================================== */
 
-/* Prevent any scrollbar on the page when login is mounted */
+/* Strictly Static Full-Screen Viewport — Zero Scrolling */
 html:has(.tigat-login-page),
 body:has(.tigat-login-page) {
   overflow: hidden !important;
   height: 100vh !important;
   max-height: 100vh !important;
   margin: 0 !important;
+  padding: 0 !important;
 }
 
 .tigat-login-page {
@@ -2078,13 +2079,14 @@ body:has(.tigat-login-page) {
   height: 100vh;
   max-width: 100vw;
   max-height: 100vh;
-  overflow: hidden;
+  overflow: hidden !important;
   background: #0a0e17;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   box-sizing: border-box;
+  padding: 12px 16px;
   z-index: 1000;
   user-select: none;
 }
@@ -2204,8 +2206,8 @@ body:has(.tigat-login-page) {
   position: relative;
   z-index: 10;
   width: 100%;
-  max-width: 460px;
-  padding: 12px 20px;
+  max-width: 430px;
+  padding: 0 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2214,7 +2216,7 @@ body:has(.tigat-login-page) {
 
 /* Tigat Tiger Logo with Glowing Aura */
 .tigat-logo-wrapper {
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   position: relative;
   display: flex;
   align-items: center;
@@ -2223,11 +2225,11 @@ body:has(.tigat-login-page) {
 
 .tigat-logo-glow-aura {
   position: absolute;
-  width: 160px;
-  height: 160px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(255, 107, 0, 0.45) 0%, rgba(211, 24, 38, 0.22) 45%, transparent 70%);
-  filter: blur(18px);
+  filter: blur(16px);
   z-index: 0;
   pointer-events: none;
   animation: tigatAuraPulse 3s ease-in-out infinite alternate;
@@ -2245,29 +2247,30 @@ body:has(.tigat-login-page) {
 }
 
 .tigat-tiger-crest-img {
-  width: 135px;
+  width: 95px;
+  max-height: 80px;
   height: auto;
   object-fit: contain;
   display: block;
   position: relative;
   z-index: 1;
-  filter: drop-shadow(0 0 20px rgba(255, 107, 0, 0.5)) drop-shadow(0 8px 24px rgba(0, 0, 0, 0.9));
+  filter: drop-shadow(0 0 16px rgba(255, 107, 0, 0.5)) drop-shadow(0 6px 18px rgba(0, 0, 0, 0.9));
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s ease;
 }
 
 .tigat-logo-wrapper:hover .tigat-tiger-crest-img {
   transform: scale(1.05);
-  filter: drop-shadow(0 0 28px rgba(255, 107, 0, 0.75)) drop-shadow(0 10px 30px rgba(0, 0, 0, 0.95));
+  filter: drop-shadow(0 0 22px rgba(255, 107, 0, 0.75)) drop-shadow(0 8px 24px rgba(0, 0, 0, 0.95));
 }
 
 /* Title */
 .tigat-login-title {
   color: #ffffff;
-  font-size: 24px;
+  font-size: 19px;
   font-weight: 800;
-  letter-spacing: 3.5px;
+  letter-spacing: 2.8px;
   text-transform: uppercase;
-  margin: 0 0 18px 0;
+  margin: 0 0 10px 0;
   text-align: center;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.65);
 }
@@ -2276,114 +2279,159 @@ body:has(.tigat-login-page) {
   background: rgba(211, 24, 38, 0.3);
   border: 1px solid rgba(211, 24, 38, 0.6);
   color: #fca5a5;
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-radius: 8px;
-  font-size: 13px;
-  margin-bottom: 14px;
+  font-size: 12px;
+  margin-bottom: 8px;
   width: 100%;
-  max-width: 440px;
+  max-width: 420px;
   box-sizing: border-box;
   text-align: left;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
-/* Translucent Frosted Glass Form Card - Lighter, luminous & no heavy blackness */
+/* Translucent Frosted Glass Form Card with Ultra-Smooth Rounded Border */
 .tigat-form-card {
   width: 100%;
-  max-width: 440px;
-  min-height: 380px;
-  background: rgba(255, 255, 255, 0.10);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 18px;
-  padding: 40px 32px 34px 32px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  max-width: 420px;
+  background: rgba(18, 24, 38, 0.58);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  border-radius: 22px;
+  padding: 22px 28px 20px 28px;
+  box-shadow:
+    0 24px 60px -15px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.10),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 2px 0 rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 24px;
+  gap: 16px;
   box-sizing: border-box;
   text-align: left;
+  transition: border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.tigat-input-group {
+.tigat-form-card:hover {
+  border-color: rgba(255, 255, 255, 0.32);
+  box-shadow:
+    0 28px 70px -15px rgba(0, 0, 0, 0.75),
+    0 0 0 1px rgba(255, 255, 255, 0.16),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 0.45);
+}
+
+.tigat-inputs-container {
   display: flex;
   flex-direction: column;
-  position: relative;
+  gap: 20px;
+  width: 100%;
 }
 
-.tigat-input-label {
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 8px;
-  letter-spacing: 0.25px;
-}
-
-.tigat-password-input-wrap {
+.tigat-floating-field {
   position: relative;
+  width: 100%;
   display: flex;
-  align-items: center;
+  flex-direction: column;
 }
 
+.tigat-floating-input {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.6) !important;
+  border-radius: 0 !important;
+  color: #ffffff !important;
+  font-size: 15.5px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.35px !important;
+  padding: 6px 0 8px 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  transition: border-bottom-color 0.25s ease, box-shadow 0.25s ease;
+  line-height: 1.4 !important;
+}
+
+.tigat-floating-input.tigat-password-input {
+  padding-right: 32px !important;
+}
+
+.tigat-floating-input:focus {
+  border-bottom-color: #ffffff !important;
+  box-shadow: 0 1px 0 0 #ffffff !important;
+}
+
+.tigat-floating-label {
+  position: absolute;
+  left: 0;
+  top: 6px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 15.5px;
+  font-weight: 400;
+  letter-spacing: 0.35px;
+  pointer-events: none;
+  transform-origin: left top;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.tigat-floating-input:focus ~ .tigat-floating-label,
+.tigat-floating-input:not(:placeholder-shown) ~ .tigat-floating-label,
+.tigat-floating-field.has-value .tigat-floating-label,
+.tigat-floating-input:-webkit-autofill ~ .tigat-floating-label,
+.tigat-floating-input:autofill ~ .tigat-floating-label {
+  transform: translateY(-20px) scale(0.78);
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.tigat-floating-input:-webkit-autofill,
+.tigat-floating-input:-webkit-autofill:hover,
+.tigat-floating-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffffff !important;
+  -webkit-box-shadow: 0 0 0px 1000px rgba(20, 20, 25, 0.95) inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Password Eye Toggle: hidden when empty to match exact resting image, appears on focus or typing */
 .tigat-pwd-toggle-btn {
   position: absolute;
   right: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  bottom: 8px;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px 2px;
-  font-size: 17px;
-  opacity: 0.75;
-  transition: opacity 0.2s, transform 0.15s;
-  color: #ffffff;
+  padding: 4px;
+  color: rgba(255, 255, 255, 0.75);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, color 0.2s ease, transform 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
+}
+
+.tigat-floating-field.has-value .tigat-pwd-toggle-btn,
+.tigat-floating-field:focus-within .tigat-pwd-toggle-btn {
+  opacity: 0.75;
+  pointer-events: auto;
 }
 
 .tigat-pwd-toggle-btn:hover {
   opacity: 1;
-  transform: translateY(-50%) scale(1.1);
-}
-
-.tigat-underline-input {
-  background: transparent !important;
-  border: none !important;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.75) !important;
-  border-radius: 0 !important;
-  color: #ffffff !important;
-  font-size: 16px !important;
-  padding: 12px 0 !important;
-  outline: none !important;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: none !important;
-  width: 100% !important;
-  box-sizing: border-box;
-}
-
-.tigat-password-input-wrap .tigat-underline-input {
-  padding-right: 32px !important;
-}
-
-.tigat-underline-input:focus {
-  border-bottom-color: #ffffff !important;
-  box-shadow: 0 2px 0 0 #d31826 !important;
-}
-
-.tigat-underline-input::placeholder {
-  color: rgba(255, 255, 255, 0.35);
-  font-size: 14px;
+  color: #ffffff;
+  transform: scale(1.08);
 }
 
 /* Forgot password right-aligned link */
 .tigat-forgot-wrap {
   display: flex;
   justify-content: flex-end;
-  margin-top: 10px;
+  margin-top: -12px;
 }
 
 .tigat-forgot-btn {
@@ -2391,37 +2439,44 @@ body:has(.tigat-login-page) {
   border: none;
   color: rgba(255, 255, 255, 0.85);
   font-size: 12.5px;
+  font-weight: 400;
   cursor: pointer;
   padding: 0;
   text-decoration: underline;
-  transition: color 0.2s;
+  text-underline-offset: 3px;
+  transition: color 0.2s ease;
+  letter-spacing: 0.2px;
 }
 
 .tigat-forgot-btn:hover {
   color: #ffffff;
 }
 
-/* Solid Pure White Rectangular LOGIN Button */
+/* Solid Pure White Rectangular LOGIN Button with Smooth Corners */
 .tigat-login-submit-btn {
   background: #ffffff !important;
   color: #000000 !important;
   border: none !important;
-  border-radius: 6px !important;
-  padding: 16px 24px !important;
-  font-size: 15px !important;
+  border-radius: 8px !important;
+  padding: 11px 20px !important;
+  font-size: 14.5px !important;
   font-weight: 800 !important;
-  letter-spacing: 2.5px !important;
+  letter-spacing: 1.5px !important;
   text-transform: uppercase !important;
   cursor: pointer !important;
-  transition: all 0.2s ease !important;
-  margin-top: 12px !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  margin-top: 4px !important;
   width: 100% !important;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4) !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35) !important;
+  height: 44px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .tigat-login-submit-btn:hover {
-  background: #f1f5f9 !important;
-  box-shadow: 0 6px 24px rgba(255, 255, 255, 0.4) !important;
+  background: #f8fafc !important;
+  box-shadow: 0 6px 24px rgba(255, 255, 255, 0.45) !important;
   transform: translateY(-1px);
 }
 
@@ -2434,20 +2489,24 @@ body:has(.tigat-login-page) {
   cursor: not-allowed;
 }
 
-/* Discreet Demo Credentials Dock */
+/* Prominently Visible Quick Demo Sign-In Dock */
 .tigat-demo-dock {
-  margin-top: 20px;
+  margin-top: 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  width: 100%;
+  max-width: 420px;
 }
 
 .tigat-demo-label {
-  font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.7);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
   text-transform: uppercase;
-  letter-spacing: 0.75px;
+  letter-spacing: 0.8px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
 .tigat-demo-pills {
@@ -2455,28 +2514,40 @@ body:has(.tigat-login-page) {
   gap: 6px;
   flex-wrap: wrap;
   justify-content: center;
+  width: 100%;
 }
 
 .tigat-demo-pill {
-  background: rgba(255, 255, 255, 0.09);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   color: #ffffff;
-  padding: 5px 12px;
-  border-radius: 12px;
-  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: 16px;
+  font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .tigat-demo-pill:hover {
-  background: rgba(211, 24, 38, 0.45);
-  border-color: #d31826;
+  background: rgba(255, 138, 0, 0.25);
+  border-color: #ff8a00;
   color: #ffffff;
-  transform: translateY(-1px);
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 14px rgba(255, 138, 0, 0.35);
+}
+
+.tigat-demo-pill.pill-active {
+  background: rgba(255, 138, 0, 0.28);
+  border-color: #ff8a00;
+  box-shadow: 0 0 14px rgba(255, 138, 0, 0.45);
+  color: #ffffff;
 }
 
 .demo-pill-icon {
