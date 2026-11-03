@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../context/useAuth';
 import apiClient from '../services/api';
 
 // Crisp Luxury SVG Icons matching reference design
@@ -115,7 +114,6 @@ const Icons = {
 const RECEPTION_CACHE_KEY = 'gymcore_reception_cache';
 
 export default function ReceptionDashboard({ onNavigate }) {
-  const { user } = useAuth();
   const [data, setData] = useState(() => {
     try {
       const cached = sessionStorage.getItem(RECEPTION_CACHE_KEY);
@@ -134,15 +132,9 @@ export default function ReceptionDashboard({ onNavigate }) {
   });
 
   const [error, setError] = useState(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [dismissedNotifIds, setDismissedNotifIds] = useState(new Set());
 
   // Load live Dashboard Data from Backend
   const fetchDashboardData = useCallback(async (isRefresh = false) => {
-    if (isRefresh) {
-      setIsRefreshing(true);
-    }
     setError(null);
     try {
       const res = await apiClient.getReceptionDashboard(isRefresh ? { refresh: 1 } : {});
@@ -161,7 +153,6 @@ export default function ReceptionDashboard({ onNavigate }) {
       setError(err.message || 'Unable to load front-desk dashboard. Please check API connection.');
     } finally {
       setIsLoading(false);
-      setIsRefreshing(false);
     }
   }, []);
 
@@ -196,6 +187,16 @@ export default function ReceptionDashboard({ onNavigate }) {
       ignore = true;
     };
   }, []);
+
+  useEffect(() => {
+    const handleGlobalRefresh = () => {
+      fetchDashboardData(true);
+    };
+    window.addEventListener('gymcore:refresh', handleGlobalRefresh);
+    return () => {
+      window.removeEventListener('gymcore:refresh', handleGlobalRefresh);
+    };
+  }, [fetchDashboardData]);
 
   const handleManualRefresh = () => {
     fetchDashboardData(true);
@@ -286,141 +287,22 @@ export default function ReceptionDashboard({ onNavigate }) {
     },
   ];
 
-  const activeNotifications = rawNotifications.filter((n) => !dismissedNotifIds.has(n.id));
+  const activeNotifications = rawNotifications;
   const unreadCount = activeNotifications.length;
 
-  const dismissNotification = (id) => {
-    setDismissedNotifIds((prev) => new Set(prev).add(id));
-  };
-
-  const markAllNotificationsRead = () => {
-    const allIds = rawNotifications.map((n) => n.id);
-    setDismissedNotifIds(new Set(allIds));
-  };
-
-  const receptionistName = user?.name ? user.name.split(' ')[0] : 'Sara';
-  const currentDateFormatted = new Date().toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  if (isLoading && !data) {
+    return (
+      <div className="reception-image-matched-dashboard" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '350px' }}>
+        <div style={{ textAlign: 'center' }}>
+          <span className="spinner" style={{ width: 32, height: 32, margin: '0 auto 12px' }}></span>
+          <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Loading front-desk metrics...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="reception-image-matched-dashboard">
-      {/* =========================================================================
-          TOP HEADER SECTION: Welcome banner with backdrop watermark & controls
-          ========================================================================= */}
-      <header className="reception-hero-header">
-        <div className="hero-header-watermark-overlay" aria-hidden="true"></div>
-
-        <div className="hero-header-top-row">
-          <div className="hero-header-left">
-            <button type="button" className="hero-menu-toggle" title="Toggle Navigation">
-              <Icons.Menu />
-            </button>
-            <div>
-              <h1 className="hero-header-title">Reception Dashboard</h1>
-              <p className="hero-header-subtitle">
-                Welcome back, {receptionistName}! Here&apos;s today&apos;s gym activity.
-              </p>
-            </div>
-          </div>
-
-          <div className="hero-header-right">
-            {/* Date Pill */}
-            <div className="hero-date-badge" title="Current gym date">
-              <span className="hero-date-icon">📅</span>
-              <span>{currentDateFormatted}</span>
-            </div>
-
-            {/* Refresh Shortcut */}
-            <button
-              type="button"
-              className={`hero-icon-button ${isRefreshing || isLoading ? 'spinning' : ''}`}
-              onClick={handleManualRefresh}
-              title="Refresh Dashboard Data"
-            >
-              <Icons.Refresh />
-            </button>
-
-            {/* Notification Bell with Badge */}
-            <div className="hero-notif-container">
-              <button
-                type="button"
-                className={`hero-icon-button ${unreadCount > 0 ? 'has-badge' : ''} ${isNotificationsOpen ? 'active' : ''}`}
-                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                title={`${unreadCount} Active Notifications`}
-              >
-                <Icons.Bell />
-                {unreadCount > 0 && <span className="hero-bell-badge">{unreadCount}</span>}
-              </button>
-
-              {/* Notification Popover */}
-              {isNotificationsOpen && (
-                <div className="reception-notif-dropdown">
-                  <div className="notif-dropdown-header">
-                    <div>
-                      <h4 className="notif-dropdown-title">Notifications</h4>
-                      <span className="notif-dropdown-sub">{unreadCount} active</span>
-                    </div>
-                    {unreadCount > 0 && (
-                      <button
-                        type="button"
-                        className="btn-mark-all-read"
-                        onClick={markAllNotificationsRead}
-                      >
-                        Clear All
-                      </button>
-                    )}
-                  </div>
-                  <div className="notif-dropdown-body">
-                    {activeNotifications.length === 0 ? (
-                      <div className="notif-empty-state">
-                        <Icons.Check />
-                        <span>All alerts cleared</span>
-                      </div>
-                    ) : (
-                      activeNotifications.map((n) => (
-                        <div key={n.id} className="notif-item-row">
-                          <div className="notif-icon-col">
-                            <Icons.AlertTriangle />
-                          </div>
-                          <div className="notif-text-col">
-                            <span className="notif-item-title">{n.title}</span>
-                            <p className="notif-item-msg">{n.message}</p>
-                          </div>
-                          <button
-                            type="button"
-                            className="notif-item-dismiss"
-                            onClick={() => dismissNotification(n.id)}
-                            title="Dismiss"
-                          >
-                            <Icons.Close />
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* User Profile Thumbnail */}
-            <div className="hero-user-profile-button" title={user?.name || 'Sara Ahmed'}>
-              <div className="hero-user-avatar">
-                {user?.name ? user.name.charAt(0).toUpperCase() : 'S'}
-              </div>
-              <Icons.ChevronDown size={14} />
-            </div>
-
-            {/* Green Role Pill: Receptionist */}
-            <div className="hero-receptionist-badge">
-              <span className="hero-green-dot"></span>
-              <span>Receptionist</span>
-            </div>
-          </div>
-        </div>
-      </header>
 
       {/* Global Error Banner */}
       {error && (
@@ -817,7 +699,7 @@ export default function ReceptionDashboard({ onNavigate }) {
             <button
               type="button"
               className="notif-widget-link"
-              onClick={() => onNavigate('memberships')}
+              onClick={() => onNavigate('notifications')}
             >
               <span>View All</span>
               <Icons.ArrowUpRight size={13} />
