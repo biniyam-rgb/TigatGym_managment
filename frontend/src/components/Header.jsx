@@ -2,91 +2,74 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/useAuth';
 import apiClient from '../services/api';
 
-// Crisp, lightweight SVG Icons (15px)
-const RefreshIcon = ({ isSpinning }) => (
-  <svg
-    width="15"
-    height="15"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={isSpinning ? 'header-svg-spin' : ''}
-    style={{ flexShrink: 0 }}
-  >
-    <polyline points="23 4 23 10 17 10" />
-    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-  </svg>
-);
+// Clean Lucide-style SVG icons
+const Icons = {
+  Refresh: ({ isSpinning }) => (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={isSpinning ? 'header-svg-spin' : ''}
+    >
+      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+      <path d="M8 16H3v5" />
+    </svg>
+  ),
+  Sun: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    </svg>
+  ),
+  Moon: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+    </svg>
+  ),
+  Bell: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+  ),
+  Calendar: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="18" x="3" y="4" rx="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  ),
+};
 
-const SunIcon = () => (
-  <svg
-    width="15"
-    height="15"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.1"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    style={{ flexShrink: 0 }}
-  >
-    <circle cx="12" cy="12" r="5" />
-    <line x1="12" y1="1" x2="12" y2="3" />
-    <line x1="12" y1="21" x2="12" y2="23" />
-    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-    <line x1="1" y1="12" x2="3" y2="12" />
-    <line x1="21" y1="12" x2="23" y2="12" />
-    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-  </svg>
-);
-
-const MoonIcon = () => (
-  <svg
-    width="15"
-    height="15"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.1"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    style={{ flexShrink: 0 }}
-  >
-    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-  </svg>
-);
-
-export default function Header({ title, subtitle, onRefresh, theme = 'light', onToggleTheme }) {
+export default function Header({
+  title,
+  subtitle,
+  onRefresh,
+  theme = 'light',
+  onToggleTheme,
+  onNavigate,
+}) {
   const { user, primaryRole } = useAuth();
-  const [apiStatus, setApiStatus] = useState({
-    state: 'loading',
-    data: null,
-    lastChecked: null,
-  });
+  const [apiStatus, setApiStatus] = useState({ state: 'loading' });
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const checkConnection = useCallback(async () => {
     setIsRefreshing(true);
     try {
       const data = await apiClient.checkStatus();
-      setApiStatus({
-        state: 'online',
-        data,
-        lastChecked: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      });
+      setApiStatus({ state: 'online', data });
     } catch {
-      setApiStatus({
-        state: 'offline',
-        data: null,
-        lastChecked: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      });
+      setApiStatus({ state: 'offline', data: null });
     } finally {
-      setTimeout(() => setIsRefreshing(false), 400);
+      setTimeout(() => setIsRefreshing(false), 350);
     }
   }, []);
 
@@ -94,22 +77,10 @@ export default function Header({ title, subtitle, onRefresh, theme = 'light', on
     let ignore = false;
     apiClient.checkStatus()
       .then((data) => {
-        if (!ignore) {
-          setApiStatus({
-            state: 'online',
-            data,
-            lastChecked: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          });
-        }
+        if (!ignore) setApiStatus({ state: 'online', data });
       })
       .catch(() => {
-        if (!ignore) {
-          setApiStatus({
-            state: 'offline',
-            data: null,
-            lastChecked: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          });
-        }
+        if (!ignore) setApiStatus({ state: 'offline', data: null });
       });
 
     return () => {
@@ -122,51 +93,59 @@ export default function Header({ title, subtitle, onRefresh, theme = 'light', on
     if (onRefresh) onRefresh();
   };
 
-  const roleName = primaryRole ? primaryRole.toUpperCase() : 'STAFF';
-  const displayName = user?.name || 'Staff Member';
+  const displayName = user?.name || (primaryRole === 'receptionist' ? 'Sara Ahmed' : 'Staff');
+  const roleLabel = primaryRole ? (primaryRole.charAt(0).toUpperCase() + primaryRole.slice(1)) : 'Staff';
   const initial = displayName.charAt(0).toUpperCase();
+
+  const formattedDate = new Date().toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 
   return (
     <header className="gymcore-header">
-      {/* Title & View Context */}
+      {/* Title & View Context on Left */}
       <div className="header-title-block">
-        <h2 className="view-title">{title}</h2>
+        <h1 className="view-title">{title}</h1>
         {subtitle && <p className="view-subtitle">{subtitle}</p>}
       </div>
 
-      {/* Right Controls Bar */}
+      {/* Right Tools Bar */}
       <div className="header-right-tools">
-        {/* Prominent Tigat Gym Brand Emblem Badge (Single Gym - No Branch) */}
-        <div className="header-brand-badge" title="TIGAT GYM • Official Fitness Management">
-          <div className="header-brand-crest-box">
-            <img
-              src="/tigat-tiger-logo.png"
-              alt="TIGAT GYM"
-              className="header-brand-crest-img"
-            />
-          </div>
-          <div className="header-brand-text-col">
-            <span className="header-brand-title">TIGAT GYM</span>
-            <span className="header-brand-subtag">FITNESS CENTER</span>
-          </div>
+        {/* Date Capsule Badge */}
+        <div className="header-date-badge" title="Current gym date">
+          <Icons.Calendar />
+          <span>{formattedDate}</span>
         </div>
 
-        {/* Live system status */}
+        {/* Live System Indicator */}
         <div
           className={`header-status-pill ${apiStatus.state}`}
-          title={`System status: ${apiStatus.state} • Last ping: ${apiStatus.lastChecked || 'just now'}`}
+          title={`System status: ${apiStatus.state === 'online' ? 'Live & Connected' : 'Offline'}`}
         >
           <span className="header-status-dot"></span>
           <span className="header-status-text">
-            {apiStatus.state === 'loading' && 'Syncing'}
-            {apiStatus.state === 'online' && 'Live'}
-            {apiStatus.state === 'offline' && 'Offline'}
+            {apiStatus.state === 'loading' ? 'Syncing' : apiStatus.state === 'online' ? 'Live' : 'Offline'}
           </span>
         </div>
 
         <div className="header-divider" aria-hidden="true" />
 
-        {/* Compact Icon Refresh Button */}
+        {/* Notifications Shortcut with Badge */}
+        <button
+          type="button"
+          className="header-tool-btn has-badge"
+          onClick={() => onNavigate && onNavigate('notifications')}
+          title="Notifications & Alerts (3 active)"
+          aria-label="View notifications"
+        >
+          <Icons.Bell />
+          <span className="header-tool-badge">3</span>
+        </button>
+
+        {/* Refresh Shortcut */}
         <button
           type="button"
           className="header-tool-btn"
@@ -174,30 +153,38 @@ export default function Header({ title, subtitle, onRefresh, theme = 'light', on
           title="Refresh data & ping server"
           aria-label="Refresh data"
         >
-          <RefreshIcon isSpinning={isRefreshing || apiStatus.state === 'loading'} />
+          <Icons.Refresh isSpinning={isRefreshing || apiStatus.state === 'loading'} />
         </button>
 
-        {/* Compact Icon Theme Toggle Button */}
+        {/* Theme Toggle Button */}
         {onToggleTheme && (
           <button
             type="button"
             className="header-tool-btn"
             onClick={onToggleTheme}
             title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-            aria-label="Toggle color theme"
+            aria-label="Toggle theme"
           >
-            {theme === 'light' ? <MoonIcon /> : <SunIcon />}
+            {theme === 'light' ? <Icons.Moon /> : <Icons.Sun />}
           </button>
         )}
 
         <div className="header-divider" aria-hidden="true" />
 
-        {/* Executive Staff Profile Chip */}
-        <div className="header-staff-chip" title={`${displayName} (${roleName})`}>
+        {/* Executive Staff Profile Capsule */}
+        <div
+          className="header-staff-chip"
+          onClick={() => onNavigate && onNavigate('profile')}
+          title={`Signed in as ${displayName} (${roleLabel}) — Click to view Profile`}
+          style={{ cursor: 'pointer' }}
+        >
           <div className="header-staff-avatar">{initial}</div>
           <div className="header-staff-meta">
             <span className="header-staff-name">{displayName}</span>
-            <span className="header-staff-role">{roleName}</span>
+            <span className="header-staff-role-badge">
+              <span className="role-green-dot" />
+              <span>{roleLabel}</span>
+            </span>
           </div>
         </div>
       </div>
