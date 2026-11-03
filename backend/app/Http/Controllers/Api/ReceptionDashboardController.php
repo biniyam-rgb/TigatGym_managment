@@ -89,6 +89,19 @@ class ReceptionDashboardController extends Controller
                 ->whereBetween('end_date', [$today->toDateString(), $nextSevenDays->toDateString()])
                 ->count();
 
+            // Card 5: Revenue this month (Completed payments)
+            $startOfMonth = $today->copy()->startOfMonth();
+            $endOfMonth = $today->copy()->endOfMonth();
+            $monthlyRevenue = (float) Payment::where('status', 'completed')
+                ->whereBetween('paid_at', [$startOfMonth, $endOfMonth])
+                ->sum('amount');
+
+            // Member Sign-ups in past 30 days
+            $thirtyDaysAgo = $today->copy()->subDays(30)->startOfDay();
+            $signupsCount = User::role('member')
+                ->where('created_at', '>=', $thirtyDaysAgo)
+                ->count();
+
             // -------------------------------------------------------------------------
             // 2. Recent Check-ins (Latest 10 Attendance Records)
             // -------------------------------------------------------------------------
@@ -388,6 +401,8 @@ class ReceptionDashboardController extends Controller
                     'today_check_ins' => $todayCheckInsCount,
                     'expected_members' => $expectedMembersCount,
                     'expiring_memberships' => $expiringMembershipsCount,
+                    'revenue_this_month' => $monthlyRevenue,
+                    'signups_last_30_days' => $signupsCount,
                     'currently_inside' => $currentlyInside,
                     'capacity_limit' => $capacityLimit,
                 ],
