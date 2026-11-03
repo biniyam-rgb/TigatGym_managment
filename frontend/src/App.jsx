@@ -16,12 +16,14 @@ import TrainerManagement from './components/TrainerManagement';
 import FitnessClassManagement from './components/FitnessClassManagement';
 import WorkoutManagement from './components/WorkoutManagement';
 import EquipmentManagement from './components/EquipmentManagement';
+import ReceptionNotificationsView from './components/ReceptionNotificationsView';
+import ReceptionProfileView from './components/ReceptionProfileView';
 import ChangePasswordModal from './components/ChangePasswordModal';
 import BrandLogo from './components/BrandLogo';
 import './App.css';
 
 function GymCoreApp() {
-  const { isAuthenticated, isLoading, primaryRole } = useAuth();
+  const { isAuthenticated, isLoading, primaryRole, user } = useAuth();
   const [activeView, setActiveView] = useState('dashboard'); // Default to Overview Dashboard matching Image 1
   const [navParams, setNavParams] = useState(null);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -67,17 +69,26 @@ function GymCoreApp() {
 
   // Titles mapping based on active view
   const isReceptionist = primaryRole === 'receptionist';
+  const receptionistFirstName = user?.name ? user.name.split(' ')[0] : 'Sara';
   const viewTitles = {
     dashboard: isReceptionist
-      ? { title: 'Reception Dashboard', subtitle: 'Front-desk operations, member admissions & daily activities' }
-      : { title: 'Operational Analytics & Overview', subtitle: 'Real-time TIGAT GYM performance indicators' },
+      ? {
+          title: 'Reception Dashboard',
+          subtitle: `Welcome back, ${receptionistFirstName}! Here's today's gym activity.`,
+        }
+      : {
+          title: 'Operational Analytics & Overview',
+          subtitle: 'Real-time TIGAT GYM performance indicators',
+        },
     members: { title: 'Member Directory & Profiles', subtitle: 'Module A — Membership records and digital QR pass generation' },
     memberships: { title: 'Membership Plans & Subscriptions', subtitle: 'Module C — Package duration, pricing in ETB, and lifecycle management' },
     payments: { title: 'Payments & Financial Ledger', subtitle: 'Module D — Cash, Bank Slip, POS & Chapa transactions (ETB)' },
-    attendance: { title: 'QR Code Attendance & Reception', subtitle: 'Module E — Front-desk check-in, anti-passback and visit logs' },
+    attendance: { title: 'Attendance & Admissions', subtitle: 'Module E — Front-desk check-in, visit logs and QR scanner' },
+    classes: { title: 'Fitness Classes & Reservations', subtitle: 'Module G — Class schedule, trainer assignment, and anti-duplicate booking' },
+    notifications: { title: 'Notifications & Alerts', subtitle: 'Front-desk expiration alerts, renewal reminders & operational notices' },
+    profile: { title: 'My Profile & Account', subtitle: 'Receptionist identity, credentials, and security preferences' },
     trainers: { title: 'Trainer Coaching & Rosters', subtitle: 'Module B — Staff specializations, rates, and 1-on-1 PT sessions' },
     workouts: { title: 'Workout Plans & Exercise Library', subtitle: 'Module F — Movements directory, routine templates, and member logs' },
-    classes: { title: 'Fitness Classes & Reservations', subtitle: 'Module G — Class schedule, trainer assignment, and anti-duplicate booking' },
     equipment: { title: 'Equipment & Maintenance Records', subtitle: 'Module H — Inventory conditions, maintenance logs, and asset tracking' },
     expenses: { title: 'Operating Expenditures', subtitle: 'Module D — Rent, utilities, maintenance, and net operating income' },
     users: { title: 'User & Staff Identity Management', subtitle: 'Role-based access control, account status, and credentials' },
@@ -102,6 +113,7 @@ function GymCoreApp() {
           subtitle={currentMeta.subtitle}
           theme={theme}
           onToggleTheme={toggleTheme}
+          onNavigate={handleNavigate}
         />
 
         <main className="gymcore-content-body">
@@ -126,6 +138,15 @@ function GymCoreApp() {
           )}
           {activeView === 'trainers' && <TrainerManagement />}
           {activeView === 'classes' && <FitnessClassManagement />}
+          {activeView === 'notifications' && (
+            <ReceptionNotificationsView onNavigate={handleNavigate} />
+          )}
+          {activeView === 'profile' && (
+            <ReceptionProfileView
+              onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
+              onNavigate={handleNavigate}
+            />
+          )}
           {activeView === 'workouts' && <WorkoutManagement />}
           {activeView === 'equipment' && <EquipmentManagement />}
           {activeView === 'users' && <UserManagement />}
