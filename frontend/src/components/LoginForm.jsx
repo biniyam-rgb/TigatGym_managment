@@ -75,13 +75,13 @@ export default function LoginForm({ onSuccess }) {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
 
-  // Quick Demo fill accounts with SVG icons
+  // Quick Demo fill accounts with SVG icons — Member listed first and prominently visible
   const demoAccounts = [
-    { role: 'Owner', email: 'owner@tigatgym.com', pass: 'Password123!', icon: <CrownIcon /> },
-    { role: 'Admin', email: 'admin@tigatgym.com', pass: 'Password123!', icon: <ShieldIcon /> },
+    { role: 'Member', email: 'member@tigatgym.com', pass: 'Password123!', icon: <UserIcon /> },
     { role: 'Receptionist', email: 'receptionist@tigatgym.com', pass: 'Password123!', icon: <ClipboardIcon /> },
     { role: 'Trainer', email: 'trainer@tigatgym.com', pass: 'Password123!', icon: <DumbbellIcon /> },
-    { role: 'Member', email: 'member@tigatgym.com', pass: 'Password123!', icon: <UserIcon /> },
+    { role: 'Admin', email: 'admin@tigatgym.com', pass: 'Password123!', icon: <ShieldIcon /> },
+    { role: 'Owner', email: 'owner@tigatgym.com', pass: 'Password123!', icon: <CrownIcon /> },
   ];
 
   const handleSubmit = async (e) => {
@@ -149,31 +149,28 @@ export default function LoginForm({ onSuccess }) {
           </div>
         )}
 
-        {/* Unified Glassmorphism Form Card */}
+        {/* Unified Glassmorphism Form Card with Smooth Curved Borders */}
         <form onSubmit={handleSubmit} className="tigat-form-card">
-          {/* Email Address Underline Field */}
-          <div className="tigat-input-group">
-            <label htmlFor="tigat-email" className="tigat-input-label">
-              Email Address
-            </label>
-            <input
-              id="tigat-email"
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="tigat-underline-input"
-              placeholder="e.g. member@tigatgym.com"
-            />
-          </div>
+          <div className="tigat-inputs-container">
+            {/* Email Address Underline Field */}
+            <div className={`tigat-floating-field ${email ? 'has-value' : ''}`}>
+              <input
+                id="tigat-email"
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="tigat-floating-input"
+                placeholder=" "
+              />
+              <label htmlFor="tigat-email" className="tigat-floating-label">
+                Email Address
+              </label>
+            </div>
 
-          {/* Password Underline Field with Eye SVG Toggle */}
-          <div className="tigat-input-group">
-            <label htmlFor="tigat-password" className="tigat-input-label">
-              Password
-            </label>
-            <div className="tigat-password-input-wrap">
+            {/* Password Underline Field */}
+            <div className={`tigat-floating-field ${password ? 'has-value' : ''}`}>
               <input
                 id="tigat-password"
                 type={showPassword ? 'text' : 'password'}
@@ -181,15 +178,19 @@ export default function LoginForm({ onSuccess }) {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="tigat-underline-input"
-                placeholder="••••••••"
+                className="tigat-floating-input tigat-password-input"
+                placeholder=" "
               />
+              <label htmlFor="tigat-password" className="tigat-floating-label">
+                Password
+              </label>
               <button
                 type="button"
                 className="tigat-pwd-toggle-btn"
                 onClick={() => setShowPassword(!showPassword)}
                 title={showPassword ? 'Hide password' : 'Show password'}
                 tabIndex={-1}
+                aria-label="Toggle password visibility"
               >
                 {showPassword ? <EyeOffIcon /> : <EyeIcon />}
               </button>
@@ -221,22 +222,25 @@ export default function LoginForm({ onSuccess }) {
           </button>
         </form>
 
-        {/* Discreet One-Click Quick Demo Autofill Pills with SVGs */}
+        {/* Prominently Visible Quick Demo Sign-In Dock */}
         <div className="tigat-demo-dock">
           <span className="tigat-demo-label">Quick Demo Sign-In:</span>
           <div className="tigat-demo-pills">
-            {demoAccounts.map((acc) => (
-              <button
-                key={acc.role}
-                type="button"
-                className="tigat-demo-pill"
-                onClick={() => fillDemo(acc)}
-                title={`${acc.role}: ${acc.email}`}
-              >
-                <span className="demo-pill-icon">{acc.icon}</span>
-                <span>{acc.role}</span>
-              </button>
-            ))}
+            {demoAccounts.map((acc) => {
+              const isSelected = email === acc.email;
+              return (
+                <button
+                  key={acc.role}
+                  type="button"
+                  className={`tigat-demo-pill ${isSelected ? 'pill-active' : ''}`}
+                  onClick={() => fillDemo(acc)}
+                  title={`Click to autofill ${acc.role} credentials (${acc.email})`}
+                >
+                  <span className="demo-pill-icon">{acc.icon}</span>
+                  <span className="demo-pill-name">{acc.role}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
