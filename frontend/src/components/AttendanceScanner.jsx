@@ -14,6 +14,17 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
   const [lookupPreview, setLookupPreview] = useState(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
 
+  // Camera & Simulator State
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
+  const [scanMode, setScanMode] = useState('check_in'); // 'check_in' | 'check_out'
+  const [membersQuickList, setMembersQuickList] = useState([]);
+  const [selectedSimMember, setSelectedSimMember] = useState('');
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const scanIntervalRef = useRef(null);
+  const fileInputRef = useRef(null);
+
   // Stats summary
   const [summary, setSummary] = useState({
     today_total: 0,
@@ -129,6 +140,14 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
         }
       });
 
+    apiClient.getMembers({ per_page: 50 })
+      .then(res => {
+        if (!ignore && res?.data) {
+          setMembersQuickList(res.data);
+        }
+      })
+      .catch(err => console.error('Failed to load members for scanner:', err));
+
     // Auto-refresh summary every 30 seconds
     const interval = setInterval(() => {
       fetchSummary();
@@ -137,8 +156,108 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
     return () => {
       ignore = true;
       clearInterval(interval);
+      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
     };
   }, [page, activeFilter, searchQuery, fetchSummary]);
+
+  // Start Camera QR Scanner
+  const startCamera = async () => {
+    setCameraError(null);
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera access is not supported on this browser or requires HTTPS.');
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      });
+
+      streamRef.current = stream;
+      setIsCameraActive(true);
+
+      // Timeout to allow video element to mount
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(console.error);
+
+          // BarcodeDetector loop if supported
+          if ('BarcodeDetector' in window) {
+            const barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
+            scanIntervalRef.current = setInterval(async () => {
+              if (!videoRef.current || videoRef.current.readyState < 2) return;
+              try {
+                const barcodes = await barcodeDetector.detect(videoRef.current);
+                if (barcodes && barcodes.length > 0) {
+                  const detectedVal = barcodes[0].rawValue;
+                  if (detectedVal) {
+                    if (scanMode === 'check_out') {
+                      handleProcessCheckOut(null, null, detectedVal);
+                    } else {
+                      handleProcessCheckIn({ token: detectedVal });
+                    }
+                    stopCamera();
+                  }
+                }
+              } catch {
+                // Ignore detection frame tick errors
+              }
+            }, 300);
+          }
+        }
+      }, 100);
+    } catch (err) {
+      console.error('Camera startup error:', err);
+      setCameraError(err.message || 'Unable to start camera.');
+      setIsCameraActive(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  // Upload and decode QR Code from image file
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if ('BarcodeDetector' in window) {
+      try {
+        const barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
+        const imageBitmap = await createImageBitmap(file);
+        const barcodes = await barcodeDetector.detect(imageBitmap);
+        if (barcodes && barcodes.length > 0) {
+          const raw = barcodes[0].rawValue;
+          if (scanMode === 'check_out') {
+            handleProcessCheckOut(null, null, raw);
+          } else {
+            handleProcessCheckIn({ token: raw });
+          }
+        } else {
+          alert('No QR code detected in the uploaded image. Please try a clearer image.');
+        }
+      } catch (err) {
+        alert('QR Image Scan Error: ' + err.message);
+      }
+    } else {
+      alert('Your browser does not support image barcode detection. Please use camera or member simulator.');
+    }
+  };
 
   // Handle instant lookup on typing (debounced)
   const handleInputChange = (val) => {
@@ -223,13 +342,14 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
   };
 
   // Process Check-Out
-  const handleProcessCheckOut = async (memberId = null, attendanceId = null) => {
+  const handleProcessCheckOut = async (memberId = null, attendanceId = null, overrideToken = null) => {
     setIsProcessingScan(true);
     setScanResult(null);
 
     const payload = {};
     if (attendanceId) payload.attendance_id = attendanceId;
     else if (memberId) payload.member_id = memberId;
+    else if (overrideToken) payload.qr_token = overrideToken;
     else if (scanInput.trim()) payload.qr_token = scanInput.trim();
 
     try {
@@ -285,7 +405,7 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
 
   return (
     <div className="attendance-scanner-container">
-      {/* Top Level Real-Time KPI Cards */}
+      {/* Top Level Real-Time KPI Cards (Matching Tigat SaaS Clean Theme) */}
       <div className="financial-kpi-grid" style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
@@ -293,37 +413,37 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
         marginBottom: 24,
       }}>
         {/* Total Today */}
-        <div className="dashboard-card" style={{ padding: 20 }}>
+        <div className="dashboard-card" style={{ padding: 20, background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Today's Scans
             </span>
-            <span style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255, 138, 0, 0.15)', color: '#ff8a00', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(230, 124, 0, 0.1)', color: '#E67C00', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               ⚡
             </span>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#f5f5f5' }}>
+          <div style={{ fontSize: 28, fontWeight: 800, color: '#0f172a' }}>
             {summary.today_total}
           </div>
-          <div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
             Total check-in attempts today
           </div>
         </div>
 
         {/* Admitted */}
-        <div className="dashboard-card" style={{ padding: 20 }}>
+        <div className="dashboard-card" style={{ padding: 20, background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Admitted Entry
             </span>
-            <span style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(34, 197, 94, 0.1)', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               ✓
             </span>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#22c55e' }}>
+          <div style={{ fontSize: 28, fontWeight: 800, color: '#16a34a' }}>
             {summary.today_admitted}
           </div>
-          <div style={{ fontSize: 12, color: '#22c55e', marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: '#16a34a', marginTop: 4 }}>
             Active verified gym entries
           </div>
         </div>
@@ -331,40 +451,42 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
         {/* Currently Inside Gym */}
         <div className="dashboard-card" style={{
           padding: 20,
-          background: 'linear-gradient(135deg, #151a22 0%, #1c232f 100%)',
-          border: '1px solid rgba(255, 138, 0, 0.35)',
+          background: '#ffffff',
+          border: '1.5px solid #E67C00',
+          borderRadius: 16,
+          boxShadow: '0 4px 14px rgba(230, 124, 0, 0.08)',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#ffb347', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: '#E67C00', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Currently Inside
             </span>
-            <span style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255, 138, 0, 0.25)', color: '#ff8a00', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(230, 124, 0, 0.15)', color: '#E67C00', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               🏋️
             </span>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#ff8a00', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: 28, fontWeight: 800, color: '#E67C00', display: 'flex', alignItems: 'center', gap: 8 }}>
             <span>{summary.currently_inside}</span>
-            <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 10px #22c55e' }}></span>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#16a34a', boxShadow: '0 0 10px #16a34a' }}></span>
           </div>
-          <div style={{ fontSize: 12, color: '#cbd5e1', marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
             Active workout sessions right now
           </div>
         </div>
 
         {/* Denied Entries */}
-        <div className="dashboard-card" style={{ padding: 20 }}>
+        <div className="dashboard-card" style={{ padding: 20, background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Denied / Alerts
             </span>
-            <span style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(239, 68, 68, 0.1)', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               ✕
             </span>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#ef4444' }}>
+          <div style={{ fontSize: 28, fontWeight: 800, color: '#dc2626' }}>
             {summary.today_denied}
           </div>
-          <div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
             Expired, frozen or passback alerts
           </div>
         </div>
@@ -375,46 +497,271 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
         <div className="dashboard-card" style={{
           padding: 24,
           marginBottom: 24,
-          background: 'linear-gradient(180deg, #10141d 0%, #151a23 100%)',
-          border: '1px solid #292e38',
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: 20,
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          {/* Header Row with Camera & Action Tools */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 18 }}>
             <div>
-              <h3 style={{ margin: 0, color: '#fff', fontSize: 18, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>📷</span> Front-Desk Fast Check-in Station
+              <h3 style={{ margin: 0, color: '#0f172a', fontSize: 18, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>📷</span> Front-Desk QR Code Check-in Station
               </h3>
-              <p style={{ margin: '4px 0 0 0', color: '#a1a1aa', fontSize: 13 }}>
-                Scan member digital QR pass, swipe token, or type sequential member code (TG-XXXX).
+              <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: 13 }}>
+                Scan member digital QR pass using live camera, barcode gun, or fast member simulator.
               </p>
             </div>
-            <span className="badge" style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
-              ● Scanner Engine Ready
-            </span>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {/* Scan Mode Switcher (Check-in vs Check-out) */}
+              <div style={{ display: 'flex', background: '#f1f5f9', padding: 3, borderRadius: 10, border: '1px solid #e2e8f0' }}>
+                <button
+                  type="button"
+                  onClick={() => setScanMode('check_in')}
+                  style={{
+                    border: 'none',
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: scanMode === 'check_in' ? '#E67C00' : 'transparent',
+                    color: scanMode === 'check_in' ? '#ffffff' : '#64748b',
+                  }}
+                >
+                  ✓ Check In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScanMode('check_out')}
+                  style={{
+                    border: 'none',
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: scanMode === 'check_out' ? '#0f172a' : 'transparent',
+                    color: scanMode === 'check_out' ? '#ffffff' : '#64748b',
+                  }}
+                >
+                  👋 Check Out
+                </button>
+              </div>
+
+              {/* Camera Scanner Toggle Button */}
+              <button
+                type="button"
+                onClick={isCameraActive ? stopCamera : startCamera}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 16px',
+                  borderRadius: 10,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  border: isCameraActive ? '1px solid #ef4444' : 'none',
+                  background: isCameraActive ? '#fef2f2' : '#E67C00',
+                  color: isCameraActive ? '#ef4444' : '#ffffff',
+                  boxShadow: isCameraActive ? 'none' : '0 2px 10px rgba(230, 124, 0, 0.25)',
+                }}
+              >
+                <span>{isCameraActive ? '⏹' : '📷'}</span>
+                <span>{isCameraActive ? 'Stop Camera' : 'Start Camera Scanner'}</span>
+              </button>
+
+              {/* Image Upload Input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleImageUpload}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                title="Upload QR Code Photo or Screenshot"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '8px 14px',
+                  borderRadius: 10,
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  color: '#475569',
+                }}
+              >
+                <span>📁</span>
+                <span>Upload QR Image</span>
+              </button>
+            </div>
           </div>
 
-          {/* Scanner Input Bar */}
+          {/* Interactive Live Camera Viewfinder */}
+          {isCameraActive && (
+            <div style={{
+              position: 'relative',
+              maxWidth: 440,
+              margin: '0 auto 20px',
+              borderRadius: 16,
+              overflow: 'hidden',
+              background: '#0a0d14',
+              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.25)',
+              border: '2px solid #E67C00',
+              textAlign: 'center',
+            }}>
+              <video
+                ref={videoRef}
+                playsInline
+                autoPlay
+                muted
+                style={{ width: '100%', height: 280, objectFit: 'cover', display: 'block' }}
+              />
+              {/* Reticle Overlay */}
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: 200,
+                height: 200,
+                border: '2px dashed rgba(230, 124, 0, 0.8)',
+                borderRadius: 14,
+                boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.45)',
+                pointerEvents: 'none',
+              }}>
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 2,
+                  background: '#E67C00',
+                  boxShadow: '0 0 10px #E67C00',
+                }}></div>
+              </div>
+              <div style={{
+                position: 'absolute',
+                bottom: 12,
+                left: 0,
+                right: 0,
+                color: '#ffffff',
+                fontSize: 12.5,
+                fontWeight: 600,
+                textShadow: '0 1px 4px rgba(0,0,0,0.8)',
+              }}>
+                Align Member QR code inside the orange frame
+              </div>
+            </div>
+          )}
+
+          {cameraError && (
+            <div style={{ padding: '10px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, color: '#dc2626', fontSize: 13, marginBottom: 16 }}>
+              ⚠️ {cameraError}
+            </div>
+          )}
+
+          {/* Fast Member Pass Test Simulator Bar */}
+          <div style={{
+            background: '#fffaf5',
+            border: '1.5px solid #fed7aa',
+            borderRadius: 12,
+            padding: '12px 16px',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 16 }}>⚡</span>
+              <div>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>1-Click Member Pass Test Simulator</span>
+                <span style={{ display: 'block', fontSize: 11.5, color: '#64748b' }}>
+                  Simulate instant QR admission without external scanner hardware
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <select
+                className="form-control"
+                value={selectedSimMember}
+                onChange={(e) => setSelectedSimMember(e.target.value)}
+                style={{ minWidth: 240, fontSize: 13, padding: '8px 12px', background: '#ffffff', borderColor: '#fed7aa', fontWeight: 600 }}
+              >
+                <option value="">-- Choose registered member --</option>
+                {membersQuickList.map((m) => (
+                  <option key={m.id} value={m.qr_token || m.member_code}>
+                    {m.name} ({m.member_code}) — {m.phone || 'No phone'}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={!selectedSimMember}
+                onClick={() => {
+                  if (scanMode === 'check_out') {
+                    handleProcessCheckOut(null, null, selectedSimMember);
+                  } else {
+                    handleProcessCheckIn({ token: selectedSimMember });
+                  }
+                }}
+                style={{
+                  background: '#E67C00',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  fontSize: 12.5,
+                  padding: '8px 16px',
+                  borderRadius: 8,
+                  border: 'none',
+                  cursor: !selectedSimMember ? 'not-allowed' : 'pointer',
+                  opacity: !selectedSimMember ? 0.6 : 1,
+                }}
+              >
+                {scanMode === 'check_out' ? 'Simulate Check-Out' : 'Simulate Scan Pass'}
+              </button>
+            </div>
+          </div>
+
+          {/* Manual Input & Barcode Gun Field */}
           <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
             <div style={{ position: 'relative', flex: 1 }}>
               <input
                 ref={scanInputRef}
                 type="text"
                 className="form-control"
-                placeholder="Scan QR pass with barcode scanner or type member code (e.g. TG-0001)..."
+                placeholder="Scan QR pass with laser scanner, swipe card, or type TG-0001..."
                 value={scanInput}
                 onChange={(e) => handleInputChange(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    handleProcessCheckIn();
+                    if (scanMode === 'check_out') {
+                      handleProcessCheckOut();
+                    } else {
+                      handleProcessCheckIn();
+                    }
                   }
                 }}
                 style={{
-                  fontSize: 15,
-                  padding: '14px 18px',
-                  background: '#07090e',
-                  border: '2px solid rgba(255, 138, 0, 0.4)',
-                  borderRadius: 10,
-                  color: '#fff',
+                  fontSize: 14.5,
+                  padding: '12px 18px',
+                  background: '#ffffff',
+                  border: '1.5px solid #cbd5e1',
+                  borderRadius: 12,
+                  color: '#0f172a',
                   fontFamily: scanInput.startsWith('TG-') ? 'monospace' : 'inherit',
                   letterSpacing: '0.02em',
                 }}
@@ -434,15 +781,23 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => handleProcessCheckIn()}
+              onClick={() => {
+                if (scanMode === 'check_out') {
+                  handleProcessCheckOut();
+                } else {
+                  handleProcessCheckIn();
+                }
+              }}
               disabled={isProcessingScan || !scanInput.trim()}
               style={{
                 padding: '0 24px',
-                fontSize: 15,
+                fontSize: 14.5,
                 fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
+                background: scanMode === 'check_out' ? '#0f172a' : '#E67C00',
+                borderColor: scanMode === 'check_out' ? '#0f172a' : '#E67C00',
               }}
             >
               {isProcessingScan ? (
@@ -452,8 +807,8 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                 </>
               ) : (
                 <>
-                  <span>✓</span>
-                  <span>Check In</span>
+                  <span>{scanMode === 'check_out' ? '👋' : '✓'}</span>
+                  <span>{scanMode === 'check_out' ? 'Check Out' : 'Check In'}</span>
                 </>
               )}
             </button>
