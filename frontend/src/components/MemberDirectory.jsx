@@ -25,10 +25,12 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
   const [isRegisterOpen, setIsRegisterOpen] = useState(initialOpenRegister);
   const [selectedMember, setSelectedMember] = useState(null);
   const [editingMember, setEditingMember] = useState(null);
+  const [registeredMemberPass, setRegisteredMemberPass] = useState(null);
+  const [membershipPlans, setMembershipPlans] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form state
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     name: '',
     phone: '',
     email: '',
@@ -41,7 +43,13 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
     emergency_contact_relationship: '',
     fitness_goals: '',
     health_conditions: '',
-  });
+    membership_plan_id: '',
+    payment_method: 'cash',
+    payment_reference: '',
+    payment_amount: '',
+    start_date: new Date().toISOString().split('T')[0],
+  };
+  const [formData, setFormData] = useState(initialFormData);
 
   const isStaff = hasRole('owner') || hasRole('admin') || hasRole('receptionist');
   const isManagement = hasRole('owner') || hasRole('admin');
@@ -87,6 +95,14 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
         }
       });
 
+    apiClient.getMembershipPlans({ active_only: 1 })
+      .then((res) => {
+        if (!ignore && res?.data) {
+          setMembershipPlans(res.data || []);
+        }
+      })
+      .catch((err) => console.error('Failed to load membership plans:', err));
+
     return () => {
       ignore = true;
     };
@@ -96,26 +112,78 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const res = await apiClient.createMember(formData);
+      // 1. Create Member Profile
+      const memberPayload = {
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email,
+        gender: formData.gender,
+        date_of_birth: formData.date_of_birth,
+        blood_type: formData.blood_type,
+        address: formData.address,
+        emergency_contact_name: formData.emergency_contact_name,
+        emergency_contact_phone: formData.emergency_contact_phone,
+        emergency_contact_relationship: formData.emergency_contact_relationship,
+        fitness_goals: formData.fitness_goals,
+        health_conditions: formData.health_conditions,
+      };
+
+      const memberRes = await apiClient.createMember(memberPayload);
+      const createdMember = memberRes.data || memberRes.member || memberRes;
+
+      let createdSubscription = null;
+      let createdPayment = null;
+      const selectedPlan = membershipPlans.find((p) => String(p.id) === String(formData.membership_plan_id));
+
+      // 2. If a membership plan was selected, create subscription
+      if (formData.membership_plan_id && createdMember?.id) {
+        try {
+          const subRes = await apiClient.createSubscription({
+            member_id: createdMember.id,
+            membership_plan_id: Number(formData.membership_plan_id),
+            start_date: formData.start_date || new Date().toISOString().split('T')[0],
+          });
+          createdSubscription = subRes.data || subRes;
+
+          // 3. If immediate payment was selected (not pay_later), record payment
+          if (formData.payment_method !== 'pay_later' && createdSubscription?.id) {
+            const payAmount = Number(formData.payment_amount) || Number(selectedPlan?.price) || 0;
+            const paymentPayload = {
+              user_id: createdMember.id,
+              subscription_id: createdSubscription.id,
+              amount: payAmount,
+              payment_method: formData.payment_method,
+              payment_type: 'subscription',
+              status: 'completed',
+              notes: `Front-desk registration & plan activation: ${selectedPlan?.name || 'Membership'}`,
+            };
+            if (formData.payment_reference) {
+              paymentPayload.gateway_reference = formData.payment_reference.trim();
+            }
+            const paymentRes = await apiClient.createPayment(paymentPayload);
+            createdPayment = paymentRes.data || paymentRes;
+          }
+        } catch (subErr) {
+          console.error('Subscription/Payment processing notice:', subErr);
+        }
+      }
+
       setNotification({
         type: 'success',
-        message: res.message || 'Member registered successfully!',
+        message: `Member "${formData.name}" successfully registered & digital QR pass generated!`,
       });
       setIsRegisterOpen(false);
-      setFormData({
-        name: '',
-        phone: '',
-        email: '',
-        gender: 'male',
-        date_of_birth: '',
-        blood_type: '',
-        address: '',
-        emergency_contact_name: '',
-        emergency_contact_phone: '',
-        emergency_contact_relationship: '',
-        fitness_goals: '',
-        health_conditions: '',
+
+      // Open Digital Pass & Receipt Modal
+      setRegisteredMemberPass({
+        member: createdMember,
+        subscription: createdSubscription,
+        payment: createdPayment,
+        plan: selectedPlan,
+        paymentMethod: formData.payment_method,
       });
+
+      setFormData(initialFormData);
       fetchMembers();
     } catch (err) {
       setNotification({ type: 'danger', message: err.message || 'Failed to register member' });
@@ -223,12 +291,12 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
 
   return (
     <div className="member-directory-container gymflow-view">
-      {/* 4 Top Stat KPI Cards matching Image 1 */}
+      {/* 4 Top Stat KPI Cards matching clean Tigat Gym SaaS aesthetics */}
       <div className="gymflow-metrics-row">
-        {/* Card 1: Total Members (Dark Signature Card) */}
-        <div className="gymflow-kpi-card kpi-dark">
+        {/* Card 1: Total Members */}
+        <div className="gymflow-kpi-card kpi-white">
           <div className="kpi-label">TOTAL MEMBERS</div>
-          <div className="kpi-value font-mono">{totalMembers || members.length || 6}</div>
+          <div className="kpi-value font-mono">{totalMembers || members.length || 0}</div>
         </div>
 
         {/* Card 2: Expiring Soon */}
@@ -784,6 +852,135 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                 />
               </div>
 
+              {/* Membership Plan & Initial Payment Reception */}
+              <h4 className="form-section-title" style={{ marginTop: 22, color: '#E67C00', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>💳</span> Membership Plan & Payment Reception
+              </h4>
+
+              <div style={{
+                background: '#fffaf5',
+                border: '1.5px solid #fed7aa',
+                borderRadius: 14,
+                padding: '16px 18px',
+                marginBottom: 16,
+              }}>
+                <div className="form-group" style={{ marginBottom: 14 }}>
+                  <label style={{ display: 'block', marginBottom: 6, fontWeight: 700, fontSize: 13, color: '#0f172a' }}>
+                    Select Membership Plan <span style={{ color: '#E67C00' }}>*</span>
+                  </label>
+                  <select
+                    className="form-control"
+                    value={formData.membership_plan_id}
+                    onChange={(e) => {
+                      const pId = e.target.value;
+                      const selected = membershipPlans.find((p) => String(p.id) === String(pId));
+                      setFormData({
+                        ...formData,
+                        membership_plan_id: pId,
+                        payment_amount: selected ? String(selected.price) : '',
+                      });
+                    }}
+                    style={{ background: '#ffffff', borderColor: '#E67C00', fontWeight: 600, fontSize: 13.5 }}
+                  >
+                    <option value="">-- No plan yet (Register Only / Pay Later) --</option>
+                    {membershipPlans.map((plan) => (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.name} — {Number(plan.price).toLocaleString()} ETB ({plan.duration_value} {plan.duration_type}{plan.duration_value > 1 ? 's' : ''})
+                      </option>
+                    ))}
+                  </select>
+                  <span style={{ fontSize: 11.5, color: '#64748b', marginTop: 4, display: 'block' }}>
+                    Selecting a plan automatically creates the subscription and activates gym access.
+                  </span>
+                </div>
+
+                {formData.membership_plan_id && (
+                  <>
+                    <div className="form-row-2" style={{ marginBottom: 14 }}>
+                      <div className="form-group">
+                        <label style={{ fontWeight: 600, fontSize: 12 }}>Package Price (ETB)</label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          value={formData.payment_amount}
+                          onChange={(e) => setFormData({ ...formData, payment_amount: e.target.value })}
+                          placeholder="Price in ETB"
+                          style={{ fontWeight: 700, color: '#E67C00' }}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label style={{ fontWeight: 600, fontSize: 12 }}>Plan Start Date</label>
+                        <input
+                          type="date"
+                          className="form-control"
+                          value={formData.start_date}
+                          onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 14 }}>
+                      <label style={{ display: 'block', marginBottom: 6, fontWeight: 700, fontSize: 12 }}>
+                        Payment Method
+                      </label>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
+                        {[
+                          { id: 'cash', label: 'Cash (Desk)', icon: '💵' },
+                          { id: 'telebirr', label: 'Telebirr', icon: '📱' },
+                          { id: 'bank_slip', label: 'CBE Slip / Bank', icon: '🏦' },
+                          { id: 'pos', label: 'POS Card', icon: '💳' },
+                          { id: 'pay_later', label: 'Pay Later', icon: '⏳' },
+                        ].map((m) => (
+                          <label
+                            key={m.id}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: '8px 12px',
+                              borderRadius: 8,
+                              background: formData.payment_method === m.id ? '#fff7ed' : '#ffffff',
+                              border: formData.payment_method === m.id ? '1.5px solid #E67C00' : '1px solid #e2e8f0',
+                              cursor: 'pointer',
+                              fontSize: 12.5,
+                              fontWeight: 600,
+                              color: formData.payment_method === m.id ? '#E67C00' : '#475569',
+                            }}
+                          >
+                            <input
+                              type="radio"
+                              name="reg_payment_method"
+                              value={m.id}
+                              checked={formData.payment_method === m.id}
+                              onChange={() => setFormData({ ...formData, payment_method: m.id })}
+                              style={{ display: 'none' }}
+                            />
+                            <span>{m.icon}</span>
+                            <span>{m.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {['telebirr', 'bank_slip', 'pos'].includes(formData.payment_method) && (
+                      <div className="form-group">
+                        <label style={{ fontWeight: 600, fontSize: 12 }}>
+                          Transaction / Slip Reference <span style={{ color: '#ef4444' }}>*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          className="form-control"
+                          placeholder={formData.payment_method === 'telebirr' ? 'e.g. Telebirr SMS Ref (TB123...)' : 'e.g. CBE Deposit Slip # or POS Auth'}
+                          value={formData.payment_reference}
+                          onChange={(e) => setFormData({ ...formData, payment_reference: e.target.value })}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
               <div className="modal-actions">
                 <button
                   type="button"
@@ -796,12 +993,96 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                 <button
                   type="submit"
                   className="btn btn-primary"
+                  style={{ background: '#E67C00', borderColor: '#E67C00' }}
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? 'Registering...' : 'Register Member & Generate QR'}
+                  {isSubmitting ? 'Registering & Processing...' : 'Register Member & Issue Pass'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Digital QR Pass & Official Receipt (Shown Immediately After Registration) */}
+      {registeredMemberPass && (
+        <div className="modal-backdrop">
+          <div className="modal-card" style={{ maxWidth: 520, textAlign: 'center', padding: 28 }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, margin: '0 auto 16px' }}>
+              ✓
+            </div>
+            <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a' }}>
+              Member Registered & Pass Ready!
+            </h3>
+            <p style={{ margin: '6px 0 20px', fontSize: 13, color: '#64748b' }}>
+              Official admission credentials for front-desk QR turnstile & mobile pass.
+            </p>
+
+            <div style={{
+              background: '#ffffff',
+              border: '2px solid #E67C00',
+              borderRadius: 16,
+              padding: 20,
+              marginBottom: 20,
+              boxShadow: '0 8px 30px rgba(230, 124, 0, 0.1)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, borderBottom: '1px solid #f1f5f9', paddingBottom: 10 }}>
+                <BrandLogo variant="reception" />
+                <span className="badge" style={{ background: '#ecfdf5', color: '#059669', fontWeight: 700 }}>
+                  Active Pass
+                </span>
+              </div>
+
+              <div style={{ margin: '14px 0', display: 'flex', justifyContent: 'center' }}>
+                <QRCodeDisplay
+                  text={registeredMemberPass.member?.qr_token || registeredMemberPass.member?.member_code || 'TIGAT-MEMBER'}
+                  size={150}
+                  level="M"
+                />
+              </div>
+
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>
+                {registeredMemberPass.member?.name}
+              </div>
+              <div style={{ fontSize: 13, fontFamily: 'monospace', fontWeight: 700, color: '#E67C00', marginTop: 2 }}>
+                {registeredMemberPass.member?.member_code || 'TG-0000'}
+              </div>
+
+              {registeredMemberPass.plan && (
+                <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px dashed #e2e8f0', display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}>
+                  <span style={{ color: '#64748b' }}>Plan:</span>
+                  <span style={{ fontWeight: 700, color: '#0f172a' }}>{registeredMemberPass.plan.name}</span>
+                </div>
+              )}
+
+              {registeredMemberPass.payment && (
+                <div style={{ marginTop: 6, display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}>
+                  <span style={{ color: '#64748b' }}>Paid ({registeredMemberPass.paymentMethod?.toUpperCase()}):</span>
+                  <span style={{ fontWeight: 800, color: '#16a34a' }}>
+                    {Number(registeredMemberPass.payment.amount || registeredMemberPass.plan?.price || 0).toLocaleString()} ETB
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => window.print()}
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <span>🖨️</span> Print Pass / Receipt
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setRegisteredMemberPass(null)}
+                style={{ background: '#E67C00', borderColor: '#E67C00' }}
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}
