@@ -86,7 +86,7 @@ function ArrowUpRightIcon({ size = 16 }) {
 
 export default function RoleDashboard({ onNavigate }) {
   const { hasRole, primaryRole } = useAuth();
-  const [activeTab, setActiveTab] = useState('reception'); // 'reception' | 'finance' | 'users' | 'audit'
+  const [activeTab, setActiveTab] = useState('finance'); // 'finance' | 'reception' | 'users' | 'audit'
 
   const isOwner = hasRole('owner');
   const isAdmin = hasRole('admin');
@@ -225,20 +225,20 @@ export default function RoleDashboard({ onNavigate }) {
         <div className="iron-dashboard-subtabs">
           <button
             type="button"
-            className={`subtab-pill ${activeTab === 'reception' ? 'active' : ''}`}
-            onClick={() => setActiveTab('reception')}
-          >
-            <DeskIcon size={16} />
-            <span>Front Desk Reception</span>
-          </button>
-
-          <button
-            type="button"
             className={`subtab-pill ${activeTab === 'finance' ? 'active' : ''}`}
             onClick={() => setActiveTab('finance')}
           >
             <ChartIcon size={16} />
             <span>Revenue & Analytics</span>
+          </button>
+
+          <button
+            type="button"
+            className={`subtab-pill ${activeTab === 'reception' ? 'active' : ''}`}
+            onClick={() => setActiveTab('reception')}
+          >
+            <DeskIcon size={16} />
+            <span>Front Desk Reception</span>
           </button>
 
           <button
@@ -264,15 +264,9 @@ export default function RoleDashboard({ onNavigate }) {
       )}
 
       {/* =========================================================================
-          TAB 1: FRONT DESK RECEPTION OPERATIONS COCKPIT
+          TAB 1: FINANCIAL & BUSINESS ANALYTICS (DEFAULT FOR OWNER/ADMIN/MEMBERS)
           ========================================================================= */}
-      {activeTab === 'reception' && (
-        <ReceptionDashboard onNavigate={onNavigate} />
-      )}
-            {/* =========================================================================
-          TAB 2: FINANCIAL & BUSINESS ANALYTICS (OWNER / ADMIN)
-          ========================================================================= */}
-      {activeTab === 'finance' && (isOwner || isAdmin) && (
+      {(activeTab === 'finance' || (!isOwner && !isAdmin)) && (
         <>
           <div className="reception-header-banner">
             <div>
@@ -507,6 +501,13 @@ export default function RoleDashboard({ onNavigate }) {
             </div>
           </div>
         </>
+      )}
+
+      {/* =========================================================================
+          TAB 2: FRONT DESK RECEPTION OPERATIONS (ONLY WHEN TAB IS EXPLICITLY CLICKED)
+          ========================================================================= */}
+      {activeTab === 'reception' && (isOwner || isAdmin) && (
+        <ReceptionDashboard onNavigate={onNavigate} />
       )}
 
       {/* =========================================================================

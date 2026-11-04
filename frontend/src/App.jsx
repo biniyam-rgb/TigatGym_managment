@@ -69,7 +69,7 @@ function GymCoreApp() {
 
   // Titles mapping based on active view
   const isReceptionist = primaryRole === 'receptionist';
-  const receptionistFirstName = user?.name ? user.name.split(' ')[0] : 'Sara';
+  const receptionistFirstName = user?.name ? user.name.split(' ')[0] : 'Receptionist';
   const viewTitles = {
     dashboard: isReceptionist
       ? {
