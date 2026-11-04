@@ -160,6 +160,7 @@ export default function Sidebar({ activeView, onViewChange, onOpenPasswordModal 
     { id: 'memberships', label: 'Memberships', roles: ['owner', 'admin', 'member'] },
     { id: 'payments', label: 'Payments', roles: ['owner', 'admin', 'member'] },
     { id: 'attendance', label: 'Attendance', roles: ['owner', 'admin', 'trainer', 'member'] },
+    { id: 'notifications', label: 'Notifications', roles: ['owner', 'admin', 'trainer'] },
     { id: 'trainers', label: 'Trainers', roles: ['owner', 'admin', 'trainer'] },
     { id: 'workouts', label: 'Workouts', roles: ['owner', 'admin', 'trainer', 'member'] },
     { id: 'classes', label: 'Classes', roles: ['owner', 'admin', 'trainer', 'member'] },
