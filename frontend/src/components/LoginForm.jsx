@@ -75,13 +75,13 @@ export default function LoginForm({ onSuccess }) {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
 
-  // Quick Demo fill accounts with SVG icons — Member listed first and prominently visible
+  // Quick Demo fill accounts with SVG icons — Member listed first
   const demoAccounts = [
     { role: 'Member', email: 'member@tigatgym.com', pass: 'Password123!', icon: <UserIcon /> },
-    { role: 'Receptionist', email: 'receptionist@tigatgym.com', pass: 'Password123!', icon: <ClipboardIcon /> },
     { role: 'Trainer', email: 'trainer@tigatgym.com', pass: 'Password123!', icon: <DumbbellIcon /> },
     { role: 'Admin', email: 'admin@tigatgym.com', pass: 'Password123!', icon: <ShieldIcon /> },
     { role: 'Owner', email: 'owner@tigatgym.com', pass: 'Password123!', icon: <CrownIcon /> },
+    { role: 'Receptionist', email: 'receptionist@tigatgym.com', pass: 'Password123!', icon: <ClipboardIcon /> },
   ];
 
   const handleSubmit = async (e) => {
@@ -150,21 +150,26 @@ export default function LoginForm({ onSuccess }) {
         )}
 
         {/* Unified Glassmorphism Form Card with Smooth Curved Borders */}
-        <form onSubmit={handleSubmit} className="tigat-form-card">
+        <form onSubmit={handleSubmit} className="tigat-form-card" autoComplete="off">
           <div className="tigat-inputs-container">
             {/* Email Address Underline Field */}
             <div className={`tigat-floating-field ${email ? 'has-value' : ''}`}>
               <input
-                id="tigat-email"
-                type="email"
+                id="tigat-login-usr"
+                type="text"
+                name="tigat_auth_usr"
                 required
-                autoComplete="email"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck="false"
+                data-lpignore="true"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="tigat-floating-input"
                 placeholder=" "
               />
-              <label htmlFor="tigat-email" className="tigat-floating-label">
+              <label htmlFor="tigat-login-usr" className="tigat-floating-label">
                 Email Address
               </label>
             </div>
@@ -172,16 +177,18 @@ export default function LoginForm({ onSuccess }) {
             {/* Password Underline Field */}
             <div className={`tigat-floating-field ${password ? 'has-value' : ''}`}>
               <input
-                id="tigat-password"
+                id="tigat-login-pwd"
                 type={showPassword ? 'text' : 'password'}
+                name="tigat_auth_pwd"
                 required
-                autoComplete="current-password"
+                autoComplete="new-password"
+                data-lpignore="true"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="tigat-floating-input tigat-password-input"
                 placeholder=" "
               />
-              <label htmlFor="tigat-password" className="tigat-floating-label">
+              <label htmlFor="tigat-login-pwd" className="tigat-floating-label">
                 Password
               </label>
               <button
