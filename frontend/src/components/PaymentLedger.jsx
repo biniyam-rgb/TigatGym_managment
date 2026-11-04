@@ -38,6 +38,7 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
 
   // Members list for recording payments
   const [membersList, setMembersList] = useState([]);
+  const [membershipPlans, setMembershipPlans] = useState([]);
 
   // Modals state
   const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(initialOpenRecordPayment);
@@ -56,7 +57,9 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
     amount: '',
     payment_method: 'cash',
     payment_type: 'subscription',
+    membership_plan_id: '',
     subscription_id: '',
+    start_date: new Date().toISOString().split('T')[0],
     status: 'completed',
     bank_name: 'Commercial Bank of Ethiopia (CBE)',
     gateway_reference: '',
@@ -227,6 +230,14 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
           }
         })
         .catch(err => console.error('Failed to load members for payments:', err));
+
+      apiClient.getMembershipPlans({ active_only: 1 })
+        .then(res => {
+          if (!ignore && res?.data) {
+            setMembershipPlans(res.data || []);
+          }
+        })
+        .catch(err => console.error('Failed to load membership plans for payments:', err));
     }
 
     return () => {
@@ -252,7 +263,9 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
       amount: '',
       payment_method: 'cash',
       payment_type: 'subscription',
+      membership_plan_id: '',
       subscription_id: '',
+      start_date: new Date().toISOString().split('T')[0],
       status: 'completed',
       bank_name: 'Commercial Bank of Ethiopia (CBE)',
       gateway_reference: '',
@@ -286,7 +299,14 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
         notes: paymentForm.notes.trim() || undefined,
       };
 
-      if (['bank_slip', 'bank_transfer', 'pos'].includes(paymentForm.payment_method)) {
+      if (paymentForm.payment_type === 'subscription' && paymentForm.membership_plan_id) {
+        payload.membership_plan_id = Number(paymentForm.membership_plan_id);
+        payload.start_date = paymentForm.start_date;
+      } else if (paymentForm.subscription_id) {
+        payload.subscription_id = Number(paymentForm.subscription_id);
+      }
+
+      if (['bank_slip', 'bank_transfer', 'pos', 'telebirr'].includes(paymentForm.payment_method)) {
         if (paymentForm.gateway_reference) payload.gateway_reference = paymentForm.gateway_reference.trim();
         if (paymentForm.bank_name) payload.bank_name = paymentForm.bank_name.trim();
         if (paymentForm.bank_account_number) payload.bank_account_number = paymentForm.bank_account_number.trim();
@@ -1261,7 +1281,63 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                 )}
               </div>
 
-              {/* Payment Purpose / Type */}
+              {/* Membership Plan Selection (Required for subscription/membership payment) */}
+              {paymentForm.payment_type === 'subscription' && (
+                <div style={{
+                  background: 'rgba(230, 124, 0, 0.08)',
+                  border: '1px solid rgba(230, 124, 0, 0.35)',
+                  borderRadius: 12,
+                  padding: '14px 16px',
+                  marginBottom: 16,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <label className="form-label" style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#f8fafc' }}>
+                      Membership Plan (Required) <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#E67C00', background: 'rgba(230, 124, 0, 0.15)', padding: '2px 8px', borderRadius: 6 }}>
+                      Auto-Activates Pass
+                    </span>
+                  </div>
+                  <select
+                    className="form-control"
+                    value={paymentForm.membership_plan_id}
+                    onChange={(e) => {
+                      const pId = e.target.value;
+                      const selected = membershipPlans.find(p => String(p.id) === String(pId));
+                      setPaymentForm(prev => ({
+                        ...prev,
+                        membership_plan_id: pId,
+                        amount: selected ? String(selected.price) : prev.amount,
+                      }));
+                    }}
+                    required={paymentForm.payment_type === 'subscription'}
+                    style={{
+                      background: '#0d1117',
+                      color: '#ffffff',
+                      border: '1.5px solid #E67C00',
+                      borderRadius: 8,
+                      padding: '10px 14px',
+                      fontSize: 13.5,
+                      fontWeight: 600,
+                    }}
+                  >
+                    <option value="">-- Choose Membership Package to Activate / Extend --</option>
+                    {membershipPlans.map((plan) => (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.name} — {formatETB(plan.price)} ({plan.duration_value} {plan.duration_type}{plan.duration_value > 1 ? 's' : ''})
+                      </option>
+                    ))}
+                  </select>
+                  {paymentForm.membership_plan_id && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, fontSize: 12, color: '#fed7aa' }}>
+                      <span>✓ Plan selected: Service duration automatically calculated</span>
+                      <span style={{ fontWeight: 700, color: '#ffffff' }}>Price: {formatETB(paymentForm.amount)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Payment Purpose / Type & Amount */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
                 <div className="form-group">
                   <label className="form-label" style={{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 600 }}>
@@ -1291,7 +1367,7 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                     step="0.01"
                     min="1"
                     className="form-control"
-                    placeholder="e.g. 3000.00"
+                    placeholder="e.g. 2500.00"
                     value={paymentForm.amount}
                     onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
                     required
@@ -1310,9 +1386,9 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
                   {[
                     { id: 'cash', label: 'Cash (Desk Drawer)', icon: '💵' },
-                    { id: 'bank_slip', label: 'CBE / Telebirr Slip', icon: '🏦' },
+                    { id: 'telebirr', label: 'Telebirr (Ethio Telecom)', icon: '📱' },
+                    { id: 'bank_slip', label: 'CBE Bank Transfer / Slip', icon: '🏦' },
                     { id: 'pos', label: 'POS Terminal (Card)', icon: '💳' },
-                    { id: 'chapa', label: 'Chapa Gateway', icon: '⚡' },
                   ].map((m) => (
                     <label
                       key={m.id}
@@ -1322,12 +1398,12 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                         gap: 8,
                         padding: '10px 14px',
                         borderRadius: 8,
-                        background: paymentForm.payment_method === m.id ? 'rgba(255, 138, 0, 0.15)' : '#0d1017',
-                        border: paymentForm.payment_method === m.id ? '1px solid #ff8a00' : '1px solid #232936',
+                        background: paymentForm.payment_method === m.id ? 'rgba(230, 124, 0, 0.15)' : '#0d1017',
+                        border: paymentForm.payment_method === m.id ? '1.5px solid #E67C00' : '1px solid #232936',
                         cursor: 'pointer',
                         fontSize: 13,
                         fontWeight: 600,
-                        color: paymentForm.payment_method === m.id ? '#ff8a00' : '#d4d4d8',
+                        color: paymentForm.payment_method === m.id ? '#E67C00' : '#d4d4d8',
                       }}
                     >
                       <input
@@ -1345,8 +1421,8 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                 </div>
               </div>
 
-              {/* Conditional Bank Slip / POS Fields */}
-              {['bank_slip', 'bank_transfer', 'pos'].includes(paymentForm.payment_method) && (
+              {/* Conditional Bank Slip / POS / Telebirr Fields */}
+              {['bank_slip', 'bank_transfer', 'pos', 'telebirr'].includes(paymentForm.payment_method) && (
                 <div style={{
                   background: 'rgba(59, 130, 246, 0.05)',
                   border: '1px solid rgba(59, 130, 246, 0.2)',
