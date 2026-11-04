@@ -1505,18 +1505,34 @@ body.theme-light .nav-item-btn,
   color: #475569 !important;
 }
 
-body.theme-light .nav-item-btn:hover,
-[data-theme="light"] .nav-item-btn:hover {
-  background: #fff7ed !important;
-  color: #FF8A00 !important;
+body.theme-light .nav-item-btn:hover:not(.active),
+[data-theme="light"] .nav-item-btn:hover:not(.active) {
+  background: #FFEFDE !important;
+  color: #E67C00 !important;
   transform: translateX(2px);
+  box-shadow: 0 2px 8px rgba(230, 124, 0, 0.12) !important;
+}
+
+body.theme-light .nav-item-btn:hover:not(.active) .nav-icon,
+[data-theme="light"] .nav-item-btn:hover:not(.active) .nav-icon {
+  color: #E67C00 !important;
 }
 
 body.theme-light .nav-item-btn.active,
-[data-theme="light"] .nav-item-btn.active {
-  background: #FF8A00 !important;
+[data-theme="light"] .nav-item-btn.active,
+body.theme-light .nav-item-btn:active,
+[data-theme="light"] .nav-item-btn:active {
+  background: #E67C00 !important;
   color: #ffffff !important;
-  box-shadow: 0 4px 16px rgba(255, 138, 0, 0.4) !important;
+  box-shadow: 0 4px 16px rgba(230, 124, 0, 0.4) !important;
+  font-weight: 700 !important;
+}
+
+body.theme-light .nav-item-btn.active .nav-icon,
+[data-theme="light"] .nav-item-btn.active .nav-icon,
+body.theme-light .nav-item-btn:active .nav-icon,
+[data-theme="light"] .nav-item-btn:active .nav-icon {
+  color: #ffffff !important;
 }
 
 body.theme-light .sidebar-footer,
@@ -1888,8 +1904,8 @@ body.theme-light .search-input-compact,
 [data-theme="light"] .search-input-compact,
 body.theme-light .filter-select,
 [data-theme="light"] .filter-select,
-body.theme-light input,
-[data-theme="light"] input,
+body.theme-light input:not(.header-search-input),
+[data-theme="light"] input:not(.header-search-input),
 body.theme-light select,
 [data-theme="light"] select,
 body.theme-light textarea,
@@ -1899,8 +1915,8 @@ body.theme-light textarea,
   color: #0f172a !important;
 }
 
-body.theme-light input:focus,
-[data-theme="light"] input:focus,
+body.theme-light input:not(.header-search-input):focus,
+[data-theme="light"] input:not(.header-search-input):focus,
 body.theme-light select:focus,
 [data-theme="light"] select:focus,
 body.theme-light textarea:focus,
@@ -2243,6 +2259,21 @@ body:has(.tigat-login-page) {
   100% {
     transform: scale(1.1);
     opacity: 1;
+  }
+}
+
+@keyframes scanLine {
+  0% {
+    top: 5%;
+    opacity: 0.8;
+  }
+  50% {
+    top: 95%;
+    opacity: 1;
+  }
+  100% {
+    top: 5%;
+    opacity: 0.8;
   }
 }
 
@@ -2846,37 +2877,15 @@ body.theme-light .dot-unoccupied,
   transform: translateY(-2px);
 }
 
-/* Card 1: Dark Signature Card */
-.gymflow-kpi-card.kpi-dark {
-  background: #111827;
-  border: 1px solid #1f2937;
-  color: #ffffff;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-}
-
-.gymflow-kpi-card.kpi-dark .kpi-label {
-  color: #94a3b8;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  margin-bottom: 6px;
-}
-
-.gymflow-kpi-card.kpi-dark .kpi-value {
-  color: #ffffff;
-  font-size: 26px;
-  font-weight: 800;
-  line-height: 1;
-}
-
-/* Cards 2, 3, 4: Clean White Cards */
+/* Card 1 & All KPI Cards: Clean White SaaS Cards matching Image 3 */
+.gymflow-kpi-card.kpi-dark,
 .gymflow-kpi-card.kpi-white {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
 }
 
+.gymflow-kpi-card.kpi-dark .kpi-label,
 .gymflow-kpi-card.kpi-white .kpi-label {
   color: #64748b;
   font-size: 11px;
@@ -2886,7 +2895,9 @@ body.theme-light .dot-unoccupied,
   margin-bottom: 6px;
 }
 
+.gymflow-kpi-card.kpi-dark .kpi-value,
 .gymflow-kpi-card.kpi-white .kpi-value {
+  color: #0f172a;
   font-size: 26px;
   font-weight: 800;
   line-height: 1;
@@ -2900,9 +2911,9 @@ body.theme-light .dot-unoccupied,
   color: #ea580c;
 }
 
-/* + ADD MEMBER Button */
+/* + ADD MEMBER Button - Tigat Gym Brand Orange (#E67C00) */
 .gymflow-add-member-btn {
-  background: #0f172a;
+  background: #E67C00;
   color: #ffffff;
   border: none;
   border-radius: 14px;
@@ -2916,15 +2927,15 @@ body.theme-light .dot-unoccupied,
   font-weight: 700;
   letter-spacing: 0.03em;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 4px 16px rgba(230, 124, 0, 0.25);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
 }
 
 .gymflow-add-member-btn:hover {
-  background: #1e293b;
+  background: #FFA033;
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.3);
+  box-shadow: 0 6px 20px rgba(230, 124, 0, 0.35);
 }
 
 .add-plus-icon {
@@ -2954,8 +2965,8 @@ body.theme-light .dot-unoccupied,
 }
 
 .gymflow-search-box:focus-within {
-  border-color: #ff7a00;
-  box-shadow: 0 0 0 3px rgba(255, 122, 0, 0.15);
+  border-color: #E67C00;
+  box-shadow: 0 0 0 3px rgba(230, 124, 0, 0.15);
 }
 
 .search-icon-lens {
@@ -2986,7 +2997,7 @@ body.theme-light .dot-unoccupied,
 }
 
 .search-icon-mic:hover {
-  color: #ff7a00;
+  color: #E67C00;
 }
 
 .gymflow-filter-btn {
@@ -3007,9 +3018,9 @@ body.theme-light .dot-unoccupied,
 
 .gymflow-filter-btn:hover,
 .gymflow-filter-btn.active {
-  background: #f8fafc;
-  border-color: #ff7a00;
-  color: #ea580c;
+  background: #fff7ed;
+  border-color: #E67C00;
+  color: #E67C00;
 }
 
 .gymflow-view-switcher {
@@ -3036,8 +3047,8 @@ body.theme-light .dot-unoccupied,
 
 .view-mode-btn.active {
   background: #fff7ed;
-  color: #ea580c;
-  box-shadow: 0 1px 4px rgba(234, 88, 12, 0.15);
+  color: #E67C00;
+  box-shadow: 0 1px 4px rgba(230, 124, 0, 0.2);
 }
 
 /* Collapsible Filter Dropdowns */
@@ -4384,16 +4395,18 @@ body {
   width: 100%;
 }
 
-.nav-item-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: #fff;
+.nav-item-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  transform: translateX(2px);
 }
 
-.nav-item-btn.active {
-  background: #FF8A00;
+.nav-item-btn.active,
+.nav-item-btn:active {
+  background: #E67C00;
   color: #ffffff;
   font-weight: 700;
-  box-shadow: 0 4px 16px rgba(255, 138, 0, 0.4);
+  box-shadow: 0 4px 16px rgba(230, 124, 0, 0.4);
 }
 
 .nav-icon {
@@ -11134,71 +11147,169 @@ body.theme-dark .member-checkin-time,
   color: #94a3b8;
 }
 
-/* 5. Header Quick Search */
-.header-search-wrapper {
+/* 5. Header Quick Search — Sleek Seamless Pill Search Bar */
+.header-search-wrapper,
+body.theme-light .header-search-wrapper,
+[data-theme="light"] .header-search-wrapper {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 6px 12px;
-  width: 200px;
-  transition: all 0.2s ease;
-  color: #64748b;
+  gap: 10px;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 9999px !important;
+  padding: 0 16px;
+  height: 40px;
+  width: 280px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #94a3b8 !important;
+  box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 
-.header-search-wrapper:focus-within {
-  border-color: #ff8a00;
-  background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(255, 138, 0, 0.14);
-  width: 240px;
-  color: #ff8a00;
+.header-search-wrapper svg {
+  flex-shrink: 0;
+  color: inherit;
 }
 
+.header-search-wrapper:hover,
+body.theme-light .header-search-wrapper:hover,
+[data-theme="light"] .header-search-wrapper:hover {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06) !important;
+}
+
+.header-search-wrapper:focus-within,
+body.theme-light .header-search-wrapper:focus-within,
+[data-theme="light"] .header-search-wrapper:focus-within {
+  background: #ffffff !important;
+  border-color: #E67C00 !important;
+  box-shadow: 0 0 0 3px rgba(230, 124, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  width: 320px;
+  color: #E67C00 !important;
+}
+
+/* Dark mode search bar */
 body.theme-dark .header-search-wrapper,
 [data-theme="dark"] .header-search-wrapper {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.1);
-  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #94a3b8 !important;
+  box-shadow: none !important;
+}
+
+body.theme-dark .header-search-wrapper:hover,
+[data-theme="dark"] .header-search-wrapper:hover {
+  background: rgba(255, 255, 255, 0.09) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
 }
 
 body.theme-dark .header-search-wrapper:focus-within,
 [data-theme="dark"] .header-search-wrapper:focus-within {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: #ff8a00;
-  box-shadow: 0 0 0 3px rgba(255, 138, 0, 0.25);
-  color: #ff8a00;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: #E67C00 !important;
+  box-shadow: 0 0 0 3px rgba(230, 124, 0, 0.25) !important;
+  color: #E67C00 !important;
 }
 
-.header-search-input {
-  background: transparent;
-  border: none;
-  outline: none;
-  font-size: 13px;
-  color: #0f172a;
+/* Seamless inner input — zero rectangular borders or backgrounds */
+.header-search-input,
+body.theme-light .header-search-input,
+[data-theme="light"] .header-search-input {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #0f172a !important;
   width: 100%;
+  padding: 0 !important;
+  margin: 0 !important;
+  font-family: inherit;
+  line-height: normal;
 }
 
 body.theme-dark .header-search-input,
 [data-theme="dark"] .header-search-input {
-  color: #f8fafc;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #f8fafc !important;
+  width: 100%;
+  padding: 0 !important;
+  margin: 0 !important;
+  font-family: inherit;
+  line-height: normal;
 }
 
-.header-search-input::placeholder {
-  color: #94a3b8;
-}
-
-/* 6. Active Sidebar Highlight matching Image */
-body.theme-light .nav-item-btn.active,
-[data-theme="light"] .nav-item-btn.active {
-  background: #ffedd5 !important;
-  color: #ea580c !important;
+.header-search-input:focus,
+body.theme-light .header-search-input:focus,
+[data-theme="light"] .header-search-input:focus,
+body.theme-dark .header-search-input:focus,
+[data-theme="dark"] .header-search-input:focus {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
   box-shadow: none !important;
 }
 
+.header-search-input::placeholder {
+  color: #94a3b8 !important;
+  font-weight: 400;
+  opacity: 1;
+}
+
+/* 6. Sidebar Navigation: Soft Warm Tint (#FFEFDE) on Hover, Deep Orange (#E67C00) on Click / Active */
+body.theme-light .nav-item-btn:hover:not(.active),
+[data-theme="light"] .nav-item-btn:hover:not(.active) {
+  background: #FFEFDE !important;
+  color: #E67C00 !important;
+  box-shadow: 0 2px 8px rgba(230, 124, 0, 0.12) !important;
+  transform: translateX(2px);
+}
+
+body.theme-light .nav-item-btn:hover:not(.active) .nav-icon,
+[data-theme="light"] .nav-item-btn:hover:not(.active) .nav-icon {
+  color: #E67C00 !important;
+  filter: none !important;
+}
+
+body.theme-dark .nav-item-btn:hover:not(.active),
+[data-theme="dark"] .nav-item-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+  transform: translateX(2px);
+  box-shadow: none !important;
+}
+
+body.theme-dark .nav-item-btn:hover:not(.active) .nav-icon,
+[data-theme="dark"] .nav-item-btn:hover:not(.active) .nav-icon {
+  color: #FFA033 !important;
+  filter: none !important;
+}
+
+body.theme-light .nav-item-btn.active,
+[data-theme="light"] .nav-item-btn.active,
+body.theme-light .nav-item-btn:active,
+[data-theme="light"] .nav-item-btn:active,
+.nav-item-btn.active,
+.nav-item-btn:active {
+  background: #E67C00 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 16px rgba(230, 124, 0, 0.38) !important;
+  font-weight: 700 !important;
+}
+
 body.theme-light .nav-item-btn.active .nav-icon,
-[data-theme="light"] .nav-item-btn.active .nav-icon {
-  color: #ea580c !important;
+[data-theme="light"] .nav-item-btn.active .nav-icon,
+body.theme-light .nav-item-btn:active .nav-icon,
+[data-theme="light"] .nav-item-btn:active .nav-icon,
+.nav-item-btn.active .nav-icon,
+.nav-item-btn:active .nav-icon {
+  color: #ffffff !important;
   filter: none !important;
 }
