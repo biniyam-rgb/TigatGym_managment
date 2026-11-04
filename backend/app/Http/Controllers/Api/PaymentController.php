@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PaymentResource;
+use App\Models\MembershipPlan;
 use App\Models\Payment;
 use App\Models\PaymentTransaction;
 use App\Models\Subscription;
@@ -165,6 +166,8 @@ class PaymentController extends Controller
             'payable_type' => ['nullable', 'string'],
             'payable_id' => ['nullable', 'integer'],
             'subscription_id' => ['nullable', 'integer', 'exists:subscriptions,id'],
+            'membership_plan_id' => ['nullable', 'integer', 'exists:membership_plans,id'],
+            'start_date' => ['nullable', 'date'],
             'gateway_reference' => ['nullable', 'string', 'max:100'],
             'bank_name' => ['nullable', 'string', 'max:100'],
             'bank_account_number' => ['nullable', 'string', 'max:50'],
@@ -188,6 +191,26 @@ class PaymentController extends Controller
             $subscription = Subscription::findOrFail($validated['subscription_id']);
             $payableType = Subscription::class;
             $payableId = $subscription->id;
+            $paymentType = 'subscription';
+        } elseif (! empty($validated['membership_plan_id'])) {
+            $plan = MembershipPlan::findOrFail($validated['membership_plan_id']);
+            $startDate = ! empty($validated['start_date']) ? Carbon::parse($validated['start_date']) : Carbon::today();
+            $endDate = $plan->calculateEndDate($startDate);
+            $sub = Subscription::create([
+                'member_id' => $user->id,
+                'membership_plan_id' => $plan->id,
+                'subscription_number' => Subscription::generateNextSubscriptionNumber(),
+                'start_date' => $startDate->toDateString(),
+                'end_date' => $endDate->toDateString(),
+                'status' => ($validated['status'] ?? 'completed') === 'completed' ? 'active' : 'pending',
+                'price' => (float) $plan->price,
+                'discount' => max(0, (float) $plan->price - (float) $validated['amount']),
+                'total_amount' => (float) $validated['amount'],
+                'currency' => $plan->currency ?? 'ETB',
+                'created_by' => $request->user()?->id,
+            ]);
+            $payableType = Subscription::class;
+            $payableId = $sub->id;
             $paymentType = 'subscription';
         }
 
