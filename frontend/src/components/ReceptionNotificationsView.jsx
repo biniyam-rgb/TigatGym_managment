@@ -5,7 +5,13 @@ export default function ReceptionNotificationsView({ onNavigate }) {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // 'all' | 'expiring' | 'expired' | 'general'
-  const [dismissedIds, setDismissedIds] = useState(new Set());
+  const [dismissedIds, setDismissedIds] = useState(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem('tigat_dismissed_notifs') || '[]'));
+    } catch {
+      return new Set();
+    }
+  });
 
   useEffect(() => {
     let ignore = false;
@@ -85,11 +91,17 @@ export default function ReceptionNotificationsView({ onNavigate }) {
   });
 
   const handleDismiss = (id) => {
-    setDismissedIds((prev) => new Set(prev).add(id));
+    setDismissedIds((prev) => {
+      const next = new Set(prev).add(id);
+      localStorage.setItem('tigat_dismissed_notifs', JSON.stringify([...next]));
+      return next;
+    });
   };
 
   const handleDismissAll = () => {
-    setDismissedIds(new Set(allList.map((i) => i.id)));
+    const next = new Set([...dismissedIds, ...allList.map((i) => i.id)]);
+    localStorage.setItem('tigat_dismissed_notifs', JSON.stringify([...next]));
+    setDismissedIds(next);
   };
 
   return (
@@ -141,7 +153,7 @@ export default function ReceptionNotificationsView({ onNavigate }) {
               fontWeight: 600,
               border: 'none',
               cursor: 'pointer',
-              background: filter === tab.key ? '#FF8A00' : 'transparent',
+              background: filter === tab.key ? '#E67C00' : 'transparent',
               color: filter === tab.key ? '#ffffff' : '#64748b',
               transition: 'all 0.15s ease',
             }}
@@ -173,7 +185,7 @@ export default function ReceptionNotificationsView({ onNavigate }) {
                 background: '#ffffff',
                 borderRadius: 14,
                 border: '1px solid #e2e8f0',
-                borderLeft: item.type === 'expired' ? '4px solid #ef4444' : item.type === 'expiring' ? '4px solid #FF8A00' : '4px solid #3b82f6',
+                borderLeft: item.type === 'expired' ? '4px solid #ef4444' : item.type === 'expiring' ? '4px solid #E67C00' : '4px solid #3b82f6',
                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
                 gap: 16,
                 flexWrap: 'wrap',
@@ -189,8 +201,8 @@ export default function ReceptionNotificationsView({ onNavigate }) {
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
-                    background: item.type === 'expired' ? 'rgba(239, 68, 68, 0.1)' : item.type === 'expiring' ? 'rgba(255, 138, 0, 0.1)' : 'rgba(59, 130, 246, 0.1)',
-                    color: item.type === 'expired' ? '#ef4444' : item.type === 'expiring' ? '#FF8A00' : '#3b82f6',
+                    background: item.type === 'expired' ? 'rgba(239, 68, 68, 0.1)' : item.type === 'expiring' ? 'rgba(230, 124, 0, 0.12)' : 'rgba(59, 130, 246, 0.1)',
+                    color: item.type === 'expired' ? '#ef4444' : item.type === 'expiring' ? '#E67C00' : '#3b82f6',
                   }}
                 >
                   {item.type === 'expired' ? '⚠️' : item.type === 'expiring' ? '⏰' : 'ℹ️'}
@@ -212,7 +224,7 @@ export default function ReceptionNotificationsView({ onNavigate }) {
                     style={{
                       padding: '7px 14px',
                       borderRadius: 8,
-                      background: '#FF8A00',
+                      background: '#E67C00',
                       color: '#ffffff',
                       border: 'none',
                       fontSize: 12.5,
