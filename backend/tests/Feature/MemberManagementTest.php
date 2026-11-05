@@ -279,4 +279,36 @@ class MemberManagementTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['name', 'phone']);
     }
+
+    public function test_registration_validates_blood_type_and_date_of_birth(): void
+    {
+        [$receptionist, $token] = $this->createUserWithRole('receptionist');
+
+        // Invalid blood type & future DOB -> 422
+        $invalidRes = $this->withHeader('Authorization', 'Bearer ' . $token)
+            ->postJson('/api/members', [
+                'name' => 'Valid Name',
+                'phone' => '+251911999999',
+                'blood_type' => 'INVALID_BLOOD',
+                'date_of_birth' => now()->addDays(5)->toDateString(),
+            ]);
+
+        $invalidRes->assertStatus(422)
+            ->assertJsonValidationErrors(['blood_type', 'date_of_birth']);
+
+        // Valid blood types (all 8 types) & valid past DOB -> 201
+        $validBloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+        foreach ($validBloodTypes as $idx => $bt) {
+            $validRes = $this->withHeader('Authorization', 'Bearer ' . $token)
+                ->postJson('/api/members', [
+                    'name' => "Member {$bt}",
+                    'phone' => '+251911' . str_pad((string) (1000 + $idx), 6, '0', STR_PAD_LEFT),
+                    'blood_type' => $bt,
+                    'date_of_birth' => '1995-05-15',
+                ]);
+
+            $validRes->assertStatus(201)
+                ->assertJsonPath('member.blood_type', $bt);
+        }
+    }
 }
