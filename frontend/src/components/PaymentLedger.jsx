@@ -306,10 +306,8 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
         payload.subscription_id = Number(paymentForm.subscription_id);
       }
 
-      if (['bank_slip', 'bank_transfer', 'pos', 'telebirr'].includes(paymentForm.payment_method)) {
-        if (paymentForm.gateway_reference) payload.gateway_reference = paymentForm.gateway_reference.trim();
-        if (paymentForm.bank_name) payload.bank_name = paymentForm.bank_name.trim();
-        if (paymentForm.bank_account_number) payload.bank_account_number = paymentForm.bank_account_number.trim();
+      if (paymentForm.payment_method === 'chapa' && paymentForm.gateway_reference) {
+        payload.gateway_reference = paymentForm.gateway_reference.trim();
       }
 
       const res = await apiClient.createPayment(payload);
@@ -740,11 +738,9 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                   setPaymentsPage(1);
                 }}
               >
-                <option value="">All Methods</option>
+                <option value="">All Payment Methods</option>
                 <option value="cash">Cash (Desk Drawer)</option>
-                <option value="bank_slip">Bank Transfer / CBE / Telebirr</option>
-                <option value="pos">POS Machine (Card)</option>
-                <option value="chapa">Chapa Gateway</option>
+                <option value="chapa">Chapa Pay</option>
               </select>
             </div>
 
@@ -1383,27 +1379,27 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                 <label className="form-label" style={{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 600 }}>
                   Payment Method <span style={{ color: '#ef4444' }}>*</span>
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
                   {[
                     { id: 'cash', label: 'Cash (Desk Drawer)', icon: '💵' },
-                    { id: 'telebirr', label: 'Telebirr (Ethio Telecom)', icon: '📱' },
-                    { id: 'bank_slip', label: 'CBE Bank Transfer / Slip', icon: '🏦' },
-                    { id: 'pos', label: 'POS Terminal (Card)', icon: '💳' },
+                    { id: 'chapa', label: 'Chapa Pay', icon: '⚡' },
                   ].map((m) => (
                     <label
                       key={m.id}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
+                        justifyContent: 'center',
                         gap: 8,
-                        padding: '10px 14px',
+                        padding: '12px 14px',
                         borderRadius: 8,
                         background: paymentForm.payment_method === m.id ? 'rgba(230, 124, 0, 0.15)' : '#0d1017',
                         border: paymentForm.payment_method === m.id ? '1.5px solid #E67C00' : '1px solid #232936',
                         cursor: 'pointer',
                         fontSize: 13,
-                        fontWeight: 600,
+                        fontWeight: 700,
                         color: paymentForm.payment_method === m.id ? '#E67C00' : '#d4d4d8',
+                        transition: 'all 0.15s ease',
                       }}
                     >
                       <input
@@ -1414,60 +1410,41 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                         onChange={() => setPaymentForm(prev => ({ ...prev, payment_method: m.id }))}
                         style={{ display: 'none' }}
                       />
-                      <span>{m.icon}</span>
+                      <span style={{ fontSize: 16 }}>{m.icon}</span>
                       <span>{m.label}</span>
                     </label>
                   ))}
                 </div>
               </div>
 
-              {/* Conditional Bank Slip / POS / Telebirr Fields */}
-              {['bank_slip', 'bank_transfer', 'pos', 'telebirr'].includes(paymentForm.payment_method) && (
+              {/* Conditional Chapa Reference Field */}
+              {paymentForm.payment_method === 'chapa' && (
                 <div style={{
-                  background: 'rgba(59, 130, 246, 0.05)',
-                  border: '1px solid rgba(59, 130, 246, 0.2)',
+                  background: 'rgba(230, 124, 0, 0.08)',
+                  border: '1px solid rgba(230, 124, 0, 0.25)',
                   borderRadius: 8,
                   padding: 14,
                   marginBottom: 16,
                 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#60a5fa', marginBottom: 10 }}>
-                    Bank Slip / Electronic Reference Verification
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#E67C00', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>⚡</span> Chapa Transaction & Gateway Reference
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <div className="form-group">
-                      <label className="form-label" style={{ display: 'block', fontSize: 11, marginBottom: 4 }}>
-                        Bank / Service Provider
-                      </label>
-                      <select
-                        className="form-control"
-                        value={paymentForm.bank_name}
-                        onChange={(e) => setPaymentForm(prev => ({ ...prev, bank_name: e.target.value }))}
-                      >
-                        <option value="Commercial Bank of Ethiopia (CBE)">Commercial Bank of Ethiopia (CBE)</option>
-                        <option value="Telebirr (Ethio Telecom)">Telebirr (Ethio Telecom)</option>
-                        <option value="Awash Bank">Awash Bank</option>
-                        <option value="Bank of Abyssinia">Bank of Abyssinia</option>
-                        <option value="Dashen Bank">Dashen Bank</option>
-                        <option value="Cooperative Bank of Oromia">Cooperative Bank of Oromia</option>
-                        <option value="Front Desk POS Terminal">Front Desk POS Terminal</option>
-                        <option value="Other">Other Bank / Transfer</option>
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label" style={{ display: 'block', fontSize: 11, marginBottom: 4 }}>
-                        Slip / Transaction Ref <span style={{ color: '#ef4444' }}>*</span>
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        placeholder="e.g. CBE-FT-998877"
-                        value={paymentForm.gateway_reference}
-                        onChange={(e) => setPaymentForm(prev => ({ ...prev, gateway_reference: e.target.value }))}
-                        required
-                      />
-                    </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ display: 'block', fontSize: 11, marginBottom: 4 }}>
+                      Chapa Tx Reference / Order ID <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={paymentForm.gateway_reference}
+                      onChange={(e) => setPaymentForm(prev => ({ ...prev, gateway_reference: e.target.value }))}
+                      placeholder="e.g. CHP-tx-987654321 or Chapa Ref ID"
+                      required
+                    />
+                    <span style={{ fontSize: 11, color: '#94a3b8', marginTop: 4, display: 'block' }}>
+                      Enter the transaction reference from Chapa digital payment confirmation.
+                    </span>
                   </div>
                 </div>
               )}
