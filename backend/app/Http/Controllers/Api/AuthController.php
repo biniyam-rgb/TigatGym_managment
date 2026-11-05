@@ -78,6 +78,15 @@ class AuthController extends Controller
             ], Response::HTTP_FORBIDDEN);
         }
 
+        // Auto-rehash password to optimal 10 rounds if needed
+        if (Hash::needsRehash($user->password)) {
+            $user->password = Hash::make($validated['password']);
+            $user->save();
+        }
+
+        // Prune previous auth tokens for this user to keep token table lean & fast
+        $user->tokens()->where('name', 'gymcore_auth')->delete();
+
         // Create Sanctum personal access token
         $token = $user->createToken('gymcore_auth')->plainTextToken;
 
