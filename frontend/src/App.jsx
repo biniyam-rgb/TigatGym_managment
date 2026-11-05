@@ -67,9 +67,9 @@ function GymCoreApp() {
     return <LoginForm theme={theme} onToggleTheme={toggleTheme} />;
   }
 
-  // Titles mapping based on active view
+  // Titles mapping based on active view (clean SaaS header titles with no dense text)
   const isReceptionist = primaryRole === 'receptionist';
-  const receptionistFirstName = user?.name ? user.name.split(' ')[0] : 'Receptionist';
+  const receptionistFirstName = user?.name ? user.name.split(' ')[0] : 'Alex';
   const viewTitles = {
     dashboard: isReceptionist
       ? {
@@ -77,25 +77,25 @@ function GymCoreApp() {
           subtitle: '',
         }
       : {
-          title: 'Operational Analytics & Overview',
-          subtitle: 'Real-time TIGAT GYM performance indicators',
+          title: 'Dashboard Overview',
+          subtitle: '',
         },
-    members: { title: 'Member Directory & Profiles', subtitle: 'Module A — Membership records and digital QR pass generation' },
-    memberships: { title: 'Membership Plans & Subscriptions', subtitle: 'Module C — Package duration, pricing in ETB, and lifecycle management' },
-    payments: { title: 'Payments & Financial Ledger', subtitle: 'Module D — Cash, Bank Slip, POS & Chapa transactions (ETB)' },
-    attendance: { title: 'Attendance & Admissions', subtitle: 'Module E — Front-desk check-in, visit logs and QR scanner' },
-    classes: { title: 'Fitness Classes & Reservations', subtitle: 'Module G — Class schedule, trainer assignment, and anti-duplicate booking' },
-    notifications: { title: 'Notifications & Alerts', subtitle: 'Front-desk expiration alerts, renewal reminders & operational notices' },
-    profile: { title: 'My Profile & Account', subtitle: 'Receptionist identity, credentials, and security preferences' },
-    trainers: { title: 'Trainer Coaching & Rosters', subtitle: 'Module B — Staff specializations, rates, and 1-on-1 PT sessions' },
-    workouts: { title: 'Workout Plans & Exercise Library', subtitle: 'Module F — Movements directory, routine templates, and member logs' },
-    equipment: { title: 'Equipment & Maintenance Records', subtitle: 'Module H — Inventory conditions, maintenance logs, and asset tracking' },
-    expenses: { title: 'Operating Expenditures', subtitle: 'Module D — Rent, utilities, maintenance, and net operating income' },
-    users: { title: 'User & Staff Identity Management', subtitle: 'Role-based access control, account status, and credentials' },
-    audit: { title: 'System Security & Audit Trail', subtitle: 'Owner-exclusive immutable ledger and compliance history' },
+    members: { title: 'Members', subtitle: '' },
+    memberships: { title: 'Membership Plans', subtitle: '' },
+    payments: { title: 'Payments', subtitle: '' },
+    attendance: { title: 'Attendance', subtitle: '' },
+    classes: { title: 'Classes', subtitle: '' },
+    notifications: { title: 'Notifications', subtitle: '' },
+    profile: { title: 'Profile', subtitle: '' },
+    trainers: { title: 'Trainers', subtitle: '' },
+    workouts: { title: 'Workouts', subtitle: '' },
+    equipment: { title: 'Equipment', subtitle: '' },
+    expenses: { title: 'Expenses', subtitle: '' },
+    users: { title: 'Staff & Users', subtitle: '' },
+    audit: { title: 'Audit Trail', subtitle: '' },
   };
 
-  const currentMeta = viewTitles[activeView] || { title: 'GymCore Management', subtitle: 'TIGAT GYM Management System' };
+  const currentMeta = viewTitles[activeView] || { title: 'Dashboard', subtitle: '' };
 
   return (
     <div className="gymcore-app-shell">
