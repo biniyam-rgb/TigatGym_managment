@@ -2277,6 +2277,27 @@ body:has(.tigat-login-page) {
   }
 }
 
+/* Comprehensive Form Validation & Error Highlighting */
+.input-error {
+  border-color: #ef4444 !important;
+  background-color: #fffbfa !important;
+}
+
+.input-error:focus {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+}
+
+.form-error-text {
+  color: #ef4444;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .tigat-tiger-crest-img {
   width: 95px;
   max-height: 80px;
@@ -3456,6 +3477,40 @@ body.theme-light .dot-unoccupied,
 .form-control:focus {
   border-color: var(--gym-primary);
   box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
+
+/* Modal Form Controls in Light Theme */
+body.theme-light .modal-card .form-control,
+[data-theme="light"] .modal-card .form-control {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+}
+
+body.theme-light .modal-card .form-control:focus,
+[data-theme="light"] .modal-card .form-control:focus {
+  background: #ffffff;
+  border-color: #E67C00;
+  box-shadow: 0 0 0 3px rgba(230, 124, 0, 0.15);
+}
+
+/* Date Input & Calendar Picker Styling */
+input[type="date"].form-control {
+  cursor: pointer;
+  position: relative;
+  color-scheme: light;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.8;
+  padding: 4px;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+  transform: scale(1.15);
 }
 
 .form-row-2 {
@@ -10672,14 +10727,13 @@ body.theme-dark .btn-clean-schedule:hover,
   flex-direction: column;
   justify-content: space-between;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: default;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .clean-kpi-card:hover {
-  transform: translateY(-2px);
   border-color: #cbd5e1;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
 body.theme-dark .clean-kpi-card,
