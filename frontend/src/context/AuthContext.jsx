@@ -117,13 +117,20 @@ export function AuthProvider({ children }) {
     throw new Error('Unexpected login response format');
   };
 
-  const logout = async () => {
-    try {
-      await apiClient.logout();
-    } catch (err) {
-      console.warn('Logout API call failed, clearing client state anyway:', err);
-    } finally {
-      clearAuth();
+  const logout = () => {
+    const activeToken = apiClient.getToken();
+
+    // 1. Instantly clear client state and caches for immediate 0ms UI response
+    clearAuth();
+
+    // 2. Revoke server session asynchronously in the background
+    if (activeToken) {
+      apiClient.request('/auth/logout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${activeToken}` },
+      }).catch((err) => {
+        console.warn('Background server logout cleanup:', err);
+      });
     }
   };
 
