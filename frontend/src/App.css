@@ -6660,9 +6660,9 @@ body.theme-dark .gymcore-content-body,
    ========================================================================== */
 
 .gymcore-header {
-  height: 60px;
-  min-height: 60px;
-  padding: 0 28px;
+  height: 64px;
+  min-height: 64px;
+  padding: 0 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -6679,8 +6679,8 @@ body.theme-light .gymcore-header,
   background: rgba(255, 255, 255, 0.94) !important;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid #e2e8f0 !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
 }
 
 body.theme-dark .gymcore-header,
@@ -6700,9 +6700,9 @@ body.theme-dark .gymcore-header,
 
 .view-title {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.35px;
   line-height: 1.2;
 }
 
@@ -6716,7 +6716,7 @@ body.theme-dark .view-title {
 
 .view-subtitle {
   margin: 2px 0 0 0;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
   color: #64748b;
   letter-spacing: 0.1px;
@@ -6725,7 +6725,7 @@ body.theme-dark .view-title {
 .header-right-tools {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
 /* Header Brand Emblem Badge (Single Gym - No Branch) */
@@ -6894,15 +6894,15 @@ body.theme-dark .header-divider,
 
 .header-tool-btn {
   position: relative;
-  width: 34px;
-  height: 34px;
-  min-width: 34px;
-  min-height: 34px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   background: #ffffff;
@@ -6913,10 +6913,10 @@ body.theme-dark .header-divider,
 
 .header-tool-btn:hover {
   background: #fff7ed;
-  border-color: #ff8a00;
-  color: #ea580c;
+  border-color: #E67C00;
+  color: #E67C00;
   transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(234, 88, 12, 0.18);
+  box-shadow: 0 2px 6px rgba(230, 124, 0, 0.18);
 }
 
 body.theme-dark .header-tool-btn,
@@ -6929,10 +6929,61 @@ body.theme-dark .header-tool-btn,
 
 body.theme-dark .header-tool-btn:hover,
 [data-theme="dark"] .header-tool-btn:hover {
-  background: rgba(255, 138, 0, 0.12);
-  border-color: rgba(255, 138, 0, 0.35);
-  color: #ff8a00;
+  background: rgba(230, 124, 0, 0.12);
+  border-color: rgba(230, 124, 0, 0.35);
+  color: #E67C00;
   transform: translateY(-1px);
+}
+
+.header-avatar-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  background: #f1f5f9;
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-left: 2px;
+  flex-shrink: 0;
+}
+
+.header-avatar-btn:hover {
+  transform: scale(1.06);
+  box-shadow: 0 3px 10px rgba(230, 124, 0, 0.25);
+  border-color: #E67C00;
+}
+
+body.theme-dark .header-avatar-btn {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.header-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.header-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #ff8a00, #E67C00);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .header-tool-badge {
@@ -11216,7 +11267,7 @@ body.theme-light .header-search-wrapper,
   gap: 10px;
   background: #ffffff !important;
   border: 1px solid #e2e8f0 !important;
-  border-radius: 9999px !important;
+  border-radius: 12px !important;
   padding: 0 16px;
   height: 40px;
   width: 280px;
