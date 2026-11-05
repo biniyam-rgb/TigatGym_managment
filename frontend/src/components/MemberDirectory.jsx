@@ -5,6 +5,117 @@ import QRCodeDisplay from './QRCodeDisplay';
 import BrandLogo from './BrandLogo';
 import { BLOOD_TYPES, calculateAge, validateMemberForm } from '../utils/memberValidators';
 
+// Crisp Lucide-style SVG Icons (replacing emojis)
+const Icons = {
+  UserPlus: ({ size = 15 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <line x1="19" y1="8" x2="19" y2="14" />
+      <line x1="22" y1="11" x2="16" y2="11" />
+    </svg>
+  ),
+  Check: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  ),
+  CheckCircle: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  ),
+  AlertCircle: ({ size = 13 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="12" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
+    </svg>
+  ),
+  AlertTriangle: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  ),
+  QrCode: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="5" height="5" x="3" y="3" rx="1" />
+      <rect width="5" height="5" x="16" y="3" rx="1" />
+      <rect width="5" height="5" x="3" y="16" rx="1" />
+      <path d="M21 16h-3a2 2 0 0 0-2 2v3" />
+      <path d="M21 21v.01" />
+      <path d="M12 7v3a2 2 0 0 1-2 2H7" />
+      <path d="M3 12h.01" />
+      <path d="M12 3h.01" />
+      <path d="M12 16v.01" />
+      <path d="M16 12h1" />
+      <path d="M21 12v.01" />
+      <path d="M12 21v-1" />
+    </svg>
+  ),
+  Edit: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+      <path d="m15 5 4 4" />
+    </svg>
+  ),
+  Trash: ({ size = 15 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 6h18" />
+      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+      <line x1="10" x2="10" y1="11" y2="17" />
+      <line x1="14" x2="14" y1="11" y2="17" />
+    </svg>
+  ),
+  CreditCard: ({ size = 17 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="20" height="14" x="2" y="5" rx="2" />
+      <line x1="2" x2="22" y1="10" y2="10" />
+    </svg>
+  ),
+  Cash: ({ size = 17 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="20" height="12" x="2" y="6" rx="2" />
+      <circle cx="12" cy="12" r="2" />
+      <path d="M6 12h.01M18 12h.01" />
+    </svg>
+  ),
+  Zap: ({ size = 17 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  ),
+  Printer: ({ size = 15 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6 9 6 2 18 2 18 9" />
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+      <rect width="12" height="8" x="6" y="14" />
+    </svg>
+  ),
+  Droplet: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z" />
+    </svg>
+  ),
+  Refresh: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+      <path d="M16 21h5v-5" />
+    </svg>
+  ),
+  MessageCircle: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z" />
+    </svg>
+  ),
+};
+
 export default function MemberDirectory({ initialOpenRegister = false }) {
   const { hasRole } = useAuth();
   const [members, setMembers] = useState([]);
@@ -369,6 +480,26 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
 
   return (
     <div className="member-directory-container gymflow-view">
+      {/* Header Action Bar matching Dashboard */}
+      <section className="clean-dash-header-row" style={{ marginBottom: 20 }}>
+        <div>
+          <h1 className="clean-dash-title">Membership Management</h1>
+        </div>
+        {isStaff && (
+          <div className="clean-dash-actions">
+            <button
+              type="button"
+              className="btn-clean-add-member"
+              onClick={() => setIsRegisterOpen(true)}
+              title="Register a new member at reception desk"
+            >
+              <Icons.UserPlus size={15} />
+              <span>+ Add New Member</span>
+            </button>
+          </div>
+        )}
+      </section>
+
       {/* 4 Top Stat KPI Cards matching clean Tigat Gym SaaS aesthetics */}
       <div className="gymflow-metrics-row">
         {/* Card 1: Total Members */}
@@ -394,25 +525,13 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
           <div className="kpi-label">TOTAL DUES</div>
           <div className="kpi-value kpi-red font-mono">0 ETB</div>
         </div>
-
-        {/* Action Button: + ADD MEMBER */}
-        {isStaff && (
-          <button
-            type="button"
-            className="gymflow-add-member-btn"
-            onClick={() => setIsRegisterOpen(true)}
-            title="Register a new member at reception desk"
-          >
-            <span className="add-plus-icon">+</span>
-            <span>ADD MEMBER</span>
-          </button>
-        )}
       </div>
 
       {/* Notifications */}
       {notification && (
-        <div className={`alert alert-${notification.type}`} role="alert" style={{ marginTop: 16 }}>
-          <span>{notification.type === 'danger' ? '⚠️' : '✓'} {notification.message}</span>
+        <div className={`alert alert-${notification.type}`} role="alert" style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          {notification.type === 'danger' ? <Icons.AlertTriangle size={16} /> : <Icons.CheckCircle size={16} />}
+          <span>{notification.message}</span>
           <button type="button" className="btn-dismiss" onClick={() => setNotification(null)}>×</button>
         </div>
       )}
@@ -647,7 +766,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                             title="Verify Check-in Pass"
                             onClick={() => setSelectedMember(m)}
                           >
-                            ✓
+                            <Icons.Check size={14} />
                           </button>
 
                           {/* Orange Circle Renew Button */}
@@ -657,7 +776,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                             title="Renew / Modify Subscription"
                             onClick={() => isStaff && handleOpenEdit(m)}
                           >
-                            ↻
+                            <Icons.Refresh size={13} />
                           </button>
 
                           {/* Green Circle WhatsApp / Message Button */}
@@ -668,7 +787,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                             className="gymflow-circle-action action-message"
                             title="Direct Message via WhatsApp"
                           >
-                            💬
+                            <Icons.MessageCircle size={14} />
                           </a>
 
                           {/* 3-Dots Action Button */}
@@ -725,7 +844,9 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     className="btn btn-secondary btn-xs"
                     onClick={() => setSelectedMember(m)}
                   >
-                    🪪 QR Pass
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <Icons.QrCode size={13} /> QR Pass
+                    </span>
                   </button>
                   {isStaff && (
                     <button
@@ -733,7 +854,9 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                       className="btn btn-secondary btn-xs"
                       onClick={() => handleOpenEdit(m)}
                     >
-                      ✏️ Edit
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        <Icons.Edit size={13} /> Edit
+                      </span>
                     </button>
                   )}
                   {isManagement && (
@@ -743,7 +866,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                       onClick={() => handleDeleteMember(m)}
                       title="Delete member record"
                     >
-                      🗑️
+                      <Icons.Trash size={14} />
                     </button>
                   )}
                 </div>
@@ -797,7 +920,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     value={formData.name}
                     onChange={(e) => handleFieldChange('name', e.target.value)}
                   />
-                  {formErrors.name && <span className="form-error-text">⚠️ {formErrors.name}</span>}
+                  {formErrors.name && <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.name}</span>}
                 </div>
                 <div className="form-group">
                   <label>Phone Number *</label>
@@ -809,7 +932,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     value={formData.phone}
                     onChange={(e) => handleFieldChange('phone', e.target.value)}
                   />
-                  {formErrors.phone && <span className="form-error-text">⚠️ {formErrors.phone}</span>}
+                  {formErrors.phone && <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.phone}</span>}
                 </div>
               </div>
 
@@ -823,7 +946,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     value={formData.email}
                     onChange={(e) => handleFieldChange('email', e.target.value)}
                   />
-                  {formErrors.email && <span className="form-error-text">⚠️ {formErrors.email}</span>}
+                  {formErrors.email && <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.email}</span>}
                 </div>
                 <div className="form-group">
                   <label>Gender</label>
@@ -844,8 +967,8 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <label>Date of Birth (Select Date)</label>
                     {formData.date_of_birth && !formErrors.date_of_birth && (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981' }}>
-                        ✓ Age: {calculateAge(formData.date_of_birth)} yrs
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Icons.Check size={13} /> Age: {calculateAge(formData.date_of_birth)} yrs
                       </span>
                     )}
                   </div>
@@ -868,7 +991,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     </span>
                   )}
                   {formErrors.date_of_birth && (
-                    <span className="form-error-text">⚠️ {formErrors.date_of_birth}</span>
+                    <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.date_of_birth}</span>
                   )}
                 </div>
                 <div className="form-group">
@@ -886,7 +1009,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     ))}
                   </select>
                   {formErrors.blood_type && (
-                    <span className="form-error-text">⚠️ {formErrors.blood_type}</span>
+                    <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.blood_type}</span>
                   )}
                 </div>
               </div>
@@ -924,7 +1047,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     onChange={(e) => handleFieldChange('emergency_contact_phone', e.target.value)}
                   />
                   {formErrors.emergency_contact_phone && (
-                    <span className="form-error-text">⚠️ {formErrors.emergency_contact_phone}</span>
+                    <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.emergency_contact_phone}</span>
                   )}
                 </div>
               </div>
@@ -968,7 +1091,8 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
 
               {/* Membership Plan & Initial Payment Reception */}
               <h4 className="form-section-title" style={{ marginTop: 22, color: '#E67C00', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>💳</span> Membership Plan & Payment Reception
+                <Icons.CreditCard size={18} />
+                <span>Membership Plan & Payment Reception</span>
               </h4>
 
               <div style={{
@@ -1022,7 +1146,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                           style={{ fontWeight: 700, color: '#E67C00' }}
                         />
                         {formErrors.payment_amount && (
-                          <span className="form-error-text">⚠️ {formErrors.payment_amount}</span>
+                          <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.payment_amount}</span>
                         )}
                       </div>
                       <div className="form-group">
@@ -1041,7 +1165,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                           />
                         </div>
                         {formErrors.start_date && (
-                          <span className="form-error-text">⚠️ {formErrors.start_date}</span>
+                          <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.start_date}</span>
                         )}
                       </div>
                     </div>
@@ -1052,8 +1176,8 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                       </label>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
                         {[
-                          { id: 'cash', label: 'Cash (Desk Drawer)', icon: '💵' },
-                          { id: 'chapa', label: 'Chapa Pay', icon: '⚡' },
+                          { id: 'cash', label: 'Cash (Desk Drawer)', icon: <Icons.Cash size={17} /> },
+                          { id: 'chapa', label: 'Chapa Pay', icon: <Icons.Zap size={17} /> },
                         ].map((m) => (
                           <label
                             key={m.id}
@@ -1081,7 +1205,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                               onChange={() => handleFieldChange('payment_method', m.id)}
                               style={{ display: 'none' }}
                             />
-                            <span style={{ fontSize: 16 }}>{m.icon}</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center' }}>{m.icon}</span>
                             <span>{m.label}</span>
                           </label>
                         ))}
@@ -1101,7 +1225,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                           onChange={(e) => handleFieldChange('payment_reference', e.target.value)}
                         />
                         {formErrors.payment_reference && (
-                          <span className="form-error-text">⚠️ {formErrors.payment_reference}</span>
+                          <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.payment_reference}</span>
                         )}
                       </div>
                     )}
@@ -1136,8 +1260,8 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
       {registeredMemberPass && (
         <div className="modal-backdrop">
           <div className="modal-card" style={{ maxWidth: 520, textAlign: 'center', padding: 28 }}>
-            <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, margin: '0 auto 16px' }}>
-              ✓
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <Icons.Check size={28} />
             </div>
             <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a' }}>
               Member Registered & Pass Ready!
@@ -1200,7 +1324,8 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                 onClick={() => window.print()}
                 style={{ display: 'flex', alignItems: 'center', gap: 6 }}
               >
-                <span>🖨️</span> Print Pass / Receipt
+                <Icons.Printer size={15} />
+                <span>Print Pass / Receipt</span>
               </button>
               <button
                 type="button"
@@ -1235,7 +1360,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     value={formData.name}
                     onChange={(e) => handleFieldChange('name', e.target.value)}
                   />
-                  {formErrors.name && <span className="form-error-text">⚠️ {formErrors.name}</span>}
+                  {formErrors.name && <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.name}</span>}
                 </div>
                 <div className="form-group">
                   <label>Phone Number *</label>
@@ -1246,7 +1371,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     value={formData.phone}
                     onChange={(e) => handleFieldChange('phone', e.target.value)}
                   />
-                  {formErrors.phone && <span className="form-error-text">⚠️ {formErrors.phone}</span>}
+                  {formErrors.phone && <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.phone}</span>}
                 </div>
               </div>
 
@@ -1259,7 +1384,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     value={formData.email}
                     onChange={(e) => handleFieldChange('email', e.target.value)}
                   />
-                  {formErrors.email && <span className="form-error-text">⚠️ {formErrors.email}</span>}
+                  {formErrors.email && <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.email}</span>}
                 </div>
                 <div className="form-group">
                   <label>Gender</label>
@@ -1280,8 +1405,8 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <label>Date of Birth (Select Date)</label>
                     {formData.date_of_birth && !formErrors.date_of_birth && (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981' }}>
-                        ✓ Age: {calculateAge(formData.date_of_birth)} yrs
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Icons.Check size={13} /> Age: {calculateAge(formData.date_of_birth)} yrs
                       </span>
                     )}
                   </div>
@@ -1304,7 +1429,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     </span>
                   )}
                   {formErrors.date_of_birth && (
-                    <span className="form-error-text">⚠️ {formErrors.date_of_birth}</span>
+                    <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.date_of_birth}</span>
                   )}
                 </div>
                 <div className="form-group">
@@ -1322,7 +1447,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     ))}
                   </select>
                   {formErrors.blood_type && (
-                    <span className="form-error-text">⚠️ {formErrors.blood_type}</span>
+                    <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.blood_type}</span>
                   )}
                 </div>
               </div>
@@ -1358,7 +1483,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     onChange={(e) => handleFieldChange('emergency_contact_phone', e.target.value)}
                   />
                   {formErrors.emergency_contact_phone && (
-                    <span className="form-error-text">⚠️ {formErrors.emergency_contact_phone}</span>
+                    <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.emergency_contact_phone}</span>
                   )}
                 </div>
               </div>
@@ -1482,8 +1607,8 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     {selectedMember.blood_type && (
                       <div className="pass-row">
                         <span className="pass-label">Blood Type:</span>
-                        <span className="pass-val" style={{ color: '#dc2626', fontWeight: 700 }}>
-                          🩸 {selectedMember.blood_type}
+                        <span className="pass-val" style={{ color: '#dc2626', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <Icons.Droplet size={13} /> {selectedMember.blood_type}
                         </span>
                       </div>
                     )}
@@ -1512,7 +1637,9 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                   onClick={() => handleRegenerateQr(selectedMember.id)}
                   title="Generate a new secure QR token if member lost card"
                 >
-                  🔄 Regenerate QR Token
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Icons.Refresh size={14} /> Regenerate QR Token
+                  </span>
                 </button>
               ) : <div></div>}
 
@@ -1521,7 +1648,9 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                 className="btn btn-primary btn-sm"
                 onClick={() => window.print()}
               >
-                🖨️ Print Pass
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <Icons.Printer size={14} /> Print Pass
+                </span>
               </button>
             </div>
           </div>
