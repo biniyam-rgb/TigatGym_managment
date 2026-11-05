@@ -3,6 +3,7 @@ import apiClient from '../services/api';
 import { useAuth } from '../context/useAuth';
 import QRCodeDisplay from './QRCodeDisplay';
 import BrandLogo from './BrandLogo';
+import { BLOOD_TYPES, calculateAge, validateMemberForm } from '../utils/memberValidators';
 
 export default function MemberDirectory({ initialOpenRegister = false }) {
   const { hasRole } = useAuth();
@@ -28,6 +29,16 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
   const [registeredMemberPass, setRegisteredMemberPass] = useState(null);
   const [membershipPlans, setMembershipPlans] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+
+  // Date boundaries for calendar choosers
+  const maxDobString = new Date().toISOString().split('T')[0];
+  const minStartDate = new Date();
+  minStartDate.setDate(minStartDate.getDate() - 30);
+  const minStartDateString = minStartDate.toISOString().split('T')[0];
+  const maxStartDate = new Date();
+  maxStartDate.setDate(maxStartDate.getDate() + 90);
+  const maxStartDateString = maxStartDate.toISOString().split('T')[0];
 
   // Form state
   const initialFormData = {
@@ -108,24 +119,58 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
     };
   }, [search, statusFilter, genderFilter, page]);
 
+  const openDatePicker = (inputEl) => {
+    if (!inputEl) return;
+    inputEl.focus();
+    if (typeof inputEl.showPicker === 'function') {
+      try {
+        inputEl.showPicker();
+      } catch (err) {
+        console.debug('Date picker launch error:', err);
+      }
+    }
+  };
+
+  const handleFieldChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (formErrors[field]) {
+      setFormErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  };
+
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
+    const errors = validateMemberForm(formData, true);
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      setNotification({
+        type: 'danger',
+        message: 'Please review and fix the highlighted form errors before proceeding.',
+      });
+      return;
+    }
+
+    setFormErrors({});
     setIsSubmitting(true);
     try {
       // 1. Create Member Profile
       const memberPayload = {
-        name: formData.name,
-        phone: formData.phone,
-        email: formData.email,
+        name: formData.name.trim(),
+        phone: formData.phone.trim(),
+        email: formData.email?.trim() || undefined,
         gender: formData.gender,
-        date_of_birth: formData.date_of_birth,
-        blood_type: formData.blood_type,
-        address: formData.address,
-        emergency_contact_name: formData.emergency_contact_name,
-        emergency_contact_phone: formData.emergency_contact_phone,
-        emergency_contact_relationship: formData.emergency_contact_relationship,
-        fitness_goals: formData.fitness_goals,
-        health_conditions: formData.health_conditions,
+        date_of_birth: formData.date_of_birth || undefined,
+        blood_type: formData.blood_type || undefined,
+        address: formData.address?.trim() || undefined,
+        emergency_contact_name: formData.emergency_contact_name?.trim() || undefined,
+        emergency_contact_phone: formData.emergency_contact_phone?.trim() || undefined,
+        emergency_contact_relationship: formData.emergency_contact_relationship?.trim() || undefined,
+        fitness_goals: formData.fitness_goals?.trim() || undefined,
+        health_conditions: formData.health_conditions?.trim() || undefined,
       };
 
       const memberRes = await apiClient.createMember(memberPayload);
@@ -186,6 +231,9 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
       setFormData(initialFormData);
       fetchMembers();
     } catch (err) {
+      if (err.data?.errors) {
+        setFormErrors(err.data.errors);
+      }
       setNotification({ type: 'danger', message: err.message || 'Failed to register member' });
     } finally {
       setIsSubmitting(false);
@@ -195,9 +243,35 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     if (!editingMember) return;
+    const errors = validateMemberForm(formData, false);
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      setNotification({
+        type: 'danger',
+        message: 'Please review and fix the highlighted form errors.',
+      });
+      return;
+    }
+
+    setFormErrors({});
     setIsSubmitting(true);
     try {
-      const res = await apiClient.updateMember(editingMember.id, formData);
+      const editPayload = {
+        name: formData.name.trim(),
+        phone: formData.phone.trim(),
+        email: formData.email?.trim() || undefined,
+        gender: formData.gender,
+        date_of_birth: formData.date_of_birth || null,
+        blood_type: formData.blood_type || null,
+        address: formData.address?.trim() || null,
+        emergency_contact_name: formData.emergency_contact_name?.trim() || null,
+        emergency_contact_phone: formData.emergency_contact_phone?.trim() || null,
+        emergency_contact_relationship: formData.emergency_contact_relationship?.trim() || null,
+        fitness_goals: formData.fitness_goals?.trim() || null,
+        health_conditions: formData.health_conditions?.trim() || null,
+      };
+
+      const res = await apiClient.updateMember(editingMember.id, editPayload);
       setNotification({
         type: 'success',
         message: res.message || 'Member updated successfully!',
@@ -205,6 +279,9 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
       setEditingMember(null);
       fetchMembers();
     } catch (err) {
+      if (err.data?.errors) {
+        setFormErrors(err.data.errors);
+      }
       setNotification({ type: 'danger', message: err.message || 'Failed to update member' });
     } finally {
       setIsSubmitting(false);
@@ -213,12 +290,13 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
 
   const handleOpenEdit = (m) => {
     setEditingMember(m);
+    setFormErrors({});
     setFormData({
       name: m.name || '',
       phone: m.phone || '',
       email: m.email && !m.email.includes('@members.tigatgym.com') ? m.email : '',
       gender: m.gender || 'male',
-      date_of_birth: m.date_of_birth || '',
+      date_of_birth: m.date_of_birth ? m.date_of_birth.slice(0, 10) : '',
       blood_type: m.blood_type || '',
       address: m.address || '',
       emergency_contact_name: m.emergency_contact_name || '',
@@ -706,7 +784,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
               <h3>Register New Member</h3>
               <button type="button" className="btn-close" onClick={() => setIsRegisterOpen(false)}>×</button>
             </div>
-            <form onSubmit={handleRegisterSubmit} className="modal-form">
+            <form onSubmit={handleRegisterSubmit} className="modal-form" noValidate>
               <h4 className="form-section-title">Personal Information</h4>
               <div className="form-row-2">
                 <div className="form-group">
@@ -714,22 +792,24 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                   <input
                     type="text"
                     required
-                    className="form-control"
+                    className={`form-control ${formErrors.name ? 'input-error' : ''}`}
                     placeholder="e.g. Abebe Bikila"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => handleFieldChange('name', e.target.value)}
                   />
+                  {formErrors.name && <span className="form-error-text">⚠️ {formErrors.name}</span>}
                 </div>
                 <div className="form-group">
                   <label>Phone Number *</label>
                   <input
                     type="text"
                     required
-                    className="form-control"
-                    placeholder="+2519..."
+                    className={`form-control ${formErrors.phone ? 'input-error' : ''}`}
+                    placeholder="09... or +2519..."
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) => handleFieldChange('phone', e.target.value)}
                   />
+                  {formErrors.phone && <span className="form-error-text">⚠️ {formErrors.phone}</span>}
                 </div>
               </div>
 
@@ -738,18 +818,19 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                   <label>Email Address (Optional)</label>
                   <input
                     type="email"
-                    className="form-control"
+                    className={`form-control ${formErrors.email ? 'input-error' : ''}`}
                     placeholder="e.g. member@email.com"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => handleFieldChange('email', e.target.value)}
                   />
+                  {formErrors.email && <span className="form-error-text">⚠️ {formErrors.email}</span>}
                 </div>
                 <div className="form-group">
                   <label>Gender</label>
                   <select
                     className="form-control"
                     value={formData.gender}
-                    onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                    onChange={(e) => handleFieldChange('gender', e.target.value)}
                   >
                     <option value="male">Male</option>
                     <option value="female">Female</option>
@@ -760,23 +841,53 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
 
               <div className="form-row-2">
                 <div className="form-group">
-                  <label>Date of Birth</label>
-                  <input
-                    type="date"
-                    className="form-control"
-                    value={formData.date_of_birth}
-                    onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
-                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <label>Date of Birth (Select Date)</label>
+                    {formData.date_of_birth && !formErrors.date_of_birth && (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981' }}>
+                        ✓ Age: {calculateAge(formData.date_of_birth)} yrs
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type="date"
+                      className={`form-control ${formErrors.date_of_birth ? 'input-error' : ''}`}
+                      max={maxDobString}
+                      min="1920-01-01"
+                      value={formData.date_of_birth}
+                      onChange={(e) => handleFieldChange('date_of_birth', e.target.value)}
+                      onClick={(e) => openDatePicker(e.currentTarget)}
+                      style={{ cursor: 'pointer', width: '100%' }}
+                      title="Click to select birth date"
+                    />
+                  </div>
+                  {formData.date_of_birth && !formErrors.date_of_birth && (
+                    <span style={{ fontSize: 11, color: '#0284c7', marginTop: 3, display: 'block' }}>
+                      Selected: {new Date(formData.date_of_birth + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                    </span>
+                  )}
+                  {formErrors.date_of_birth && (
+                    <span className="form-error-text">⚠️ {formErrors.date_of_birth}</span>
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Blood Type (Optional)</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="e.g. O+, A+, B+"
+                  <select
+                    className={`form-control ${formErrors.blood_type ? 'input-error' : ''}`}
                     value={formData.blood_type}
-                    onChange={(e) => setFormData({ ...formData, blood_type: e.target.value })}
-                  />
+                    onChange={(e) => handleFieldChange('blood_type', e.target.value)}
+                  >
+                    <option value="">-- Select Blood Group (Optional) --</option>
+                    {BLOOD_TYPES.map((bt) => (
+                      <option key={bt.value} value={bt.value}>
+                        {bt.value}
+                      </option>
+                    ))}
+                  </select>
+                  {formErrors.blood_type && (
+                    <span className="form-error-text">⚠️ {formErrors.blood_type}</span>
+                  )}
                 </div>
               </div>
 
@@ -785,9 +896,9 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="e.g. Woreda 03, Addis Ababa"
+                  placeholder="e.g. Woreda 03, Bole, Addis Ababa"
                   value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  onChange={(e) => handleFieldChange('address', e.target.value)}
                 />
               </div>
 
@@ -800,18 +911,21 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     className="form-control"
                     placeholder="e.g. Almaz Bekele"
                     value={formData.emergency_contact_name}
-                    onChange={(e) => setFormData({ ...formData, emergency_contact_name: e.target.value })}
+                    onChange={(e) => handleFieldChange('emergency_contact_name', e.target.value)}
                   />
                 </div>
                 <div className="form-group">
                   <label>Emergency Contact Phone</label>
                   <input
                     type="text"
-                    className="form-control"
-                    placeholder="+2519..."
+                    className={`form-control ${formErrors.emergency_contact_phone ? 'input-error' : ''}`}
+                    placeholder="09... or +2519..."
                     value={formData.emergency_contact_phone}
-                    onChange={(e) => setFormData({ ...formData, emergency_contact_phone: e.target.value })}
+                    onChange={(e) => handleFieldChange('emergency_contact_phone', e.target.value)}
                   />
+                  {formErrors.emergency_contact_phone && (
+                    <span className="form-error-text">⚠️ {formErrors.emergency_contact_phone}</span>
+                  )}
                 </div>
               </div>
 
@@ -822,7 +936,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                   className="form-control"
                   placeholder="e.g. Spouse, Brother, Parent"
                   value={formData.emergency_contact_relationship}
-                  onChange={(e) => setFormData({ ...formData, emergency_contact_relationship: e.target.value })}
+                  onChange={(e) => handleFieldChange('emergency_contact_relationship', e.target.value)}
                 />
               </div>
 
@@ -834,7 +948,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                   rows={2}
                   placeholder="e.g. Muscle hypertrophy, fat loss, marathon training"
                   value={formData.fitness_goals}
-                  onChange={(e) => setFormData({ ...formData, fitness_goals: e.target.value })}
+                  onChange={(e) => handleFieldChange('fitness_goals', e.target.value)}
                 />
               </div>
 
@@ -848,7 +962,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                   rows={2}
                   placeholder="e.g. Previous knee injury, asthma, lower back sensitivity"
                   value={formData.health_conditions}
-                  onChange={(e) => setFormData({ ...formData, health_conditions: e.target.value })}
+                  onChange={(e) => handleFieldChange('health_conditions', e.target.value)}
                 />
               </div>
 
@@ -901,50 +1015,62 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                         <label style={{ fontWeight: 600, fontSize: 12 }}>Package Price (ETB)</label>
                         <input
                           type="number"
-                          className="form-control"
+                          className={`form-control ${formErrors.payment_amount ? 'input-error' : ''}`}
                           value={formData.payment_amount}
-                          onChange={(e) => setFormData({ ...formData, payment_amount: e.target.value })}
+                          onChange={(e) => handleFieldChange('payment_amount', e.target.value)}
                           placeholder="Price in ETB"
                           style={{ fontWeight: 700, color: '#E67C00' }}
                         />
+                        {formErrors.payment_amount && (
+                          <span className="form-error-text">⚠️ {formErrors.payment_amount}</span>
+                        )}
                       </div>
                       <div className="form-group">
                         <label style={{ fontWeight: 600, fontSize: 12 }}>Plan Start Date</label>
-                        <input
-                          type="date"
-                          className="form-control"
-                          value={formData.start_date}
-                          onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                        />
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                          <input
+                            type="date"
+                            min={minStartDateString}
+                            max={maxStartDateString}
+                            className={`form-control ${formErrors.start_date ? 'input-error' : ''}`}
+                            value={formData.start_date}
+                            onChange={(e) => handleFieldChange('start_date', e.target.value)}
+                            onClick={(e) => openDatePicker(e.currentTarget)}
+                            style={{ cursor: 'pointer', width: '100%' }}
+                            title="Click to select start day"
+                          />
+                        </div>
+                        {formErrors.start_date && (
+                          <span className="form-error-text">⚠️ {formErrors.start_date}</span>
+                        )}
                       </div>
                     </div>
 
                     <div className="form-group" style={{ marginBottom: 14 }}>
                       <label style={{ display: 'block', marginBottom: 6, fontWeight: 700, fontSize: 12 }}>
-                        Payment Method
+                        Payment Method <span style={{ color: '#E67C00' }}>*</span>
                       </label>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
                         {[
-                          { id: 'cash', label: 'Cash (Desk)', icon: '💵' },
-                          { id: 'telebirr', label: 'Telebirr', icon: '📱' },
-                          { id: 'bank_slip', label: 'CBE Slip / Bank', icon: '🏦' },
-                          { id: 'pos', label: 'POS Card', icon: '💳' },
-                          { id: 'pay_later', label: 'Pay Later', icon: '⏳' },
+                          { id: 'cash', label: 'Cash (Desk Drawer)', icon: '💵' },
+                          { id: 'chapa', label: 'Chapa Pay', icon: '⚡' },
                         ].map((m) => (
                           <label
                             key={m.id}
                             style={{
                               display: 'flex',
                               alignItems: 'center',
-                              gap: 6,
-                              padding: '8px 12px',
+                              justifyContent: 'center',
+                              gap: 8,
+                              padding: '10px 14px',
                               borderRadius: 8,
                               background: formData.payment_method === m.id ? '#fff7ed' : '#ffffff',
-                              border: formData.payment_method === m.id ? '1.5px solid #E67C00' : '1px solid #e2e8f0',
+                              border: formData.payment_method === m.id ? '2px solid #E67C00' : '1px solid #e2e8f0',
                               cursor: 'pointer',
-                              fontSize: 12.5,
-                              fontWeight: 600,
+                              fontSize: 13,
+                              fontWeight: 700,
                               color: formData.payment_method === m.id ? '#E67C00' : '#475569',
+                              transition: 'all 0.15s ease',
                             }}
                           >
                             <input
@@ -952,29 +1078,31 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                               name="reg_payment_method"
                               value={m.id}
                               checked={formData.payment_method === m.id}
-                              onChange={() => setFormData({ ...formData, payment_method: m.id })}
+                              onChange={() => handleFieldChange('payment_method', m.id)}
                               style={{ display: 'none' }}
                             />
-                            <span>{m.icon}</span>
+                            <span style={{ fontSize: 16 }}>{m.icon}</span>
                             <span>{m.label}</span>
                           </label>
                         ))}
                       </div>
                     </div>
 
-                    {['telebirr', 'bank_slip', 'pos'].includes(formData.payment_method) && (
+                    {formData.payment_method === 'chapa' && (
                       <div className="form-group">
                         <label style={{ fontWeight: 600, fontSize: 12 }}>
-                          Transaction / Slip Reference <span style={{ color: '#ef4444' }}>*</span>
+                          Chapa Reference / Transaction ID <span style={{ color: '#ef4444' }}>*</span>
                         </label>
                         <input
                           type="text"
-                          required
-                          className="form-control"
-                          placeholder={formData.payment_method === 'telebirr' ? 'e.g. Telebirr SMS Ref (TB123...)' : 'e.g. CBE Deposit Slip # or POS Auth'}
+                          className={`form-control ${formErrors.payment_reference ? 'input-error' : ''}`}
+                          placeholder="e.g. Chapa Tx Ref (CHP-123456 or Receipt ID)"
                           value={formData.payment_reference}
-                          onChange={(e) => setFormData({ ...formData, payment_reference: e.target.value })}
+                          onChange={(e) => handleFieldChange('payment_reference', e.target.value)}
                         />
+                        {formErrors.payment_reference && (
+                          <span className="form-error-text">⚠️ {formErrors.payment_reference}</span>
+                        )}
                       </div>
                     )}
                   </>
@@ -1095,27 +1223,30 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
               <h3>Edit Member Profile: {editingMember.name} ({editingMember.member_code})</h3>
               <button type="button" className="btn-close" onClick={() => setEditingMember(null)}>×</button>
             </div>
-            <form onSubmit={handleEditSubmit} className="modal-form">
+            <form onSubmit={handleEditSubmit} className="modal-form" noValidate>
+              <h4 className="form-section-title">Personal Information</h4>
               <div className="form-row-2">
                 <div className="form-group">
                   <label>Full Name *</label>
                   <input
                     type="text"
                     required
-                    className="form-control"
+                    className={`form-control ${formErrors.name ? 'input-error' : ''}`}
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => handleFieldChange('name', e.target.value)}
                   />
+                  {formErrors.name && <span className="form-error-text">⚠️ {formErrors.name}</span>}
                 </div>
                 <div className="form-group">
                   <label>Phone Number *</label>
                   <input
                     type="text"
                     required
-                    className="form-control"
+                    className={`form-control ${formErrors.phone ? 'input-error' : ''}`}
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) => handleFieldChange('phone', e.target.value)}
                   />
+                  {formErrors.phone && <span className="form-error-text">⚠️ {formErrors.phone}</span>}
                 </div>
               </div>
 
@@ -1124,17 +1255,18 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                   <label>Email Address</label>
                   <input
                     type="email"
-                    className="form-control"
+                    className={`form-control ${formErrors.email ? 'input-error' : ''}`}
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => handleFieldChange('email', e.target.value)}
                   />
+                  {formErrors.email && <span className="form-error-text">⚠️ {formErrors.email}</span>}
                 </div>
                 <div className="form-group">
                   <label>Gender</label>
                   <select
                     className="form-control"
                     value={formData.gender}
-                    onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                    onChange={(e) => handleFieldChange('gender', e.target.value)}
                   >
                     <option value="male">Male</option>
                     <option value="female">Female</option>
@@ -1145,32 +1277,111 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
 
               <div className="form-row-2">
                 <div className="form-group">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <label>Date of Birth (Select Date)</label>
+                    {formData.date_of_birth && !formErrors.date_of_birth && (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981' }}>
+                        ✓ Age: {calculateAge(formData.date_of_birth)} yrs
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type="date"
+                      className={`form-control ${formErrors.date_of_birth ? 'input-error' : ''}`}
+                      max={maxDobString}
+                      min="1920-01-01"
+                      value={formData.date_of_birth}
+                      onChange={(e) => handleFieldChange('date_of_birth', e.target.value)}
+                      onClick={(e) => openDatePicker(e.currentTarget)}
+                      style={{ cursor: 'pointer', width: '100%' }}
+                      title="Click to select birth date"
+                    />
+                  </div>
+                  {formData.date_of_birth && !formErrors.date_of_birth && (
+                    <span style={{ fontSize: 11, color: '#0284c7', marginTop: 3, display: 'block' }}>
+                      Selected: {new Date(formData.date_of_birth + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                    </span>
+                  )}
+                  {formErrors.date_of_birth && (
+                    <span className="form-error-text">⚠️ {formErrors.date_of_birth}</span>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label>Blood Type (Optional)</label>
+                  <select
+                    className={`form-control ${formErrors.blood_type ? 'input-error' : ''}`}
+                    value={formData.blood_type}
+                    onChange={(e) => handleFieldChange('blood_type', e.target.value)}
+                  >
+                    <option value="">-- Select Blood Group (Optional) --</option>
+                    {BLOOD_TYPES.map((bt) => (
+                      <option key={bt.value} value={bt.value}>
+                        {bt.value}
+                      </option>
+                    ))}
+                  </select>
+                  {formErrors.blood_type && (
+                    <span className="form-error-text">⚠️ {formErrors.blood_type}</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Residential Address</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="e.g. Woreda 03, Addis Ababa"
+                  value={formData.address}
+                  onChange={(e) => handleFieldChange('address', e.target.value)}
+                />
+              </div>
+
+              <h4 className="form-section-title" style={{ marginTop: 16 }}>Emergency Contact</h4>
+              <div className="form-row-2">
+                <div className="form-group">
                   <label>Emergency Contact Name</label>
                   <input
                     type="text"
                     className="form-control"
                     value={formData.emergency_contact_name}
-                    onChange={(e) => setFormData({ ...formData, emergency_contact_name: e.target.value })}
+                    onChange={(e) => handleFieldChange('emergency_contact_name', e.target.value)}
                   />
                 </div>
                 <div className="form-group">
                   <label>Emergency Contact Phone</label>
                   <input
                     type="text"
-                    className="form-control"
+                    className={`form-control ${formErrors.emergency_contact_phone ? 'input-error' : ''}`}
                     value={formData.emergency_contact_phone}
-                    onChange={(e) => setFormData({ ...formData, emergency_contact_phone: e.target.value })}
+                    onChange={(e) => handleFieldChange('emergency_contact_phone', e.target.value)}
                   />
+                  {formErrors.emergency_contact_phone && (
+                    <span className="form-error-text">⚠️ {formErrors.emergency_contact_phone}</span>
+                  )}
                 </div>
               </div>
 
+              <div className="form-group">
+                <label>Relationship</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="e.g. Spouse, Brother, Parent"
+                  value={formData.emergency_contact_relationship}
+                  onChange={(e) => handleFieldChange('emergency_contact_relationship', e.target.value)}
+                />
+              </div>
+
+              <h4 className="form-section-title" style={{ marginTop: 16 }}>Fitness & Health Notes (Optional)</h4>
               <div className="form-group">
                 <label>Fitness Goals</label>
                 <textarea
                   className="form-control"
                   rows={2}
                   value={formData.fitness_goals}
-                  onChange={(e) => setFormData({ ...formData, fitness_goals: e.target.value })}
+                  onChange={(e) => handleFieldChange('fitness_goals', e.target.value)}
                 />
               </div>
 
@@ -1180,7 +1391,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                   className="form-control"
                   rows={2}
                   value={formData.health_conditions}
-                  onChange={(e) => setFormData({ ...formData, health_conditions: e.target.value })}
+                  onChange={(e) => handleFieldChange('health_conditions', e.target.value)}
                 />
               </div>
 
@@ -1196,6 +1407,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                 <button
                   type="submit"
                   className="btn btn-primary"
+                  style={{ background: '#E67C00', borderColor: '#E67C00' }}
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? 'Saving Changes...' : 'Save Profile Changes'}
@@ -1259,6 +1471,22 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                       <span className="pass-label">Joined Date:</span>
                       <span className="pass-val text-muted">{selectedMember.joined_at}</span>
                     </div>
+                    {selectedMember.date_of_birth && (
+                      <div className="pass-row">
+                        <span className="pass-label">Age / DOB:</span>
+                        <span className="pass-val">
+                          {calculateAge(selectedMember.date_of_birth)} yrs ({selectedMember.date_of_birth.slice(0, 10)})
+                        </span>
+                      </div>
+                    )}
+                    {selectedMember.blood_type && (
+                      <div className="pass-row">
+                        <span className="pass-label">Blood Type:</span>
+                        <span className="pass-val" style={{ color: '#dc2626', fontWeight: 700 }}>
+                          🩸 {selectedMember.blood_type}
+                        </span>
+                      </div>
+                    )}
                     {selectedMember.emergency_contact_name && (
                       <div className="pass-row">
                         <span className="pass-label">Emergency:</span>
