@@ -82,16 +82,16 @@ class MemberController extends Controller
         $this->authorize('create', MemberProfile::class);
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'min:2', 'max:255'],
             'email' => ['nullable', 'string', 'email', 'max:255', 'unique:users,email'],
-            'phone' => ['required', 'string', 'max:30'],
+            'phone' => ['required', 'string', 'min:9', 'max:30'],
             'password' => ['nullable', 'string', 'min:8'],
-            'date_of_birth' => ['nullable', 'date', 'before:today'],
+            'date_of_birth' => ['nullable', 'date', 'before:today', 'after:1920-01-01'],
             'gender' => ['nullable', 'string', 'in:male,female,other'],
-            'blood_type' => ['nullable', 'string', 'max:10'],
+            'blood_type' => ['nullable', 'string', 'in:A+,A-,B+,B-,AB+,AB-,O+,O-'],
             'address' => ['nullable', 'string', 'max:500'],
             'emergency_contact_name' => ['nullable', 'string', 'max:100'],
-            'emergency_contact_phone' => ['nullable', 'string', 'max:30'],
+            'emergency_contact_phone' => ['nullable', 'string', 'min:9', 'max:30'],
             'emergency_contact_relationship' => ['nullable', 'string', 'max:50'],
             'fitness_goals' => ['nullable', 'string', 'max:1000'],
             'health_conditions' => ['nullable', 'string', 'max:1000'],
@@ -180,16 +180,16 @@ class MemberController extends Controller
         $isStaff = $currentUser->hasAnyRole('owner', 'admin', 'receptionist');
 
         $validated = $request->validate([
-            'name' => ['sometimes', 'string', 'max:255'],
+            'name' => ['sometimes', 'string', 'min:2', 'max:255'],
             'email' => ['nullable', 'string', 'email', 'max:255', 'unique:users,email,' . $member->user_id],
-            'phone' => ['sometimes', 'string', 'max:30'],
+            'phone' => ['sometimes', 'string', 'min:9', 'max:30'],
             'status' => ['sometimes', 'string', 'in:active,inactive,suspended'],
-            'date_of_birth' => ['nullable', 'date', 'before:today'],
+            'date_of_birth' => ['nullable', 'date', 'before:today', 'after:1920-01-01'],
             'gender' => ['nullable', 'string', 'in:male,female,other'],
-            'blood_type' => ['nullable', 'string', 'max:10'],
+            'blood_type' => ['nullable', 'string', 'in:A+,A-,B+,B-,AB+,AB-,O+,O-'],
             'address' => ['nullable', 'string', 'max:500'],
             'emergency_contact_name' => ['nullable', 'string', 'max:100'],
-            'emergency_contact_phone' => ['nullable', 'string', 'max:30'],
+            'emergency_contact_phone' => ['nullable', 'string', 'min:9', 'max:30'],
             'emergency_contact_relationship' => ['nullable', 'string', 'max:50'],
             'fitness_goals' => ['nullable', 'string', 'max:1000'],
             'health_conditions' => ['nullable', 'string', 'max:1000'],
