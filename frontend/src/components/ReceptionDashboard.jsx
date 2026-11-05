@@ -43,7 +43,7 @@ const DEFAULT_METRICS = {
   active_members: 850,
   today_check_ins: 76,
   upcoming_classes: 12,
-  revenue_this_month: '$25,430',
+  revenue_this_month: '25,430 ETB',
   signups_kpi: 120,
   attendance_kpi: 450,
 };
@@ -187,7 +187,7 @@ export default function ReceptionDashboard({ onNavigate }) {
       ? data.today_classes.length
       : (data?.stats?.expected_members ?? DEFAULT_METRICS.upcoming_classes),
     revenue_this_month: data?.stats?.revenue_this_month
-      ? `$${Number(data.stats.revenue_this_month).toLocaleString()}`
+      ? `${Number(data.stats.revenue_this_month).toLocaleString()} ETB`
       : DEFAULT_METRICS.revenue_this_month,
     signups_kpi: data?.stats?.signups_last_30_days ?? DEFAULT_METRICS.signups_kpi,
     attendance_kpi: DEFAULT_METRICS.attendance_kpi,
@@ -266,48 +266,32 @@ export default function ReceptionDashboard({ onNavigate }) {
       </section>
 
       {/* =========================================================================
-          ROW 1: 4 CLEAN KPI METRIC CARDS
+          ROW 1: 4 CLEAN KPI METRIC CARDS (Display Only - Not Buttons)
           ========================================================================= */}
       <section className="clean-kpi-grid">
         {/* Card 1: Total Active Members */}
-        <div
-          className="clean-kpi-card"
-          onClick={() => onNavigate('members')}
-          title="Click to view Member Directory"
-        >
+        <div className="clean-kpi-card">
           <span className="kpi-label">Total Active Members</span>
           <div className="kpi-value">{stats.active_members}</div>
           <span className="kpi-trend trend-positive">+5.2% this month</span>
         </div>
 
         {/* Card 2: Checked-In Today */}
-        <div
-          className="clean-kpi-card"
-          onClick={() => onNavigate('attendance')}
-          title="Click to launch Check-in Scanner"
-        >
+        <div className="clean-kpi-card">
           <span className="kpi-label">Checked-In Today</span>
           <div className="kpi-value">{stats.today_check_ins}</div>
           <span className="kpi-trend trend-positive">+10% vs yesterday</span>
         </div>
 
         {/* Card 3: Upcoming Classes */}
-        <div
-          className="clean-kpi-card"
-          onClick={() => onNavigate('classes')}
-          title="Click to view Class Schedule"
-        >
+        <div className="clean-kpi-card">
           <span className="kpi-label">Upcoming Classes</span>
           <div className="kpi-value">{stats.upcoming_classes}</div>
           <span className="kpi-trend trend-negative">-2 from yesterday</span>
         </div>
 
         {/* Card 4: Revenue This Month */}
-        <div
-          className="clean-kpi-card"
-          onClick={() => onNavigate('payments')}
-          title="Click to view Payment Ledger"
-        >
+        <div className="clean-kpi-card">
           <span className="kpi-label">Revenue This Month</span>
           <div className="kpi-value">{stats.revenue_this_month}</div>
           <span className="kpi-trend trend-positive">+8.1% vs last month</span>
