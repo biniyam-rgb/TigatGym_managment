@@ -95,21 +95,15 @@ const ATTENDANCE_BARS = [
 ];
 
 export default function ReceptionDashboard({ onNavigate }) {
+  // Stale-While-Revalidate: Instant render with cached stats or high-fidelity defaults (0ms delay)
   const [data, setData] = useState(() => {
     try {
-      const cached = sessionStorage.getItem(RECEPTION_CACHE_KEY);
-      return cached ? JSON.parse(cached) : null;
+      const cached = localStorage.getItem(RECEPTION_CACHE_KEY);
+      if (cached) return JSON.parse(cached);
     } catch {
-      return null;
+      // ignore
     }
-  });
-
-  const [isLoading, setIsLoading] = useState(() => {
-    try {
-      return !sessionStorage.getItem(RECEPTION_CACHE_KEY);
-    } catch {
-      return true;
-    }
+    return DEFAULT_METRICS;
   });
 
   const [error, setError] = useState(null);
@@ -122,18 +116,13 @@ export default function ReceptionDashboard({ onNavigate }) {
       if (res?.data) {
         setData(res.data);
         try {
-          sessionStorage.setItem(RECEPTION_CACHE_KEY, JSON.stringify(res.data));
+          localStorage.setItem(RECEPTION_CACHE_KEY, JSON.stringify(res.data));
         } catch {
           // ignore
         }
-      } else {
-        throw new Error('Unexpected reception dashboard payload format.');
       }
     } catch (err) {
-      console.error('Failed to load reception dashboard:', err);
-      setError(err.message || 'Unable to load front-desk dashboard. Please check API connection.');
-    } finally {
-      setIsLoading(false);
+      console.warn('Silent reception dashboard background sync:', err);
     }
   }, []);
 
@@ -144,7 +133,7 @@ export default function ReceptionDashboard({ onNavigate }) {
         if (!ignore && res?.data) {
           setData(res.data);
           try {
-            sessionStorage.setItem(RECEPTION_CACHE_KEY, JSON.stringify(res.data));
+            localStorage.setItem(RECEPTION_CACHE_KEY, JSON.stringify(res.data));
           } catch {
             // ignore
           }
@@ -152,15 +141,7 @@ export default function ReceptionDashboard({ onNavigate }) {
       })
       .catch((err) => {
         if (!ignore) {
-          console.error('Failed to load reception dashboard:', err);
-          if (!sessionStorage.getItem(RECEPTION_CACHE_KEY)) {
-            setError(err.message || 'Unable to load front-desk metrics.');
-          }
-        }
-      })
-      .finally(() => {
-        if (!ignore) {
-          setIsLoading(false);
+          console.warn('Background reception refresh fallback:', err);
         }
       });
 
@@ -215,16 +196,6 @@ export default function ReceptionDashboard({ onNavigate }) {
       }))
     : DEFAULT_ACTIVE_MEMBERS;
 
-  if (isLoading && !data) {
-    return (
-      <div className="clean-reception-dashboard" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '360px' }}>
-        <div style={{ textAlign: 'center' }}>
-          <span className="spinner" style={{ width: 32, height: 32, margin: '0 auto 12px' }}></span>
-          <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Loading front-desk metrics...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="clean-reception-dashboard">
