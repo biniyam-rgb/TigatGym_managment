@@ -3,7 +3,9 @@
  * Centralized API client configured with environment variables
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const RAW_API_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api';
+// Resolve localhost to 127.0.0.1 on Windows to bypass the 1s IPv6 (::1) DNS fallback timeout
+const API_BASE_URL = RAW_API_URL.replace('//localhost:', '//127.0.0.1:');
 const TOKEN_KEY = 'gymcore_token';
 
 // In-flight request deduplication and ultra-fast client cache (4s TTL)
