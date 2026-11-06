@@ -1567,9 +1567,9 @@ body.theme-light .sidebar-signout-btn:hover,
 /* Header */
 body.theme-light .gymcore-header,
 [data-theme="light"] .gymcore-header {
-  background: rgba(255, 255, 255, 0.95) !important;
-  border-bottom: 1px solid #e2e8f0 !important;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03) !important;
+  background: #ffffff !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  box-shadow: none !important;
 }
 
 body.theme-light .view-title,
@@ -2078,546 +2078,534 @@ body.theme-light .modal-header .close-btn:hover,
    TIGAT GYM FULL-SCREEN ZERO-SCROLL LOGIN PAGE
    ========================================================================== */
 
+/* ==========================================================================
+   SPLIT-SCREEN MODERN LOGIN LAYOUT (TIGAT GYM & GYMCORE)
+   ========================================================================== */
+
 /* Strictly Static Full-Screen Viewport — Zero Scrolling */
-html:has(.tigat-login-page),
-body:has(.tigat-login-page) {
+html:has(.gymcore-split-page),
+body:has(.gymcore-split-page) {
   overflow: hidden !important;
   height: 100vh !important;
   max-height: 100vh !important;
   margin: 0 !important;
   padding: 0 !important;
+  background: #000000 !important;
 }
 
-.tigat-login-page {
+.gymcore-split-page {
   position: fixed;
   inset: 0;
   width: 100vw;
   height: 100vh;
-  max-width: 100vw;
-  max-height: 100vh;
-  overflow: hidden !important;
-  background: #0a0e17;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  box-sizing: border-box;
-  padding: 12px 16px;
-  z-index: 1000;
+  background: #060709;
+  color: #ffffff;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow: hidden;
   user-select: none;
+  z-index: 1000;
 }
 
-/* Background Athlete Photograph */
-.tigat-login-bg-photo {
+/* Authentic Gym Background Photography */
+.gymcore-split-bg-photo {
   position: absolute;
   inset: 0;
-  background: url('https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&w=1600&q=80') center center / cover no-repeat;
-  filter: grayscale(100%) contrast(115%) brightness(0.92);
-  opacity: 0.75;
+  background: url('/gym-bg.jpg') center center / cover no-repeat;
+  filter: brightness(0.5) contrast(1.18);
+  opacity: 0.95;
   z-index: 0;
   pointer-events: none;
 }
 
-.tigat-login-vignette {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at center, rgba(10, 14, 23, 0.15) 20%, rgba(10, 14, 23, 0.65) 90%);
-  z-index: 1;
-  pointer-events: none;
-}
-
-/* Dynamic Left Angular Slashes */
-.tigat-slash-left-charcoal {
-  position: absolute;
-  left: -140px;
-  top: -80px;
-  width: 240px;
-  height: 130%;
-  background: rgba(30, 41, 59, 0.55);
-  transform: skewX(-32deg);
-  opacity: 0.75;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.tigat-slash-left-red {
-  position: absolute;
-  left: -40px;
-  top: -50px;
-  width: 140px;
-  height: 130%;
-  background: linear-gradient(135deg, #d31826 0%, #a8131d 100%);
-  transform: skewX(-32deg);
-  box-shadow: 0 0 35px rgba(211, 24, 38, 0.5);
-  z-index: 3;
-  pointer-events: none;
-}
-
-.tigat-slash-left-accent-line {
-  position: absolute;
-  left: 105px;
-  top: 0;
-  width: 2px;
-  height: 100%;
-  background: rgba(255, 255, 255, 0.35);
-  transform: skewX(-32deg);
-  z-index: 4;
-  pointer-events: none;
-}
-
-.tigat-slash-left-bottom-red {
-  position: absolute;
-  left: 110px;
-  bottom: 30px;
-  width: 55px;
-  height: 140px;
-  background: #d31826;
-  transform: skewX(-32deg);
-  box-shadow: 0 0 20px rgba(211, 24, 38, 0.4);
-  z-index: 3;
-  pointer-events: none;
-}
-
-/* Dynamic Right Angular Slashes */
-.tigat-slash-right-red {
-  position: absolute;
-  right: 170px;
-  top: -80px;
-  width: 190px;
-  height: 135%;
-  background: linear-gradient(135deg, #d31826 0%, #99131a 100%);
-  transform: skewX(-32deg);
-  box-shadow: 0 0 50px rgba(211, 24, 38, 0.5);
-  z-index: 3;
-  pointer-events: none;
-}
-
-.tigat-slash-right-charcoal {
-  position: absolute;
-  right: 50px;
-  top: -80px;
-  width: 230px;
-  height: 135%;
-  background: rgba(30, 41, 59, 0.55);
-  transform: skewX(-32deg);
-  opacity: 0.75;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.tigat-slash-right-accent-line {
-  position: absolute;
-  right: 365px;
-  top: 0;
-  width: 2px;
-  height: 100%;
-  background: rgba(255, 255, 255, 0.35);
-  transform: skewX(-32deg);
-  z-index: 4;
-  pointer-events: none;
-}
-
-/* Center Login Column - Large & strictly fitted without scrolling */
-.tigat-login-center-column {
+/* Left Brand Hero Column */
+.gymcore-split-left {
+  flex: 1.05;
+  background: linear-gradient(135deg, rgba(8, 9, 13, 0.68) 0%, rgba(20, 13, 7, 0.48) 45%, rgba(6, 7, 10, 0.78) 100%);
   position: relative;
-  z-index: 10;
-  width: 100%;
-  max-width: 430px;
-  padding: 0 16px;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  justify-content: space-between;
+  padding: 56px 64px;
   box-sizing: border-box;
+  overflow: hidden;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 2;
 }
 
-/* Tigat Tiger Logo with Glowing Aura */
-.tigat-logo-wrapper {
-  margin-bottom: 8px;
+/* Radial Orange Ambient Glow on Left Column */
+.gymcore-split-left-glow {
+  position: absolute;
+  right: -80px;
+  top: 45%;
+  transform: translateY(-50%);
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle, rgba(255, 122, 0, 0.22) 0%, rgba(255, 90, 0, 0.08) 45%, transparent 70%);
+  filter: blur(55px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Concentric Rings Watermark */
+.gymcore-split-watermark {
+  position: absolute;
+  right: -110px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 620px;
+  height: 620px;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.75;
+}
+
+/* Top Left Brand Header */
+.gymcore-split-brand-header {
   position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gymcore-split-brand-badge {
+  width: 36px;
+  height: 36px;
+  background: #ff7a00;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(255, 122, 0, 0.5);
 }
 
-.tigat-logo-glow-aura {
-  position: absolute;
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 107, 0, 0.45) 0%, rgba(211, 24, 38, 0.22) 45%, transparent 70%);
-  filter: blur(16px);
-  z-index: 0;
-  pointer-events: none;
-  animation: tigatAuraPulse 3s ease-in-out infinite alternate;
-}
-
-@keyframes tigatAuraPulse {
-  0% {
-    transform: scale(0.95);
-    opacity: 0.75;
-  }
-  100% {
-    transform: scale(1.1);
-    opacity: 1;
-  }
-}
-
-@keyframes scanLine {
-  0% {
-    top: 5%;
-    opacity: 0.8;
-  }
-  50% {
-    top: 95%;
-    opacity: 1;
-  }
-  100% {
-    top: 5%;
-    opacity: 0.8;
-  }
-}
-
-/* Comprehensive Form Validation & Error Highlighting */
-.input-error {
-  border-color: #ef4444 !important;
-  background-color: #fffbfa !important;
-}
-
-.input-error:focus {
-  border-color: #ef4444 !important;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
-}
-
-.form-error-text {
-  color: #ef4444;
-  font-size: 12px;
-  font-weight: 600;
-  margin-top: 4px;
+.gymcore-split-brand-text {
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 2.2px;
+  text-transform: uppercase;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 7px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
 }
 
-.tigat-tiger-crest-img {
-  width: 95px;
-  max-height: 80px;
-  height: auto;
-  object-fit: contain;
-  display: block;
-  position: relative;
-  z-index: 1;
-  filter: drop-shadow(0 0 16px rgba(255, 107, 0, 0.5)) drop-shadow(0 6px 18px rgba(0, 0, 0, 0.9));
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s ease;
-}
-
-.tigat-logo-wrapper:hover .tigat-tiger-crest-img {
-  transform: scale(1.05);
-  filter: drop-shadow(0 0 22px rgba(255, 107, 0, 0.75)) drop-shadow(0 8px 24px rgba(0, 0, 0, 0.95));
-}
-
-/* Title */
-.tigat-login-title {
+.gymcore-split-brand-text .brand-white {
   color: #ffffff;
-  font-size: 19px;
-  font-weight: 800;
-  letter-spacing: 2.8px;
-  text-transform: uppercase;
-  margin: 0 0 10px 0;
-  text-align: center;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.65);
 }
 
-.tigat-login-error {
-  background: rgba(211, 24, 38, 0.3);
-  border: 1px solid rgba(211, 24, 38, 0.6);
-  color: #fca5a5;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  margin-bottom: 8px;
-  width: 100%;
+.gymcore-split-brand-text .brand-orange {
+  color: #ff7a00;
+}
+
+/* Hero Center Motivation Content */
+.gymcore-split-hero {
+  position: relative;
+  z-index: 10;
+  max-width: 480px;
+  margin: auto 0;
+}
+
+.gymcore-split-accent-bar {
+  width: 54px;
+  height: 4.5px;
+  background: #ff7a00;
+  border-radius: 2px;
+  margin-bottom: 26px;
+  box-shadow: 0 2px 10px rgba(255, 122, 0, 0.6);
+}
+
+.gymcore-split-headline {
+  font-size: clamp(32px, 3.8vw, 48px);
+  font-weight: 900;
+  line-height: 1.12;
+  letter-spacing: -0.5px;
+  text-transform: uppercase;
+  color: #ffffff;
+  margin: 0;
+  font-family: 'Oswald', 'Montserrat', 'Inter', sans-serif;
+  text-shadow: 0 3px 20px rgba(0, 0, 0, 0.95), 0 1px 4px rgba(0, 0, 0, 0.95);
+}
+
+.gymcore-split-description {
+  margin-top: 24px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #f1f5f9;
   max-width: 420px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.95);
+}
+
+/* Right Form Column - Solid Dark Obsidian for Crisp Focused Sign-In */
+.gymcore-split-right {
+  flex: 0.95;
+  background: #08080a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 56px;
   box-sizing: border-box;
-  text-align: left;
+  position: relative;
+  z-index: 2;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.gymcore-split-card {
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* GymCore Header on Right Column */
+.gymcore-split-app-header {
+  margin-bottom: 20px;
+}
+
+.gymcore-split-app-name {
+  font-size: 26px;
+  font-weight: 900;
+  color: #ff7a00;
+  letter-spacing: 0.5px;
+  font-family: 'Oswald', 'Inter', sans-serif;
+  line-height: 1;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.95);
+}
+
+.gymcore-split-app-sub {
+  font-size: 11px;
+  font-weight: 800;
+  color: #ff7a00;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin-top: 5px;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.95);
+}
+
+.gymcore-split-welcome {
+  font-size: clamp(22px, 2.3vw, 28px);
+  font-weight: 900;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 6px 0;
+  font-family: 'Oswald', 'Montserrat', 'Inter', sans-serif;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95);
+}
+
+.gymcore-split-subtitle {
+  font-size: 13px;
+  color: #f1f5f9;
+  margin: 0 0 24px 0;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.95);
+}
+
+/* Error message banner */
+.gymcore-split-error {
+  background: rgba(239, 68, 68, 0.25);
+  border: 1px solid rgba(239, 68, 68, 0.6);
+  color: #ffffff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  margin-bottom: 18px;
   display: flex;
   align-items: center;
   gap: 8px;
+  backdrop-filter: blur(8px);
 }
 
-/* Translucent Frosted Glass Form Card with Ultra-Smooth Rounded Border */
-.tigat-form-card {
-  width: 100%;
-  max-width: 420px;
-  background: rgba(18, 24, 38, 0.58);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
-  border: 1.5px solid rgba(255, 255, 255, 0.22);
-  border-radius: 22px;
-  padding: 22px 28px 20px 28px;
-  box-shadow:
-    0 24px 60px -15px rgba(0, 0, 0, 0.65),
-    0 0 0 1px rgba(255, 255, 255, 0.10),
-    inset 0 1px 2px 0 rgba(255, 255, 255, 0.35),
-    inset 0 -1px 2px 0 rgba(0, 0, 0, 0.25);
+/* Form inputs */
+.gymcore-split-form {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  box-sizing: border-box;
-  text-align: left;
-  transition: border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.tigat-form-card:hover {
-  border-color: rgba(255, 255, 255, 0.32);
-  box-shadow:
-    0 28px 70px -15px rgba(0, 0, 0, 0.75),
-    0 0 0 1px rgba(255, 255, 255, 0.16),
-    inset 0 1px 2px 0 rgba(255, 255, 255, 0.45);
-}
-
-.tigat-inputs-container {
+.gymcore-field-group {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  width: 100%;
+  gap: 6px;
 }
 
-.tigat-floating-field {
+.gymcore-field-label {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.2px;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.95);
+}
+
+/* Sleek Dark Input Boxes with Crisp Orange Border matching user reference */
+.gymcore-input-box {
   position: relative;
-  width: 100%;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  background: #11141d !important;
+  border: 1.5px solid #ff7a00 !important;
+  border-radius: 8px;
+  height: 48px;
+  padding: 0 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
 }
 
-.tigat-floating-input {
-  width: 100% !important;
-  box-sizing: border-box !important;
+.gymcore-input-box:hover {
+  border-color: #ff8a00 !important;
+  background: #151924 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 122, 0, 0.25) !important;
+}
+
+.gymcore-input-box:focus-within {
+  border-color: #ff7a00 !important;
+  background: #171c28 !important;
+  box-shadow: 0 0 0 3px rgba(255, 122, 0, 0.32), 0 6px 24px rgba(0, 0, 0, 0.55) !important;
+}
+
+.gymcore-input-icon {
+  color: #ff7a00 !important;
+  display: flex;
+  align-items: center;
+  margin-right: 14px;
+  flex-shrink: 0;
+}
+
+.gymcore-input-box:focus-within .gymcore-input-icon {
+  color: #ff8a00 !important;
+}
+
+.gymcore-native-input {
+  flex: 1;
   background: transparent !important;
   border: none !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.6) !important;
-  border-radius: 0 !important;
-  color: #ffffff !important;
-  font-size: 15.5px !important;
-  font-weight: 400 !important;
-  letter-spacing: 0.35px !important;
-  padding: 6px 0 8px 0 !important;
   outline: none !important;
-  box-shadow: none !important;
-  transition: border-bottom-color 0.25s ease, box-shadow 0.25s ease;
-  line-height: 1.4 !important;
+  color: #ffffff !important;
+  font-size: 14.5px !important;
+  font-weight: 500 !important;
+  padding: 0 !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
-.tigat-floating-input.tigat-password-input {
-  padding-right: 32px !important;
+.gymcore-native-input::placeholder {
+  color: #64748b !important;
+  font-weight: 400 !important;
 }
 
-.tigat-floating-input:focus {
-  border-bottom-color: #ffffff !important;
-  box-shadow: 0 1px 0 0 #ffffff !important;
-}
-
-.tigat-floating-label {
-  position: absolute;
-  left: 0;
-  top: 6px;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 15.5px;
-  font-weight: 400;
-  letter-spacing: 0.35px;
-  pointer-events: none;
-  transform-origin: left top;
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  user-select: none;
-}
-
-.tigat-floating-input:focus ~ .tigat-floating-label,
-.tigat-floating-input:not(:placeholder-shown) ~ .tigat-floating-label,
-.tigat-floating-field.has-value .tigat-floating-label,
-.tigat-floating-input:-webkit-autofill ~ .tigat-floating-label,
-.tigat-floating-input:autofill ~ .tigat-floating-label {
-  transform: translateY(-20px) scale(0.78);
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 500;
-}
-
-.tigat-floating-input:-webkit-autofill,
-.tigat-floating-input:-webkit-autofill:hover,
-.tigat-floating-input:-webkit-autofill:focus {
-  -webkit-text-fill-color: #ffffff !important;
-  -webkit-box-shadow: 0 0 0px 1000px rgba(20, 20, 25, 0.95) inset !important;
-  transition: background-color 5000s ease-in-out 0s;
-}
-
-/* Password Eye Toggle: hidden when empty to match exact resting image, appears on focus or typing */
-.tigat-pwd-toggle-btn {
-  position: absolute;
-  right: 0;
-  bottom: 8px;
+.gymcore-pwd-toggle {
   background: none;
   border: none;
+  color: #ff7a00;
   cursor: pointer;
   padding: 4px;
-  color: rgba(255, 255, 255, 0.75);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease, color 0.2s ease, transform 0.15s ease;
+  display: flex;
+  align-items: center;
+  transition: all 0.15s ease;
+}
+
+.gymcore-pwd-toggle:hover {
+  color: #ff9100;
+  transform: scale(1.05);
+}
+
+/* Remember me & Forgot options */
+.gymcore-form-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  margin-top: 2px;
+}
+
+.gymcore-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffffff;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.95);
+}
+
+.gymcore-checkbox-label input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: #ff7a00;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.gymcore-forgot-link {
+  background: none;
+  border: none;
+  color: #f1f5f9;
+  font-size: 12.5px;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s ease;
+  font-weight: 600;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.95);
+}
+
+.gymcore-forgot-link:hover {
+  color: #ff7a00;
+  text-decoration: underline;
+}
+
+/* SIGN IN Button */
+.gymcore-signin-btn {
+  background: #ff7a00;
+  color: #000000;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  height: 45px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 6px;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 20px rgba(255, 122, 0, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
-  line-height: 1;
 }
 
-.tigat-floating-field.has-value .tigat-pwd-toggle-btn,
-.tigat-floating-field:focus-within .tigat-pwd-toggle-btn {
-  opacity: 0.75;
-  pointer-events: auto;
-}
-
-.tigat-pwd-toggle-btn:hover {
-  opacity: 1;
-  color: #ffffff;
-  transform: scale(1.08);
-}
-
-/* Forgot password right-aligned link */
-.tigat-forgot-wrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: -12px;
-}
-
-.tigat-forgot-btn {
-  background: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 12.5px;
-  font-weight: 400;
-  cursor: pointer;
-  padding: 0;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  transition: color 0.2s ease;
-  letter-spacing: 0.2px;
-}
-
-.tigat-forgot-btn:hover {
-  color: #ffffff;
-}
-
-/* Solid Pure White Rectangular LOGIN Button with Smooth Corners */
-.tigat-login-submit-btn {
-  background: #ffffff !important;
-  color: #000000 !important;
-  border: none !important;
-  border-radius: 8px !important;
-  padding: 11px 20px !important;
-  font-size: 14.5px !important;
-  font-weight: 800 !important;
-  letter-spacing: 1.5px !important;
-  text-transform: uppercase !important;
-  cursor: pointer !important;
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  margin-top: 4px !important;
-  width: 100% !important;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35) !important;
-  height: 44px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-.tigat-login-submit-btn:hover {
-  background: #f8fafc !important;
-  box-shadow: 0 6px 24px rgba(255, 255, 255, 0.45) !important;
+.gymcore-signin-btn:hover {
+  background: #ff8a00;
+  box-shadow: 0 6px 26px rgba(255, 122, 0, 0.65);
   transform: translateY(-1px);
 }
 
-.tigat-login-submit-btn:active {
+.gymcore-signin-btn:active {
   transform: translateY(0);
 }
 
-.tigat-login-submit-btn:disabled {
-  opacity: 0.6;
+.gymcore-signin-btn:disabled {
+  opacity: 0.65;
   cursor: not-allowed;
 }
 
-/* Prominently Visible Quick Demo Sign-In Dock */
-.tigat-demo-dock {
-  margin-top: 12px;
+/* Quick Demo Role Dock - Symmetrical & Well-Organized Grid */
+.gymcore-demo-dock {
+  margin-top: 18px;
+  padding: 12px 14px;
+  background: #0d1017;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
+  gap: 10px;
+}
+
+.gymcore-demo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gymcore-demo-title {
+  display: flex;
   align-items: center;
   gap: 6px;
-  width: 100%;
-  max-width: 420px;
-}
-
-.tigat-demo-label {
   font-size: 10.5px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.85);
+  font-weight: 800;
+  color: #e2e8f0;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
-.tigat-demo-pills {
-  display: flex;
+.gymcore-demo-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #ff7a00;
+  background: rgba(255, 122, 0, 0.12);
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+}
+
+.gymcore-demo-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
   gap: 6px;
-  flex-wrap: wrap;
-  justify-content: center;
   width: 100%;
 }
 
-.tigat-demo-pill {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #ffffff;
-  padding: 5px 11px;
-  border-radius: 16px;
+.gymcore-demo-btn {
+  background: #131722;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  height: 35px;
+  padding: 0 4px;
+  border-radius: 6px;
   font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-.tigat-demo-pill:hover {
-  background: rgba(255, 138, 0, 0.25);
-  border-color: #ff8a00;
-  color: #ffffff;
-  transform: translateY(-1.5px);
-  box-shadow: 0 4px 14px rgba(255, 138, 0, 0.35);
-}
-
-.tigat-demo-pill.pill-active {
-  background: rgba(255, 138, 0, 0.28);
-  border-color: #ff8a00;
-  box-shadow: 0 0 14px rgba(255, 138, 0, 0.45);
-  color: #ffffff;
-}
-
-.demo-pill-icon {
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  line-height: 1;
+  gap: 5px;
+  user-select: none;
 }
 
-@media (max-width: 640px) {
-  .tigat-slash-left-charcoal,
-  .tigat-slash-left-red,
-  .tigat-slash-left-accent-line,
-  .tigat-slash-left-bottom-red,
-  .tigat-slash-right-charcoal,
-  .tigat-slash-right-red,
-  .tigat-slash-right-accent-line {
-    opacity: 0.35;
+.gymcore-demo-btn.col-span-2 {
+  grid-column: span 2;
+}
+
+.gymcore-demo-btn.col-span-3 {
+  grid-column: span 3;
+}
+
+.gymcore-demo-btn .demo-btn-icon {
+  color: #ff7a00;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.gymcore-demo-btn:hover {
+  border-color: rgba(255, 122, 0, 0.6);
+  background: #1a2030;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.gymcore-demo-btn.btn-active {
+  border-color: #ff7a00;
+  background: rgba(255, 122, 0, 0.18);
+  color: #ff7a00;
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(255, 122, 0, 0.2);
+}
+
+.gymcore-demo-btn.btn-active .demo-btn-icon {
+  color: #ff8a00;
+}
+
+/* Responsive: Collapse to stacked on smaller viewports */
+@media (max-width: 900px) {
+  .gymcore-split-page {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .gymcore-split-left {
+    padding: 36px 24px;
+    flex: none;
+  }
+  .gymcore-split-hero {
+    margin: 24px 0;
+  }
+  .gymcore-split-right {
+    padding: 36px 24px;
+    flex: none;
   }
 }
 
@@ -4314,7 +4302,7 @@ body {
 
 /* Sidebar */
 .gymcore-sidebar {
-  width: 250px;
+  width: 220px;
   background-color: var(--gym-sidebar-bg);
   border-right: 1px solid var(--gym-card-border);
   display: flex;
@@ -4328,7 +4316,7 @@ body {
 }
 
 .sidebar-brand {
-  padding: 22px 18px 18px 18px;
+  padding: 16px 16px 14px 16px;
   display: block;
   border-bottom: 1px solid var(--gym-card-border);
 }
@@ -4336,26 +4324,26 @@ body {
 .brand-sidebar-lockup {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   cursor: pointer;
 }
 
 .brand-orange-tile {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   background: linear-gradient(135deg, #ff7a00 0%, #ea580c 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px rgba(255, 122, 0, 0.4);
+  box-shadow: 0 3px 12px rgba(255, 122, 0, 0.35);
   flex-shrink: 0;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
 }
 
 .brand-sidebar-lockup:hover .brand-orange-tile {
   transform: scale(1.05);
-  box-shadow: 0 6px 20px rgba(255, 122, 0, 0.55);
+  box-shadow: 0 4px 16px rgba(255, 122, 0, 0.45);
 }
 
 .brand-title-wrap {
@@ -4367,11 +4355,11 @@ body {
 .brand-title-line {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .brand-title-bold {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: #ffffff;
@@ -4385,69 +4373,69 @@ body {
 }
 
 .brand-subtext-amharic {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: #ff8a00;
   letter-spacing: 0.05em;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .brand-logo-glow {
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   background: linear-gradient(135deg, #ff8a00, #ea580c);
   color: #fff;
-  border-radius: 12px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
-  font-size: 18px;
-  box-shadow: 0 4px 18px rgba(255, 138, 0, 0.4);
+  font-size: 16px;
+  box-shadow: 0 3px 12px rgba(255, 138, 0, 0.35);
   letter-spacing: 0.5px;
 }
 
 .brand-name {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
   letter-spacing: 0.5px;
   color: #fff;
 }
 
 .brand-tagline {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--gym-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .sidebar-nav {
-  padding: 16px 12px;
+  padding: 14px 12px;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .nav-group-title {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
   color: #64748b;
   letter-spacing: 1px;
-  padding: 8px 12px 4px 12px;
+  padding: 6px 10px 3px 10px;
 }
 
 .nav-item-btn {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 11px 16px;
-  border-radius: 12px;
+  gap: 11px;
+  padding: 9px 13px;
+  border-radius: 9px;
   background: transparent;
   border: none;
   color: #94a3b8;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -4474,8 +4462,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
   flex-shrink: 0;
   color: inherit;
   transition: transform 0.2s ease;
@@ -4496,11 +4484,11 @@ body {
 
 /* Sidebar Footer matching reference image */
 .sidebar-footer {
-  padding: 16px 14px;
+  padding: 14px 12px;
   border-top: 1px solid var(--gym-card-border);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   margin-top: auto;
 }
 
@@ -4578,13 +4566,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 13px;
-  padding: 10px 16px;
-  border-radius: 12px;
+  gap: 11px;
+  padding: 9px 13px;
+  border-radius: 9px;
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: #94a3b8;
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -4599,11 +4587,11 @@ body {
 
 /* Main Content Wrapper - PC Screen Fit */
 .gymcore-main-wrapper {
-  margin-left: 250px;
+  margin-left: 220px;
   flex: 1;
   min-width: 0;
-  width: calc(100% - 250px);
-  max-width: calc(100% - 250px);
+  width: calc(100% - 220px);
+  max-width: calc(100% - 220px);
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -6620,11 +6608,11 @@ body.theme-dark, [data-theme="dark"] body {
 }
 
 .gymcore-main-wrapper {
-  margin-left: 250px;
+  margin-left: 220px;
   flex: 1;
   min-width: 0;
-  width: calc(100% - 250px) !important;
-  max-width: calc(100% - 250px) !important;
+  width: calc(100% - 220px) !important;
+  max-width: calc(100% - 220px) !important;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -6647,7 +6635,7 @@ body.theme-dark .gymcore-content-body,
 }
 
 .gymcore-content-body {
-  padding: 24px 32px 48px 32px;
+  padding: 14px 24px 28px 24px;
   flex: 1;
   width: 100% !important;
   max-width: 100% !important;
@@ -6660,9 +6648,9 @@ body.theme-dark .gymcore-content-body,
    ========================================================================== */
 
 .gymcore-header {
-  height: 64px;
-  min-height: 64px;
-  padding: 0 32px;
+  height: 46px;
+  min-height: 46px;
+  padding: 0 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -6676,20 +6664,20 @@ body.theme-dark .gymcore-content-body,
 
 body.theme-light .gymcore-header,
 [data-theme="light"] .gymcore-header {
-  background: rgba(255, 255, 255, 0.94) !important;
+  background: #ffffff !important;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid #f1f5f9 !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+  box-shadow: none !important;
 }
 
 body.theme-dark .gymcore-header,
 [data-theme="dark"] .gymcore-header {
-  background: rgba(15, 23, 42, 0.92) !important;
+  background: rgba(15, 23, 42, 0.95) !important;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
+  box-shadow: none !important;
 }
 
 .header-title-block {
@@ -6700,9 +6688,9 @@ body.theme-dark .gymcore-header,
 
 .view-title {
   margin: 0;
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 800;
-  letter-spacing: -0.35px;
+  letter-spacing: -0.2px;
   line-height: 1.2;
 }
 
@@ -6716,7 +6704,7 @@ body.theme-dark .view-title {
 
 .view-subtitle {
   margin: 2px 0 0 0;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   color: #64748b;
   letter-spacing: 0.1px;
@@ -6725,7 +6713,7 @@ body.theme-dark .view-title {
 .header-right-tools {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 /* Header Brand Emblem Badge (Single Gym - No Branch) */
@@ -6894,15 +6882,15 @@ body.theme-dark .header-divider,
 
 .header-tool-btn {
   position: relative;
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  min-height: 40px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   background: #ffffff;
@@ -6937,10 +6925,10 @@ body.theme-dark .header-tool-btn:hover,
 
 .header-avatar-btn {
   position: relative;
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  min-height: 40px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
   padding: 0;
   border-radius: 50%;
   border: 2px solid #ffffff;
@@ -10633,9 +10621,9 @@ body.theme-light .notif-item-dismiss:hover,
 .clean-reception-dashboard {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 14px;
   width: 100%;
-  max-width: 1360px;
+  max-width: 1240px;
   margin: 0 auto;
   box-sizing: border-box;
   animation: cleanFadeIn 0.25s ease-out;
@@ -10651,22 +10639,22 @@ body.theme-light .notif-item-dismiss:hover,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 18px;
+  padding: 8px 14px;
   background: #fef2f2;
   border: 1px solid #fecaca;
   color: #b91c1c;
-  border-radius: 12px;
-  font-size: 13.5px;
+  border-radius: 9px;
+  font-size: 12.5px;
   font-weight: 500;
 }
 
 .btn-clean-retry {
-  padding: 4px 12px;
+  padding: 3px 10px;
   background: #ef4444;
   color: #fff;
   border: none;
-  border-radius: 6px;
-  font-size: 12px;
+  border-radius: 5px;
+  font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -10676,15 +10664,16 @@ body.theme-light .notif-item-dismiss:hover,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-top: 4px;
+  gap: 10px;
+  margin-top: 0;
+  margin-bottom: 12px;
 }
 
 .clean-dash-title {
-  font-size: 24px;
+  font-size: 16px;
   font-weight: 800;
   color: #111827;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.02em;
   margin: 0;
 }
 
@@ -10696,19 +10685,20 @@ body.theme-dark .clean-dash-title,
 .clean-dash-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .btn-clean-schedule {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border-radius: 10px;
+  gap: 6px;
+  height: 31px;
+  padding: 4px 12px;
+  border-radius: 7px;
   background: #ffffff;
   border: 1px solid #d1d5db;
   color: #111827;
-  font-size: 13.5px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -10737,13 +10727,14 @@ body.theme-dark .btn-clean-schedule:hover,
 .btn-clean-add-member {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  border-radius: 10px;
+  gap: 6px;
+  height: 31px;
+  padding: 4px 14px;
+  border-radius: 7px;
   background: #ff8a00;
   border: none;
   color: #ffffff;
-  font-size: 13.5px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -10760,7 +10751,7 @@ body.theme-dark .btn-clean-schedule:hover,
 .clean-kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 18px;
+  gap: 12px;
 }
 
 @media (max-width: 1080px) {
@@ -10778,8 +10769,8 @@ body.theme-dark .btn-clean-schedule:hover,
 .clean-kpi-card {
   background: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  padding: 22px 24px;
+  border-radius: 12px;
+  padding: 12px 16px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -10806,10 +10797,10 @@ body.theme-dark .clean-kpi-card:hover,
 }
 
 .kpi-label {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
   color: #4b5563;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 body.theme-dark .kpi-label,
@@ -10818,12 +10809,12 @@ body.theme-dark .kpi-label,
 }
 
 .kpi-value {
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 800;
   color: #111827;
   letter-spacing: -0.025em;
   line-height: 1.1;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 body.theme-dark .kpi-value,
@@ -10832,7 +10823,7 @@ body.theme-dark .kpi-value,
 }
 
 .kpi-trend {
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 600;
 }
 
@@ -10848,7 +10839,7 @@ body.theme-dark .kpi-value,
 .clean-charts-grid {
   display: grid;
   grid-template-columns: 1.8fr 1fr;
-  gap: 18px;
+  gap: 12px;
 }
 
 @media (max-width: 1024px) {
@@ -10860,8 +10851,8 @@ body.theme-dark .kpi-value,
 .clean-chart-card {
   background: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  padding: 22px 24px;
+  border-radius: 12px;
+  padding: 12px 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
   display: flex;
   flex-direction: column;
@@ -10876,14 +10867,14 @@ body.theme-dark .clean-chart-card,
 .chart-card-header {
   display: flex;
   flex-direction: column;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .chart-title {
-  font-size: 15px;
+  font-size: 13.5px;
   font-weight: 600;
   color: #111827;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 body.theme-dark .chart-title,
@@ -10894,12 +10885,12 @@ body.theme-dark .chart-title,
 .chart-kpi-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 2px;
 }
 
 .chart-kpi-number {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 800;
   color: #111827;
   letter-spacing: -0.02em;
@@ -10913,10 +10904,10 @@ body.theme-dark .chart-kpi-number,
 .chart-kpi-badge {
   background: #dcfce7;
   color: #15803d;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 12px;
+  padding: 1px 6px;
+  border-radius: 10px;
 }
 
 body.theme-dark .chart-kpi-badge,
@@ -10926,7 +10917,7 @@ body.theme-dark .chart-kpi-badge,
 }
 
 .chart-sub-period {
-  font-size: 13px;
+  font-size: 11.5px;
   color: #6b7280;
   font-weight: 500;
 }
@@ -10940,14 +10931,14 @@ body.theme-dark .chart-sub-period,
 .spline-chart-container {
   position: relative;
   width: 100%;
-  margin-top: 14px;
+  margin-top: 6px;
   display: flex;
   flex-direction: column;
 }
 
 .spline-svg {
   width: 100%;
-  height: 130px;
+  height: 75px;
   display: block;
   overflow: visible;
 }
@@ -10955,9 +10946,9 @@ body.theme-dark .chart-sub-period,
 .chart-week-labels {
   display: flex;
   justify-content: space-between;
-  padding: 10px 42px 0;
+  padding: 6px 36px 0;
   color: #6b7280;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -10968,8 +10959,8 @@ body.theme-dark .chart-week-labels,
 
 /* Bar Chart Graphic */
 .bar-chart-container {
-  height: 154px;
-  margin-top: 14px;
+  height: 98px;
+  margin-top: 6px;
   display: flex;
   align-items: flex-end;
   width: 100%;
@@ -10981,14 +10972,14 @@ body.theme-dark .chart-week-labels,
   align-items: flex-end;
   width: 100%;
   height: 100%;
-  gap: 12px;
+  gap: 10px;
 }
 
 .bar-column-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex: 1;
   height: 100%;
   justify-content: flex-end;
@@ -10997,8 +10988,8 @@ body.theme-dark .chart-week-labels,
 }
 
 .bar-track {
-  width: 32px;
-  height: 110px;
+  width: 28px;
+  height: 72px;
   display: flex;
   align-items: flex-end;
   position: relative;
@@ -11007,7 +10998,7 @@ body.theme-dark .chart-week-labels,
 .bar-fill {
   width: 100%;
   background: #ffedd5;
-  border-radius: 8px 8px 6px 6px;
+  border-radius: 6px 6px 4px 4px;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -11020,20 +11011,20 @@ body.theme-dark .bar-fill,
 .bar-hovered {
   background: #ff8a00 !important;
   transform: scaleY(1.02);
-  filter: drop-shadow(0 4px 8px rgba(255, 138, 0, 0.35));
+  filter: drop-shadow(0 3px 6px rgba(255, 138, 0, 0.35));
 }
 
 .bar-tooltip {
   position: absolute;
-  top: -26px;
+  top: -24px;
   left: 50%;
   transform: translateX(-50%);
   background: #111827;
   color: #ffffff;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 5px;
+  padding: 2px 6px;
+  border-radius: 4px;
   white-space: nowrap;
   pointer-events: none;
   z-index: 10;
@@ -11041,7 +11032,7 @@ body.theme-dark .bar-fill,
 }
 
 .bar-category-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: #6b7280;
 }
@@ -11055,7 +11046,7 @@ body.theme-dark .bar-category-label,
 .clean-bottom-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 18px;
+  gap: 12px;
 }
 
 @media (max-width: 900px) {
@@ -11067,8 +11058,8 @@ body.theme-dark .bar-category-label,
 .clean-list-card {
   background: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  padding: 22px 24px;
+  border-radius: 12px;
+  padding: 12px 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
@@ -11082,11 +11073,11 @@ body.theme-dark .clean-list-card,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .list-card-title {
-  font-size: 16px;
+  font-size: 13.5px;
   font-weight: 700;
   color: #111827;
   margin: 0;
@@ -11101,11 +11092,11 @@ body.theme-dark .list-card-title,
   background: none;
   border: none;
   color: #ff8a00;
-  font-size: 13.5px;
+  font-size: 11.5px;
   font-weight: 700;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 2px 6px;
+  border-radius: 5px;
   transition: all 0.2s ease;
 }
 
@@ -11129,14 +11120,14 @@ body.theme-dark .list-card-view-all:hover,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 13px 0;
+  padding: 6px 0;
   border-bottom: 1px solid #f3f4f6;
   transition: background-color 0.15s ease;
 }
 
 .clean-class-row:last-child {
   border-bottom: none;
-  padding-bottom: 4px;
+  padding-bottom: 2px;
 }
 
 body.theme-dark .clean-class-row,
@@ -11147,11 +11138,11 @@ body.theme-dark .clean-class-row,
 .class-row-meta {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .class-row-title {
-  font-size: 14px;
+  font-size: 12.5px;
   font-weight: 700;
   color: #111827;
 }
@@ -11162,7 +11153,7 @@ body.theme-dark .class-row-title,
 }
 
 .class-row-sub {
-  font-size: 13px;
+  font-size: 11px;
   color: #6b7280;
   font-weight: 500;
 }
@@ -11175,8 +11166,8 @@ body.theme-dark .class-row-sub,
 .class-capacity-counter {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13.5px;
+  gap: 5px;
+  font-size: 12px;
   font-weight: 600;
   color: #374151;
 }
@@ -11191,13 +11182,13 @@ body.theme-dark .class-capacity-counter,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 0;
+  padding: 6px 0;
   border-bottom: 1px solid #f3f4f6;
 }
 
 .clean-member-row:last-child {
   border-bottom: none;
-  padding-bottom: 4px;
+  padding-bottom: 2px;
 }
 
 body.theme-dark .clean-member-row,
@@ -11208,12 +11199,12 @@ body.theme-dark .clean-member-row,
 .member-row-profile {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .member-avatar-img {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   object-fit: cover;
   border: 1px solid #e5e7eb;
@@ -11225,19 +11216,19 @@ body.theme-dark .member-avatar-img,
 }
 
 .member-avatar-fallback {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 11px;
 }
 
 .member-profile-name {
-  font-size: 14px;
+  font-size: 12.5px;
   font-weight: 700;
   color: #111827;
 }
@@ -11248,7 +11239,7 @@ body.theme-dark .member-profile-name,
 }
 
 .member-checkin-time {
-  font-size: 13px;
+  font-size: 11px;
   color: #6b7280;
   font-weight: 500;
 }
@@ -11264,22 +11255,24 @@ body.theme-light .header-search-wrapper,
 [data-theme="light"] .header-search-wrapper {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: #ffffff !important;
   border: 1px solid #e2e8f0 !important;
-  border-radius: 12px !important;
-  padding: 0 16px;
-  height: 40px;
-  width: 280px;
+  border-radius: 8px !important;
+  padding: 0 10px;
+  height: 32px;
+  width: 220px;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   color: #94a3b8 !important;
   box-sizing: border-box;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
 }
 
 .header-search-wrapper svg {
   flex-shrink: 0;
   color: inherit;
+  width: 14px;
+  height: 14px;
 }
 
 .header-search-wrapper:hover,
@@ -11287,7 +11280,7 @@ body.theme-light .header-search-wrapper:hover,
 [data-theme="light"] .header-search-wrapper:hover {
   background: #ffffff !important;
   border-color: #cbd5e1 !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05) !important;
 }
 
 .header-search-wrapper:focus-within,
@@ -11295,8 +11288,8 @@ body.theme-light .header-search-wrapper:focus-within,
 [data-theme="light"] .header-search-wrapper:focus-within {
   background: #ffffff !important;
   border-color: #E67C00 !important;
-  box-shadow: 0 0 0 3px rgba(230, 124, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
-  width: 320px;
+  box-shadow: 0 0 0 3px rgba(230, 124, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+  width: 260px;
   color: #E67C00 !important;
 }
 
@@ -11331,7 +11324,7 @@ body.theme-light .header-search-input,
   border: none !important;
   outline: none !important;
   box-shadow: none !important;
-  font-size: 13.5px;
+  font-size: 12px;
   font-weight: 500;
   color: #0f172a !important;
   width: 100%;
@@ -11423,4 +11416,180 @@ body.theme-light .nav-item-btn:active .nav-icon,
 .nav-item-btn:active .nav-icon {
   color: #ffffff !important;
   filter: none !important;
+}
+
+/* ==========================================================================
+   NON-SCROLLABLE ONE-PAGE MEMBER REGISTRATION MODAL
+   ========================================================================== */
+
+.modal-card-register-fit {
+  max-width: 1040px !important;
+  width: 95vw !important;
+  max-height: 94vh !important;
+  overflow: hidden !important;
+  padding: 14px 20px 12px 20px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-sizing: border-box !important;
+}
+
+.modal-header-compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+body.theme-dark .modal-header-compact {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.modal-header-compact h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+}
+
+.reg-form-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.reg-form-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reg-section-badge {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #ea580c;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  margin-bottom: 1px;
+}
+
+.reg-form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.reg-form-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+
+.reg-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reg-form-group label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #334155;
+  margin: 0;
+  line-height: 1.2;
+}
+
+body.theme-dark .reg-form-group label {
+  color: #cbd5e1;
+}
+
+.reg-control {
+  height: 31px !important;
+  min-height: 31px !important;
+  padding: 2px 8px !important;
+  font-size: 12px !important;
+  border-radius: 6px !important;
+  border: 1px solid #cbd5e1 !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  transition: all 0.15s ease;
+  line-height: normal !important;
+}
+
+textarea.reg-control {
+  height: 42px !important;
+  min-height: 36px !important;
+  padding: 4px 8px !important;
+  resize: none !important;
+  line-height: 1.3 !important;
+}
+
+body.theme-dark .reg-control {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+.reg-control:focus {
+  border-color: #E67C00 !important;
+  box-shadow: 0 0 0 2px rgba(230, 124, 0, 0.18) !important;
+  outline: none !important;
+}
+
+.reg-control.input-error {
+  border-color: #ef4444 !important;
+  background: #fff5f5 !important;
+}
+
+.reg-payment-card {
+  background: #fffaf5;
+  border: 1.5px solid #fed7aa;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+body.theme-dark .reg-payment-card {
+  background: rgba(234, 88, 12, 0.08);
+  border-color: rgba(234, 88, 12, 0.25);
+}
+
+.reg-summary-pill {
+  background: #ffffff;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+}
+
+body.theme-dark .reg-summary-pill {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.reg-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #f1f5f9;
+}
+
+body.theme-dark .reg-actions-row {
+  border-top-color: rgba(255, 255, 255, 0.08);
 }

@@ -68,18 +68,12 @@ function GymCoreApp() {
   }
 
   // Titles mapping based on active view (clean SaaS header titles with no dense text)
-  const isReceptionist = primaryRole === 'receptionist';
-  const receptionistFirstName = user?.name ? user.name.split(' ')[0] : 'Alex';
+  const firstName = user?.name ? user.name.split(' ')[0] : 'Sara';
   const viewTitles = {
-    dashboard: isReceptionist
-      ? {
-          title: `Welcome back, ${receptionistFirstName}!`,
-          subtitle: '',
-        }
-      : {
-          title: 'Dashboard Overview',
-          subtitle: '',
-        },
+    dashboard: {
+      title: `Welcome back, ${firstName}!`,
+      subtitle: '',
+    },
     members: { title: 'Members', subtitle: '' },
     memberships: { title: 'Membership Plans', subtitle: '' },
     payments: { title: 'Payments', subtitle: '' },

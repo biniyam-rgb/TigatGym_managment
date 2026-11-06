@@ -37,9 +37,10 @@ export default function Header({
   onNavigate,
 }) {
   const { user, primaryRole } = useAuth();
-  const [userAvatar, setUserAvatar] = useState(
-    user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80'
-  );
+  const [imageError, setImageError] = useState(false);
+  const userAvatar = !imageError
+    ? (user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80')
+    : null;
 
   // Live Notifications Dropdown Popover State
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -252,7 +253,7 @@ export default function Header({
               src={userAvatar}
               alt={displayName}
               className="header-avatar-img"
-              onError={() => setUserAvatar(null)}
+              onError={() => setImageError(true)}
             />
           ) : (
             <div className="header-avatar-fallback">{initial}</div>
