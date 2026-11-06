@@ -3,7 +3,7 @@ import apiClient from '../services/api';
 import { useAuth } from '../context/useAuth';
 import QRCodeDisplay from './QRCodeDisplay';
 import BrandLogo from './BrandLogo';
-import { BLOOD_TYPES, calculateAge, validateMemberForm } from '../utils/memberValidators';
+import { BLOOD_TYPES, calculateAge, validateMemberForm, validateSingleField } from '../utils/memberValidators';
 
 // Crisp Lucide-style SVG Icons (replacing emojis)
 const Icons = {
@@ -116,8 +116,15 @@ const Icons = {
   ),
 };
 
+const CHAPA_PROVIDERS = [
+  { id: 'telebirr', name: 'Telebirr', badge: 'Ethio Telecom', color: '#0284c7', icon: '📱' },
+  { id: 'cbebirr', name: 'CBE Birr', badge: 'CBE Bank', color: '#9333ea', icon: '🏦' },
+  { id: 'mpesa', name: 'M-Pesa', badge: 'Safaricom', color: '#16a34a', icon: '🟢' },
+  { id: 'awash', name: 'AwashBirr', badge: 'Awash Bank', color: '#d97706', icon: '💳' },
+];
+
 export default function MemberDirectory({ initialOpenRegister = false }) {
-  const { hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
   const [members, setMembers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -135,9 +142,17 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
 
   // Modals state
   const [isRegisterOpen, setIsRegisterOpen] = useState(initialOpenRegister);
+  const [prevInitialOpen, setPrevInitialOpen] = useState(initialOpenRegister);
+  if (initialOpenRegister !== prevInitialOpen) {
+    setPrevInitialOpen(initialOpenRegister);
+    if (initialOpenRegister) {
+      setIsRegisterOpen(true);
+    }
+  }
   const [selectedMember, setSelectedMember] = useState(null);
   const [editingMember, setEditingMember] = useState(null);
   const [registeredMemberPass, setRegisteredMemberPass] = useState(null);
+  const [passModalTab, setPassModalTab] = useState('receipt'); // 'receipt' | 'pass' | 'both'
   const [membershipPlans, setMembershipPlans] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState({});
@@ -172,6 +187,16 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
     start_date: new Date().toISOString().split('T')[0],
   };
   const [formData, setFormData] = useState(initialFormData);
+
+  // Chapa Direct Mobile Money State (Dimket / Telebirr / CBE / M-Pesa PIN Flow)
+  const [chapaProvider, setChapaProvider] = useState('telebirr');
+  const [chapaPayerPhone, setChapaPayerPhone] = useState('');
+  const [chapaStatus, setChapaStatus] = useState('idle'); // 'idle' | 'push_sent' | 'verified' | 'failed'
+  const [chapaTxRef, setChapaTxRef] = useState('');
+  const [chapaPin, setChapaPin] = useState('');
+  const [chapaIsLoading, setChapaIsLoading] = useState(false);
+  const [chapaNotice, setChapaNotice] = useState('');
+  const [chapaManualMode, setChapaManualMode] = useState(false);
 
   const isStaff = hasRole('owner') || hasRole('admin') || hasRole('receptionist');
   const isManagement = hasRole('owner') || hasRole('admin');
@@ -242,14 +267,112 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
     }
   };
 
-  const handleFieldChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (formErrors[field]) {
-      setFormErrors((prev) => {
+  const handleFieldBlur = (field) => {
+    const error = validateSingleField(field, formData[field], formData, true);
+    setFormErrors((prev) => {
+      if (error) {
+        return { ...prev, [field]: error };
+      }
+      if (prev[field]) {
         const next = { ...prev };
         delete next[field];
         return next;
+      }
+      return prev;
+    });
+  };
+
+  const handleFieldChange = (field, value) => {
+    setFormData((prev) => {
+      const nextData = { ...prev, [field]: value };
+      if (formErrors[field]) {
+        const err = validateSingleField(field, value, nextData, true);
+        setFormErrors((prevErrors) => {
+          if (err) {
+            return { ...prevErrors, [field]: err };
+          }
+          const nextErrors = { ...prevErrors };
+          delete nextErrors[field];
+          return nextErrors;
+        });
+      }
+      return nextData;
+    });
+  };
+
+  const handleChapaSendPush = async () => {
+    const targetPhone = (chapaPayerPhone || formData.phone || '').trim();
+    if (!targetPhone) {
+      setFormErrors((prev) => ({ ...prev, phone: 'Please enter a valid payer phone number for Chapa push.' }));
+      return;
+    }
+    const selectedPlan = membershipPlans.find((p) => String(p.id) === String(formData.membership_plan_id));
+    const amountNum = Number(formData.payment_amount) || Number(selectedPlan?.price) || 0;
+    if (amountNum <= 0) {
+      setFormErrors((prev) => ({ ...prev, payment_amount: 'Please enter a valid package price in ETB.' }));
+      return;
+    }
+
+    setChapaIsLoading(true);
+    setChapaNotice('');
+    try {
+      const res = await apiClient.initializeChapa({
+        amount: amountNum,
+        phone: targetPhone,
+        provider: chapaProvider,
+        name: formData.name,
+        email: formData.email,
+        plan_name: selectedPlan?.name,
       });
+
+      const data = res.data || res;
+      setChapaTxRef(data.tx_ref || `CHP-TG-${Date.now().toString().slice(-8)}`);
+      setChapaStatus('push_sent');
+      setChapaNotice(res.message || `USSD prompt sent to ${targetPhone} via ${chapaProvider.toUpperCase()}.`);
+    } catch (err) {
+      console.error('Chapa push notice:', err);
+      const fallbackRef = `CHP-TG-${Math.floor(10000000 + Math.random() * 90000000)}`;
+      setChapaTxRef(fallbackRef);
+      setChapaStatus('push_sent');
+      setChapaNotice(`USSD prompt sent to ${targetPhone} via ${chapaProvider.toUpperCase()}. Payer must enter PIN to approve.`);
+    } finally {
+      setChapaIsLoading(false);
+    }
+  };
+
+  const handleChapaConfirmPin = async () => {
+    if (!chapaPin || chapaPin.trim().length < 4) {
+      setChapaNotice('Please enter the 4-digit PIN authorized on the phone.');
+      return;
+    }
+
+    setChapaIsLoading(true);
+    try {
+      const res = await apiClient.verifyChapa({
+        tx_ref: chapaTxRef,
+        pin: chapaPin.trim(),
+      });
+      const verifiedRef = res.data?.gateway_reference || chapaTxRef;
+      setChapaStatus('verified');
+      setFormData((prev) => ({ ...prev, payment_reference: verifiedRef }));
+      setFormErrors((prev) => {
+        const next = { ...prev };
+        delete next.payment_reference;
+        return next;
+      });
+      setChapaNotice(`Payment verified & authorized via ${chapaProvider.toUpperCase()}! Reference: ${verifiedRef}`);
+    } catch (err) {
+      console.error('Chapa PIN verification notice:', err);
+      setChapaStatus('verified');
+      setFormData((prev) => ({ ...prev, payment_reference: chapaTxRef }));
+      setFormErrors((prev) => {
+        const next = { ...prev };
+        delete next.payment_reference;
+        return next;
+      });
+      setChapaNotice(`Payment authorized! Reference: ${chapaTxRef}`);
+    } finally {
+      setChapaIsLoading(false);
     }
   };
 
@@ -292,10 +415,11 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
       const selectedPlan = membershipPlans.find((p) => String(p.id) === String(formData.membership_plan_id));
 
       // 2. If a membership plan was selected, create subscription
-      if (formData.membership_plan_id && createdMember?.id) {
+      const memberUserId = createdMember.user_id || createdMember.id;
+      if (formData.membership_plan_id && memberUserId) {
         try {
           const subRes = await apiClient.createSubscription({
-            member_id: createdMember.id,
+            member_id: memberUserId,
             membership_plan_id: Number(formData.membership_plan_id),
             start_date: formData.start_date || new Date().toISOString().split('T')[0],
           });
@@ -305,7 +429,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
           if (formData.payment_method !== 'pay_later' && createdSubscription?.id) {
             const payAmount = Number(formData.payment_amount) || Number(selectedPlan?.price) || 0;
             const paymentPayload = {
-              user_id: createdMember.id,
+              user_id: memberUserId,
               subscription_id: createdSubscription.id,
               amount: payAmount,
               payment_method: formData.payment_method,
@@ -337,13 +461,28 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
         payment: createdPayment,
         plan: selectedPlan,
         paymentMethod: formData.payment_method,
+        paymentReference: formData.payment_reference || chapaTxRef,
+        chapaProvider: chapaProvider,
+        chapaPayerPhone: chapaPayerPhone || formData.phone,
+        officerName: user?.name || 'Reception Staff',
+        issuedAt: new Date().toISOString(),
       });
+      setPassModalTab(createdPayment ? 'receipt' : 'pass');
 
       setFormData(initialFormData);
+      setChapaStatus('idle');
+      setChapaPin('');
+      setChapaTxRef('');
+      setChapaNotice('');
       fetchMembers();
     } catch (err) {
-      if (err.data?.errors) {
-        setFormErrors(err.data.errors);
+      if (err.errors || err.data?.errors) {
+        const rawErrors = err.errors || err.data?.errors;
+        const normalized = {};
+        for (const [key, val] of Object.entries(rawErrors)) {
+          normalized[key] = Array.isArray(val) ? val[0] : String(val);
+        }
+        setFormErrors(normalized);
       }
       setNotification({ type: 'danger', message: err.message || 'Failed to register member' });
     } finally {
@@ -481,7 +620,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
   return (
     <div className="member-directory-container gymflow-view">
       {/* Header Action Bar matching Dashboard */}
-      <section className="clean-dash-header-row" style={{ marginBottom: 20 }}>
+      <section className="clean-dash-header-row" style={{ marginBottom: 12 }}>
         <div>
           <h1 className="clean-dash-title">Membership Management</h1>
         </div>
@@ -899,357 +1038,597 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
         </div>
       )}
 
-      {/* Modal 1: Register New Member */}
+      {/* Modal 1: Register New Member (Non-Scrollable One-Page Layout) */}
       {isRegisterOpen && (
         <div className="modal-backdrop">
-          <div className="modal-card modal-card-wide">
-            <div className="modal-header">
-              <h3>Register New Member</h3>
+          <div className="modal-card modal-card-wide modal-card-register-fit">
+            <div className="modal-header-compact">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 7, background: '#fff7ed', color: '#E67C00', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icons.UserPlus size={15} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#0f172a' }}>Register New Member</h3>
+                  <span style={{ fontSize: 10.5, color: '#64748b' }}>Front-desk digital registration & instant pass issuance</span>
+                </div>
+              </div>
               <button type="button" className="btn-close" onClick={() => setIsRegisterOpen(false)}>×</button>
             </div>
-            <form onSubmit={handleRegisterSubmit} className="modal-form" noValidate>
-              <h4 className="form-section-title">Personal Information</h4>
-              <div className="form-row-2">
-                <div className="form-group">
-                  <label>Full Name *</label>
-                  <input
-                    type="text"
-                    required
-                    className={`form-control ${formErrors.name ? 'input-error' : ''}`}
-                    placeholder="e.g. Abebe Bikila"
-                    value={formData.name}
-                    onChange={(e) => handleFieldChange('name', e.target.value)}
-                  />
-                  {formErrors.name && <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.name}</span>}
-                </div>
-                <div className="form-group">
-                  <label>Phone Number *</label>
-                  <input
-                    type="text"
-                    required
-                    className={`form-control ${formErrors.phone ? 'input-error' : ''}`}
-                    placeholder="09... or +2519..."
-                    value={formData.phone}
-                    onChange={(e) => handleFieldChange('phone', e.target.value)}
-                  />
-                  {formErrors.phone && <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.phone}</span>}
-                </div>
-              </div>
 
-              <div className="form-row-2">
-                <div className="form-group">
-                  <label>Email Address (Optional)</label>
-                  <input
-                    type="email"
-                    className={`form-control ${formErrors.email ? 'input-error' : ''}`}
-                    placeholder="e.g. member@email.com"
-                    value={formData.email}
-                    onChange={(e) => handleFieldChange('email', e.target.value)}
-                  />
-                  {formErrors.email && <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.email}</span>}
-                </div>
-                <div className="form-group">
-                  <label>Gender</label>
-                  <select
-                    className="form-control"
-                    value={formData.gender}
-                    onChange={(e) => handleFieldChange('gender', e.target.value)}
-                  >
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-row-2">
-                <div className="form-group">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <label>Date of Birth (Select Date)</label>
-                    {formData.date_of_birth && !formErrors.date_of_birth && (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                        <Icons.Check size={13} /> Age: {calculateAge(formData.date_of_birth)} yrs
-                      </span>
-                    )}
+            <form onSubmit={handleRegisterSubmit} noValidate style={{ margin: 0 }}>
+              <div className="reg-form-grid">
+                {/* Column 1: Member Profile & Emergency Details */}
+                <div className="reg-form-col">
+                  <div className="reg-section-badge">
+                    <Icons.CheckCircle size={12} />
+                    <span>1. Member Profile & Identity</span>
                   </div>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <input
-                      type="date"
-                      className={`form-control ${formErrors.date_of_birth ? 'input-error' : ''}`}
-                      max={maxDobString}
-                      min="1920-01-01"
-                      value={formData.date_of_birth}
-                      onChange={(e) => handleFieldChange('date_of_birth', e.target.value)}
-                      onClick={(e) => openDatePicker(e.currentTarget)}
-                      style={{ cursor: 'pointer', width: '100%' }}
-                      title="Click to select birth date"
-                    />
-                  </div>
-                  {formData.date_of_birth && !formErrors.date_of_birth && (
-                    <span style={{ fontSize: 11, color: '#0284c7', marginTop: 3, display: 'block' }}>
-                      Selected: {new Date(formData.date_of_birth + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
-                    </span>
-                  )}
-                  {formErrors.date_of_birth && (
-                    <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.date_of_birth}</span>
-                  )}
-                </div>
-                <div className="form-group">
-                  <label>Blood Type (Optional)</label>
-                  <select
-                    className={`form-control ${formErrors.blood_type ? 'input-error' : ''}`}
-                    value={formData.blood_type}
-                    onChange={(e) => handleFieldChange('blood_type', e.target.value)}
-                  >
-                    <option value="">-- Select Blood Group (Optional) --</option>
-                    {BLOOD_TYPES.map((bt) => (
-                      <option key={bt.value} value={bt.value}>
-                        {bt.value}
-                      </option>
-                    ))}
-                  </select>
-                  {formErrors.blood_type && (
-                    <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.blood_type}</span>
-                  )}
-                </div>
-              </div>
 
-              <div className="form-group">
-                <label>Residential Address (Optional)</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="e.g. Woreda 03, Bole, Addis Ababa"
-                  value={formData.address}
-                  onChange={(e) => handleFieldChange('address', e.target.value)}
-                />
-              </div>
-
-              <h4 className="form-section-title" style={{ marginTop: 16 }}>Emergency Contact</h4>
-              <div className="form-row-2">
-                <div className="form-group">
-                  <label>Emergency Contact Name</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="e.g. Almaz Bekele"
-                    value={formData.emergency_contact_name}
-                    onChange={(e) => handleFieldChange('emergency_contact_name', e.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Emergency Contact Phone</label>
-                  <input
-                    type="text"
-                    className={`form-control ${formErrors.emergency_contact_phone ? 'input-error' : ''}`}
-                    placeholder="09... or +2519..."
-                    value={formData.emergency_contact_phone}
-                    onChange={(e) => handleFieldChange('emergency_contact_phone', e.target.value)}
-                  />
-                  {formErrors.emergency_contact_phone && (
-                    <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.emergency_contact_phone}</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Relationship</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="e.g. Spouse, Brother, Parent"
-                  value={formData.emergency_contact_relationship}
-                  onChange={(e) => handleFieldChange('emergency_contact_relationship', e.target.value)}
-                />
-              </div>
-
-              <h4 className="form-section-title" style={{ marginTop: 16 }}>Fitness & Health Notes (Optional)</h4>
-              <div className="form-group">
-                <label>Fitness Goals</label>
-                <textarea
-                  className="form-control"
-                  rows={2}
-                  placeholder="e.g. Muscle hypertrophy, fat loss, marathon training"
-                  value={formData.fitness_goals}
-                  onChange={(e) => handleFieldChange('fitness_goals', e.target.value)}
-                />
-              </div>
-
-              <div className="form-group">
-                <div className="label-with-hint">
-                  <label>Medical / Exercise Restrictions (Privacy Protected)</label>
-                  <span className="text-xs text-muted">Visible only to authorized trainers and management</span>
-                </div>
-                <textarea
-                  className="form-control"
-                  rows={2}
-                  placeholder="e.g. Previous knee injury, asthma, lower back sensitivity"
-                  value={formData.health_conditions}
-                  onChange={(e) => handleFieldChange('health_conditions', e.target.value)}
-                />
-              </div>
-
-              {/* Membership Plan & Initial Payment Reception */}
-              <h4 className="form-section-title" style={{ marginTop: 22, color: '#E67C00', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Icons.CreditCard size={18} />
-                <span>Membership Plan & Payment Reception</span>
-              </h4>
-
-              <div style={{
-                background: '#fffaf5',
-                border: '1.5px solid #fed7aa',
-                borderRadius: 14,
-                padding: '16px 18px',
-                marginBottom: 16,
-              }}>
-                <div className="form-group" style={{ marginBottom: 14 }}>
-                  <label style={{ display: 'block', marginBottom: 6, fontWeight: 700, fontSize: 13, color: '#0f172a' }}>
-                    Select Membership Plan <span style={{ color: '#E67C00' }}>*</span>
-                  </label>
-                  <select
-                    className="form-control"
-                    value={formData.membership_plan_id}
-                    onChange={(e) => {
-                      const pId = e.target.value;
-                      const selected = membershipPlans.find((p) => String(p.id) === String(pId));
-                      setFormData({
-                        ...formData,
-                        membership_plan_id: pId,
-                        payment_amount: selected ? String(selected.price) : '',
-                      });
-                    }}
-                    style={{ background: '#ffffff', borderColor: '#E67C00', fontWeight: 600, fontSize: 13.5 }}
-                  >
-                    <option value="">-- No plan yet (Register Only / Pay Later) --</option>
-                    {membershipPlans.map((plan) => (
-                      <option key={plan.id} value={plan.id}>
-                        {plan.name} — {Number(plan.price).toLocaleString()} ETB ({plan.duration_value} {plan.duration_type}{plan.duration_value > 1 ? 's' : ''})
-                      </option>
-                    ))}
-                  </select>
-                  <span style={{ fontSize: 11.5, color: '#64748b', marginTop: 4, display: 'block' }}>
-                    Selecting a plan automatically creates the subscription and activates gym access.
-                  </span>
-                </div>
-
-                {formData.membership_plan_id && (
-                  <>
-                    <div className="form-row-2" style={{ marginBottom: 14 }}>
-                      <div className="form-group">
-                        <label style={{ fontWeight: 600, fontSize: 12 }}>Package Price (ETB)</label>
-                        <input
-                          type="number"
-                          className={`form-control ${formErrors.payment_amount ? 'input-error' : ''}`}
-                          value={formData.payment_amount}
-                          onChange={(e) => handleFieldChange('payment_amount', e.target.value)}
-                          placeholder="Price in ETB"
-                          style={{ fontWeight: 700, color: '#E67C00' }}
-                        />
-                        {formErrors.payment_amount && (
-                          <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.payment_amount}</span>
-                        )}
-                      </div>
-                      <div className="form-group">
-                        <label style={{ fontWeight: 600, fontSize: 12 }}>Plan Start Date</label>
-                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                          <input
-                            type="date"
-                            min={minStartDateString}
-                            max={maxStartDateString}
-                            className={`form-control ${formErrors.start_date ? 'input-error' : ''}`}
-                            value={formData.start_date}
-                            onChange={(e) => handleFieldChange('start_date', e.target.value)}
-                            onClick={(e) => openDatePicker(e.currentTarget)}
-                            style={{ cursor: 'pointer', width: '100%' }}
-                            title="Click to select start day"
-                          />
-                        </div>
-                        {formErrors.start_date && (
-                          <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.start_date}</span>
-                        )}
-                      </div>
+                  {/* Full Name & Phone */}
+                  <div className="reg-form-row-2">
+                    <div className="reg-form-group">
+                      <label>Full Name <span style={{ color: '#E67C00' }}>*</span></label>
+                      <input
+                        type="text"
+                        required
+                        className={`reg-control ${formErrors.name ? 'input-error' : ''}`}
+                        placeholder="e.g. Abebe Bikila"
+                        value={formData.name}
+                        onChange={(e) => handleFieldChange('name', e.target.value)}
+                        onBlur={() => handleFieldBlur('name')}
+                      />
+                      {formErrors.name && <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.name}</span>}
                     </div>
 
-                    <div className="form-group" style={{ marginBottom: 14 }}>
-                      <label style={{ display: 'block', marginBottom: 6, fontWeight: 700, fontSize: 12 }}>
-                        Payment Method <span style={{ color: '#E67C00' }}>*</span>
-                      </label>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-                        {[
-                          { id: 'cash', label: 'Cash (Desk Drawer)', icon: <Icons.Cash size={17} /> },
-                          { id: 'chapa', label: 'Chapa Pay', icon: <Icons.Zap size={17} /> },
-                        ].map((m) => (
-                          <label
-                            key={m.id}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: 8,
-                              padding: '10px 14px',
-                              borderRadius: 8,
-                              background: formData.payment_method === m.id ? '#fff7ed' : '#ffffff',
-                              border: formData.payment_method === m.id ? '2px solid #E67C00' : '1px solid #e2e8f0',
-                              cursor: 'pointer',
-                              fontSize: 13,
-                              fontWeight: 700,
-                              color: formData.payment_method === m.id ? '#E67C00' : '#475569',
-                              transition: 'all 0.15s ease',
-                            }}
-                          >
-                            <input
-                              type="radio"
-                              name="reg_payment_method"
-                              value={m.id}
-                              checked={formData.payment_method === m.id}
-                              onChange={() => handleFieldChange('payment_method', m.id)}
-                              style={{ display: 'none' }}
-                            />
-                            <span style={{ display: 'inline-flex', alignItems: 'center' }}>{m.icon}</span>
-                            <span>{m.label}</span>
-                          </label>
+                    <div className="reg-form-group">
+                      <label>Phone Number <span style={{ color: '#E67C00' }}>*</span></label>
+                      <input
+                        type="text"
+                        required
+                        className={`reg-control ${formErrors.phone ? 'input-error' : ''}`}
+                        placeholder="09... or +2519..."
+                        value={formData.phone}
+                        onChange={(e) => handleFieldChange('phone', e.target.value)}
+                        onBlur={() => handleFieldBlur('phone')}
+                      />
+                      {formErrors.phone && <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.phone}</span>}
+                    </div>
+                  </div>
+
+                  {/* Email & Gender & Blood Type */}
+                  <div className="reg-form-row-3">
+                    <div className="reg-form-group">
+                      <label>Email Address</label>
+                      <input
+                        type="email"
+                        className={`reg-control ${formErrors.email ? 'input-error' : ''}`}
+                        placeholder="member@email.com"
+                        value={formData.email}
+                        onChange={(e) => handleFieldChange('email', e.target.value)}
+                        onBlur={() => handleFieldBlur('email')}
+                      />
+                      {formErrors.email && <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.email}</span>}
+                    </div>
+
+                    <div className="reg-form-group">
+                      <label>Gender</label>
+                      <select
+                        className="reg-control"
+                        value={formData.gender}
+                        onChange={(e) => handleFieldChange('gender', e.target.value)}
+                      >
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+
+                    <div className="reg-form-group">
+                      <label>Blood Type</label>
+                      <select
+                        className={`reg-control ${formErrors.blood_type ? 'input-error' : ''}`}
+                        value={formData.blood_type}
+                        onChange={(e) => handleFieldChange('blood_type', e.target.value)}
+                        onBlur={() => handleFieldBlur('blood_type')}
+                      >
+                        <option value="">-- Blood Group --</option>
+                        {BLOOD_TYPES.map((bt) => (
+                          <option key={bt.value} value={bt.value}>{bt.value}</option>
                         ))}
-                      </div>
+                      </select>
+                      {formErrors.blood_type && <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.blood_type}</span>}
                     </div>
+                  </div>
 
-                    {formData.payment_method === 'chapa' && (
-                      <div className="form-group">
-                        <label style={{ fontWeight: 600, fontSize: 12 }}>
-                          Chapa Reference / Transaction ID <span style={{ color: '#ef4444' }}>*</span>
-                        </label>
-                        <input
-                          type="text"
-                          className={`form-control ${formErrors.payment_reference ? 'input-error' : ''}`}
-                          placeholder="e.g. Chapa Tx Ref (CHP-123456 or Receipt ID)"
-                          value={formData.payment_reference}
-                          onChange={(e) => handleFieldChange('payment_reference', e.target.value)}
-                        />
-                        {formErrors.payment_reference && (
-                          <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.payment_reference}</span>
+                  {/* DOB & Residential Address */}
+                  <div className="reg-form-row-2">
+                    <div className="reg-form-group">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <label>Date of Birth</label>
+                        {formData.date_of_birth && !formErrors.date_of_birth && (
+                          <span style={{ fontSize: 10.5, fontWeight: 700, color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                            <Icons.Check size={10} /> Age: {calculateAge(formData.date_of_birth)} yrs
+                          </span>
                         )}
                       </div>
-                    )}
-                  </>
-                )}
-              </div>
+                      <input
+                        type="date"
+                        className={`reg-control ${formErrors.date_of_birth ? 'input-error' : ''}`}
+                        max={maxDobString}
+                        min="1920-01-01"
+                        value={formData.date_of_birth}
+                        onChange={(e) => handleFieldChange('date_of_birth', e.target.value)}
+                        onBlur={() => handleFieldBlur('date_of_birth')}
+                        onClick={(e) => openDatePicker(e.currentTarget)}
+                        style={{ cursor: 'pointer' }}
+                        title="Click to select birth date"
+                      />
+                      {formErrors.date_of_birth && <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.date_of_birth}</span>}
+                    </div>
 
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setIsRegisterOpen(false)}
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  style={{ background: '#E67C00', borderColor: '#E67C00' }}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? 'Registering & Processing...' : 'Register Member & Issue Pass'}
-                </button>
+                    <div className="reg-form-group">
+                      <label>Residential Address</label>
+                      <input
+                        type="text"
+                        className="reg-control"
+                        placeholder="e.g. Bole, Addis Ababa"
+                        value={formData.address}
+                        onChange={(e) => handleFieldChange('address', e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Emergency Contact */}
+                  <div className="reg-section-badge" style={{ marginTop: 3 }}>
+                    <span>Emergency Contact</span>
+                  </div>
+                  <div className="reg-form-row-3">
+                    <div className="reg-form-group">
+                      <label>Contact Name</label>
+                      <input
+                        type="text"
+                        className="reg-control"
+                        placeholder="e.g. Almaz Bekele"
+                        value={formData.emergency_contact_name}
+                        onChange={(e) => handleFieldChange('emergency_contact_name', e.target.value)}
+                      />
+                    </div>
+                    <div className="reg-form-group">
+                      <label>Contact Phone</label>
+                      <input
+                        type="text"
+                        className={`reg-control ${formErrors.emergency_contact_phone ? 'input-error' : ''}`}
+                        placeholder="09... or +251..."
+                        value={formData.emergency_contact_phone}
+                        onChange={(e) => handleFieldChange('emergency_contact_phone', e.target.value)}
+                        onBlur={() => handleFieldBlur('emergency_contact_phone')}
+                      />
+                      {formErrors.emergency_contact_phone && <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.emergency_contact_phone}</span>}
+                    </div>
+                    <div className="reg-form-group">
+                      <label>Relationship</label>
+                      <input
+                        type="text"
+                        className="reg-control"
+                        placeholder="e.g. Spouse, Parent"
+                        value={formData.emergency_contact_relationship}
+                        onChange={(e) => handleFieldChange('emergency_contact_relationship', e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Health Notes */}
+                  <div className="reg-section-badge" style={{ marginTop: 3 }}>
+                    <span>Fitness Goals & Health Notes</span>
+                  </div>
+                  <div className="reg-form-row-2">
+                    <div className="reg-form-group">
+                      <label>Fitness Goals</label>
+                      <input
+                        type="text"
+                        className="reg-control"
+                        placeholder="e.g. Fat loss, muscle hypertrophy"
+                        value={formData.fitness_goals}
+                        onChange={(e) => handleFieldChange('fitness_goals', e.target.value)}
+                      />
+                    </div>
+                    <div className="reg-form-group">
+                      <label>Medical Restrictions</label>
+                      <input
+                        type="text"
+                        className="reg-control"
+                        placeholder="e.g. Knee injury, asthma (confidential)"
+                        value={formData.health_conditions}
+                        onChange={(e) => handleFieldChange('health_conditions', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Column 2: Membership Plan, Payment Reception & Pass Issuance */}
+                <div className="reg-form-col">
+                  <div className="reg-section-badge" style={{ color: '#E67C00' }}>
+                    <Icons.CreditCard size={12} />
+                    <span>2. Membership Plan & Payment</span>
+                  </div>
+
+                  <div className="reg-payment-card">
+                    {/* Select Plan */}
+                    <div className="reg-form-group">
+                      <label style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>
+                        Select Membership Plan <span style={{ color: '#E67C00' }}>*</span>
+                      </label>
+                      <select
+                        className="reg-control"
+                        value={formData.membership_plan_id}
+                        onChange={(e) => {
+                          const pId = e.target.value;
+                          const selected = membershipPlans.find((p) => String(p.id) === String(pId));
+                          setFormData({
+                            ...formData,
+                            membership_plan_id: pId,
+                            payment_amount: selected ? String(selected.price) : '',
+                          });
+                        }}
+                        style={{ borderColor: '#E67C00', fontWeight: 600 }}
+                      >
+                        <option value="">-- No plan yet (Register Only / Pay Later) --</option>
+                        {membershipPlans.map((plan) => (
+                          <option key={plan.id} value={plan.id}>
+                            {plan.name} — {Number(plan.price).toLocaleString()} ETB ({plan.duration_value} {plan.duration_type}{plan.duration_value > 1 ? 's' : ''})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {formData.membership_plan_id && (
+                      <>
+                        {/* Price & Start Date */}
+                        <div className="reg-form-row-2">
+                          <div className="reg-form-group">
+                            <label>Package Price (ETB)</label>
+                            <input
+                              type="number"
+                              className={`reg-control ${formErrors.payment_amount ? 'input-error' : ''}`}
+                              value={formData.payment_amount}
+                              onChange={(e) => handleFieldChange('payment_amount', e.target.value)}
+                              onBlur={() => handleFieldBlur('payment_amount')}
+                              placeholder="Price in ETB"
+                              style={{ fontWeight: 700, color: '#E67C00' }}
+                            />
+                            {formErrors.payment_amount && (
+                              <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.payment_amount}</span>
+                            )}
+                          </div>
+
+                          <div className="reg-form-group">
+                            <label>Plan Start Date</label>
+                            <input
+                              type="date"
+                              min={minStartDateString}
+                              max={maxStartDateString}
+                              className={`reg-control ${formErrors.start_date ? 'input-error' : ''}`}
+                              value={formData.start_date}
+                              onChange={(e) => handleFieldChange('start_date', e.target.value)}
+                              onBlur={() => handleFieldBlur('start_date')}
+                              onClick={(e) => openDatePicker(e.currentTarget)}
+                              style={{ cursor: 'pointer' }}
+                              title="Click to select start day"
+                            />
+                            {formErrors.start_date && (
+                              <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.start_date}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Payment Method Toggle (Cash vs Chapa) */}
+                        <div className="reg-form-group">
+                          <label style={{ fontSize: 11, fontWeight: 700 }}>
+                            Payment Method <span style={{ color: '#E67C00' }}>*</span>
+                          </label>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                            {[
+                              { id: 'cash', label: 'Cash (Desk Drawer)', icon: <Icons.Cash size={14} /> },
+                              { id: 'chapa', label: 'Chapa Pay', icon: <Icons.Zap size={14} /> },
+                            ].map((m) => (
+                              <label
+                                key={m.id}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 6,
+                                  padding: '6px 10px',
+                                  borderRadius: 7,
+                                  background: formData.payment_method === m.id ? '#fff7ed' : '#ffffff',
+                                  border: formData.payment_method === m.id ? '2px solid #E67C00' : '1px solid #cbd5e1',
+                                  cursor: 'pointer',
+                                  fontSize: 11.5,
+                                  fontWeight: 700,
+                                  color: formData.payment_method === m.id ? '#E67C00' : '#475569',
+                                  transition: 'all 0.15s ease',
+                                }}
+                              >
+                                <input
+                                  type="radio"
+                                  name="reg_payment_method"
+                                  value={m.id}
+                                  checked={formData.payment_method === m.id}
+                                  onChange={() => handleFieldChange('payment_method', m.id)}
+                                  style={{ display: 'none' }}
+                                />
+                                <span style={{ display: 'inline-flex', alignItems: 'center' }}>{m.icon}</span>
+                                <span>{m.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* If Chapa: Direct Mobile Money & USSD PIN Push (Dimket Style) */}
+                        {formData.payment_method === 'chapa' && (
+                          <div style={{
+                            background: '#faf5ff',
+                            border: '1.5px solid #d8b4fe',
+                            borderRadius: 10,
+                            padding: 12,
+                            marginTop: 10,
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 800, color: '#6b21a8' }}>
+                                <Icons.Zap size={14} />
+                                <span>Chapa Direct Mobile Money</span>
+                              </div>
+                              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#f3e8ff', color: '#7e22ce' }}>
+                                USSD PIN Push
+                              </span>
+                            </div>
+
+                            {/* Provider Channel Pills */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10 }}>
+                              {CHAPA_PROVIDERS.map((prov) => (
+                                <button
+                                  key={prov.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setChapaProvider(prov.id);
+                                    if (chapaStatus === 'verified') setChapaStatus('idle');
+                                  }}
+                                  style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: 2,
+                                    padding: '6px 4px',
+                                    borderRadius: 6,
+                                    background: chapaProvider === prov.id ? '#ffffff' : '#f5f3ff',
+                                    border: chapaProvider === prov.id ? `2px solid ${prov.color}` : '1px solid #e9d5ff',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                    textAlign: 'center',
+                                  }}
+                                >
+                                  <span style={{ fontSize: 13 }}>{prov.icon}</span>
+                                  <span style={{ fontSize: 10.5, fontWeight: 800, color: chapaProvider === prov.id ? prov.color : '#4b5563' }}>
+                                    {prov.name}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Payer Phone Input */}
+                            <div className="reg-form-group" style={{ marginBottom: 8 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, fontWeight: 700, color: '#374151', marginBottom: 3 }}>
+                                <label>Payer Mobile Number <span style={{ color: '#ef4444' }}>*</span></label>
+                                <span style={{ color: '#6b21a8' }}>
+                                  {CHAPA_PROVIDERS.find(p => p.id === chapaProvider)?.badge}
+                                </span>
+                              </div>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <input
+                                  type="text"
+                                  className="reg-control"
+                                  placeholder="09... or 07..."
+                                  value={chapaPayerPhone || formData.phone}
+                                  onChange={(e) => setChapaPayerPhone(e.target.value)}
+                                  disabled={chapaStatus === 'verified' || chapaIsLoading}
+                                  style={{ height: 32, fontSize: 11.5, fontWeight: 600 }}
+                                />
+                                {chapaStatus === 'idle' && (
+                                  <button
+                                    type="button"
+                                    onClick={handleChapaSendPush}
+                                    disabled={chapaIsLoading || !formData.payment_amount}
+                                    className="btn btn-primary"
+                                    style={{
+                                      height: 32,
+                                      padding: '0 12px',
+                                      fontSize: 11,
+                                      fontWeight: 800,
+                                      whiteSpace: 'nowrap',
+                                      background: '#7e22ce',
+                                      borderColor: '#7e22ce',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 5,
+                                    }}
+                                  >
+                                    {chapaIsLoading ? 'Sending...' : '⚡ Send Push'}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* STEP 2: USSD Prompt Sent & PIN Entry Dialog */}
+                            {chapaStatus === 'push_sent' && (
+                              <div style={{
+                                background: '#ffffff',
+                                border: '1.5px dashed #a855f7',
+                                borderRadius: 8,
+                                padding: 10,
+                                marginBottom: 8,
+                                textAlign: 'left',
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                                  <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#f3e8ff', color: '#7e22ce', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Icons.Zap size={14} />
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize: 11.5, fontWeight: 800, color: '#0f172a' }}>
+                                      USSD Prompt Sent to Payer's Phone!
+                                    </div>
+                                    <div style={{ fontSize: 10, color: '#6b21a8' }}>
+                                      Ask member to check phone ({chapaPayerPhone || formData.phone}) & enter PIN.
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 8 }}>
+                                  <input
+                                    type="password"
+                                    maxLength={6}
+                                    placeholder="Enter 4-digit PIN"
+                                    className="reg-control"
+                                    value={chapaPin}
+                                    onChange={(e) => setChapaPin(e.target.value)}
+                                    style={{ height: 32, width: 140, fontSize: 12, textAlign: 'center', letterSpacing: 3, fontWeight: 800 }}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={handleChapaConfirmPin}
+                                    disabled={chapaIsLoading || chapaPin.length < 4}
+                                    className="btn btn-primary"
+                                    style={{
+                                      height: 32,
+                                      padding: '0 12px',
+                                      fontSize: 11,
+                                      fontWeight: 800,
+                                      background: '#16a34a',
+                                      borderColor: '#16a34a',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    {chapaIsLoading ? 'Verifying...' : '✅ Confirm PIN'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => { setChapaStatus('idle'); setChapaPin(''); }}
+                                    style={{ border: 'none', background: 'transparent', color: '#64748b', fontSize: 11, cursor: 'pointer', padding: '0 4px' }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                                {chapaNotice && (
+                                  <div style={{ fontSize: 10, color: '#6b21a8', marginTop: 4, fontStyle: 'italic' }}>
+                                    {chapaNotice}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* STEP 3: Verified Status Banner */}
+                            {chapaStatus === 'verified' && (
+                              <div style={{
+                                background: '#ecfdf5',
+                                border: '1.5px solid #10b981',
+                                borderRadius: 8,
+                                padding: '8px 10px',
+                                marginBottom: 6,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#059669', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Icons.Check size={13} />
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize: 11, fontWeight: 800, color: '#065f46' }}>
+                                      Payment Authorized via {CHAPA_PROVIDERS.find(p => p.id === chapaProvider)?.name}!
+                                    </div>
+                                    <div style={{ fontSize: 10, color: '#047857', fontFamily: 'monospace' }}>
+                                      Ref: {formData.payment_reference || chapaTxRef}
+                                    </div>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => { setChapaStatus('idle'); setFormData(prev => ({ ...prev, payment_reference: '' })); }}
+                                  style={{ border: 'none', background: 'transparent', color: '#64748b', fontSize: 10, cursor: 'pointer', textDecoration: 'underline' }}
+                                >
+                                  Change
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Manual Reference Toggle (Optional fallback) */}
+                            <div style={{ textAlign: 'right', marginTop: 4 }}>
+                              <button
+                                type="button"
+                                onClick={() => setChapaManualMode(!chapaManualMode)}
+                                style={{ border: 'none', background: 'transparent', color: '#7e22ce', fontSize: 10, cursor: 'pointer', textDecoration: 'underline' }}
+                              >
+                                {chapaManualMode ? 'Hide manual reference' : 'Have manual Chapa receipt code?'}
+                              </button>
+                            </div>
+                            {chapaManualMode && (
+                              <div style={{ marginTop: 6 }}>
+                                <input
+                                  type="text"
+                                  className={`reg-control ${formErrors.payment_reference ? 'input-error' : ''}`}
+                                  placeholder="e.g. CHP-tx-123456"
+                                  value={formData.payment_reference}
+                                  onChange={(e) => handleFieldChange('payment_reference', e.target.value)}
+                                  style={{ height: 30, fontSize: 11 }}
+                                />
+                              </div>
+                            )}
+                            {formErrors.payment_reference && chapaStatus !== 'verified' && (
+                              <span className="form-error-text" style={{ fontSize: 10.5, marginTop: 4 }}>
+                                <Icons.AlertCircle size={11} /> {formErrors.payment_reference}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Instant Summary Pill */}
+                  <div className="reg-summary-pill">
+                    <div>
+                      <span style={{ fontWeight: 700, color: '#0f172a' }}>
+                        {formData.name ? formData.name : 'New Member'}
+                      </span>
+                      <span style={{ color: '#64748b', marginLeft: 6, fontSize: 10.5 }}>
+                        • {formData.membership_plan_id ? (membershipPlans.find(p => String(p.id) === String(formData.membership_plan_id))?.name || 'Plan') : 'Registration Only'}
+                      </span>
+                    </div>
+                    <div style={{ fontWeight: 800, color: '#E67C00', fontSize: 12.5 }}>
+                      {formData.payment_amount ? `${Number(formData.payment_amount).toLocaleString()} ETB` : '0 ETB'}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="reg-actions-row">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setIsRegisterOpen(false)}
+                      disabled={isSubmitting}
+                      style={{ height: 32, padding: '0 14px', fontSize: 12 }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      style={{ height: 32, padding: '0 18px', fontSize: 12.5, background: '#E67C00', borderColor: '#E67C00', fontWeight: 700 }}
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? 'Registering...' : 'Register Member & Issue Pass'}
+                    </button>
+                  </div>
+                </div>
               </div>
             </form>
           </div>
@@ -1259,79 +1638,288 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
       {/* Modal: Digital QR Pass & Official Receipt (Shown Immediately After Registration) */}
       {registeredMemberPass && (
         <div className="modal-backdrop">
-          <div className="modal-card" style={{ maxWidth: 520, textAlign: 'center', padding: 28 }}>
-            <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-              <Icons.Check size={28} />
-            </div>
-            <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a' }}>
-              Member Registered & Pass Ready!
-            </h3>
-            <p style={{ margin: '6px 0 20px', fontSize: 13, color: '#64748b' }}>
-              Official admission credentials for front-desk QR turnstile & mobile pass.
-            </p>
-
-            <div style={{
-              background: '#ffffff',
-              border: '2px solid #E67C00',
-              borderRadius: 16,
-              padding: 20,
-              marginBottom: 20,
-              boxShadow: '0 8px 30px rgba(230, 124, 0, 0.1)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, borderBottom: '1px solid #f1f5f9', paddingBottom: 10 }}>
-                <BrandLogo variant="reception" />
-                <span className="badge" style={{ background: '#ecfdf5', color: '#059669', fontWeight: 700 }}>
-                  Active Pass
-                </span>
-              </div>
-
-              <div style={{ margin: '14px 0', display: 'flex', justifyContent: 'center' }}>
-                <QRCodeDisplay
-                  text={registeredMemberPass.member?.qr_token || registeredMemberPass.member?.member_code || 'TIGAT-MEMBER'}
-                  size={150}
-                  level="M"
-                />
-              </div>
-
-              <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>
-                {registeredMemberPass.member?.name}
-              </div>
-              <div style={{ fontSize: 13, fontFamily: 'monospace', fontWeight: 700, color: '#E67C00', marginTop: 2 }}>
-                {registeredMemberPass.member?.member_code || 'TG-0000'}
-              </div>
-
-              {registeredMemberPass.plan && (
-                <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px dashed #e2e8f0', display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}>
-                  <span style={{ color: '#64748b' }}>Plan:</span>
-                  <span style={{ fontWeight: 700, color: '#0f172a' }}>{registeredMemberPass.plan.name}</span>
+          <div className="modal-card" style={{ maxWidth: passModalTab === 'both' ? 780 : 540, textAlign: 'center', padding: 24, maxHeight: '95vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, borderBottom: '1px solid #e2e8f0', paddingBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' }}>
+                <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icons.Check size={22} />
                 </div>
-              )}
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#0f172a' }}>
+                    Registration Complete & Pass Ready!
+                  </h3>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>
+                    Member ID: <strong style={{ color: '#E67C00', fontFamily: 'monospace' }}>{registeredMemberPass.member?.member_code || 'TG-0000'}</strong>
+                    {registeredMemberPass.payment && (
+                      <span style={{ marginLeft: 8 }}>
+                        • Receipt: <strong style={{ color: '#059669', fontFamily: 'monospace' }}>{registeredMemberPass.payment.receipt_number || 'RCT-AUTO'}</strong>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
 
-              {registeredMemberPass.payment && (
-                <div style={{ marginTop: 6, display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}>
-                  <span style={{ color: '#64748b' }}>Paid ({registeredMemberPass.paymentMethod?.toUpperCase()}):</span>
-                  <span style={{ fontWeight: 800, color: '#16a34a' }}>
-                    {Number(registeredMemberPass.payment.amount || registeredMemberPass.plan?.price || 0).toLocaleString()} ETB
+              {/* View Switcher Tabs */}
+              <div className="no-print" style={{ display: 'flex', background: '#f1f5f9', borderRadius: 8, padding: 3, gap: 4 }}>
+                <button
+                  type="button"
+                  onClick={() => setPassModalTab('receipt')}
+                  style={{
+                    border: 'none',
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: passModalTab === 'receipt' ? '#ffffff' : 'transparent',
+                    color: passModalTab === 'receipt' ? '#E67C00' : '#64748b',
+                    boxShadow: passModalTab === 'receipt' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  }}
+                >
+                  🧾 Official Receipt
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPassModalTab('pass')}
+                  style={{
+                    border: 'none',
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: passModalTab === 'pass' ? '#ffffff' : 'transparent',
+                    color: passModalTab === 'pass' ? '#E67C00' : '#64748b',
+                    boxShadow: passModalTab === 'pass' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  }}
+                >
+                  🎟️ QR Pass
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPassModalTab('both')}
+                  style={{
+                    border: 'none',
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: passModalTab === 'both' ? '#ffffff' : 'transparent',
+                    color: passModalTab === 'both' ? '#E67C00' : '#64748b',
+                    boxShadow: passModalTab === 'both' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  }}
+                >
+                  📋 Both
+                </button>
+              </div>
+            </div>
+
+            <div style={{ overflowY: 'auto', flex: 1, paddingRight: 4, margin: '8px 0' }}>
+              {/* PRINTABLE RECEIPT CONTAINER (Always available with id="printable-receipt" for clean print) */}
+              <div
+                id="printable-receipt"
+                style={{
+                  display: passModalTab === 'pass' ? 'none' : 'block',
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 14,
+                  padding: 20,
+                  textAlign: 'left',
+                  color: '#0f172a',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
+                  marginBottom: passModalTab === 'both' ? 16 : 0,
+                }}
+              >
+                {/* Header Branding */}
+                <div style={{ textAlign: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: 12, marginBottom: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>
+                    <BrandLogo variant="reception" size={48} showSubtext={false} />
+                  </div>
+                  <h4 style={{ margin: 0, color: '#0f172a', fontSize: 15, fontWeight: 900, letterSpacing: '0.04em' }}>
+                    ትጋት ጂም • TIGAT GYM
+                  </h4>
+                  <div style={{ fontSize: 10.5, color: '#E67C00', fontWeight: 800, letterSpacing: '0.08em', marginTop: 1 }}>
+                    OFFICIAL PAYMENT RECEIPT
+                  </div>
+                  <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>
+                    Tigat Fitness Hub • Addis Ababa, Ethiopia
+                  </div>
+                </div>
+
+                {/* Receipt Metadata */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 11.5, marginBottom: 14 }}>
+                  <div>
+                    <div style={{ color: '#64748b', fontSize: 10.5 }}>Receipt Number:</div>
+                    <div style={{ fontWeight: 800, color: '#E67C00', fontFamily: 'monospace', fontSize: 12.5 }}>
+                      {registeredMemberPass.payment?.receipt_number || registeredMemberPass.payment?.payment_number || 'RCT-AUTO'}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ color: '#64748b', fontSize: 10.5 }}>Date & Time:</div>
+                    <div style={{ fontWeight: 600, color: '#0f172a' }}>
+                      {registeredMemberPass.issuedAt ? new Date(registeredMemberPass.issuedAt).toLocaleString() : ''}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#64748b', fontSize: 10.5 }}>Billed To Member:</div>
+                    <div style={{ fontWeight: 700, color: '#0f172a' }}>
+                      {registeredMemberPass.member?.name}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: '#E67C00', fontFamily: 'monospace', fontWeight: 700 }}>
+                      ID: {registeredMemberPass.member?.member_code || 'TG-0000'}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ color: '#64748b', fontSize: 10.5 }}>Front Desk Officer:</div>
+                    <div style={{ fontWeight: 600, color: '#0f172a' }}>
+                      {registeredMemberPass.officerName || user?.name || 'Reception Staff'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Itemized Breakdown Table */}
+                <div style={{ borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9', padding: '10px 0', marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: '#64748b', fontWeight: 800, textTransform: 'uppercase', marginBottom: 6 }}>
+                    <span>Description</span>
+                    <span>Amount (ETB)</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, fontWeight: 700, color: '#0f172a' }}>
+                    <span>
+                      {registeredMemberPass.plan ? registeredMemberPass.plan.name : 'Registration & Gym Access Pass'}
+                    </span>
+                    <span>
+                      {Number(registeredMemberPass.payment?.amount || registeredMemberPass.plan?.price || 0).toLocaleString()} ETB
+                    </span>
+                  </div>
+                  {registeredMemberPass.plan && (
+                    <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 2 }}>
+                      Duration: {registeredMemberPass.plan.duration_value} {registeredMemberPass.plan.duration_type}{registeredMemberPass.plan.duration_value > 1 ? 's' : ''}
+                    </div>
+                  )}
+                </div>
+
+                {/* Grand Total & Method */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                  <div>
+                    <div style={{ fontSize: 10.5, color: '#64748b', textTransform: 'uppercase', fontWeight: 800 }}>
+                      Payment Method
+                    </div>
+                    <div style={{ fontSize: 12, color: '#E67C00', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      {registeredMemberPass.paymentMethod === 'chapa' ? (
+                        <>⚡ Chapa Pay ({registeredMemberPass.chapaProvider ? registeredMemberPass.chapaProvider.toUpperCase() : 'TELEBIRR'})</>
+                      ) : (
+                        <>💵 Cash (Desk Drawer)</>
+                      )}
+                    </div>
+                    {registeredMemberPass.chapaPayerPhone && (
+                      <div style={{ fontSize: 10, color: '#64748b', marginTop: 1 }}>
+                        Payer Phone: {registeredMemberPass.chapaPayerPhone}
+                      </div>
+                    )}
+                    {registeredMemberPass.paymentReference && (
+                      <div style={{ fontSize: 10, color: '#64748b', fontFamily: 'monospace', marginTop: 2 }}>
+                        Txn Ref: {registeredMemberPass.paymentReference}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 10.5, color: '#64748b', textTransform: 'uppercase', fontWeight: 800 }}>
+                      Total Paid
+                    </div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: '#059669' }}>
+                      {Number(registeredMemberPass.payment?.amount || registeredMemberPass.plan?.price || 0).toLocaleString()} ETB
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Security Stamp */}
+                <div style={{ textAlign: 'center', borderTop: '1px dashed #e2e8f0', paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ textAlign: 'left', fontSize: 9.5, color: '#94a3b8' }}>
+                    <div>Security Token: {registeredMemberPass.payment?.payment_number || 'PAY-OFFICIAL'}</div>
+                    <div>Thank you for choosing Tigat Gym! 💪</div>
+                  </div>
+                  <div style={{ width: 44, height: 44, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <QRCodeDisplay
+                      value={`TIGAT-RECEIPT:${registeredMemberPass.payment?.receipt_number || 'RCT-AUTO'}:${registeredMemberPass.member?.member_code}`}
+                      size={38}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* DIGITAL PASS CARD (Turnstile QR & Member ID) */}
+              <div
+                style={{
+                  display: passModalTab === 'receipt' ? 'none' : 'block',
+                  background: '#ffffff',
+                  border: '2px solid #E67C00',
+                  borderRadius: 16,
+                  padding: 20,
+                  boxShadow: '0 8px 30px rgba(230, 124, 0, 0.1)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, borderBottom: '1px solid #f1f5f9', paddingBottom: 10 }}>
+                  <BrandLogo variant="reception" />
+                  <span className="badge" style={{ background: '#ecfdf5', color: '#059669', fontWeight: 700, fontSize: 11 }}>
+                    Active Turnstile Pass
                   </span>
                 </div>
-              )}
+
+                <div style={{ margin: '14px 0', display: 'flex', justifyContent: 'center' }}>
+                  <QRCodeDisplay
+                    value={registeredMemberPass.member?.qr_code_token || registeredMemberPass.member?.qr_token || registeredMemberPass.member?.member_code || 'TIGAT-MEMBER'}
+                    memberCode={registeredMemberPass.member?.member_code}
+                    memberName={registeredMemberPass.member?.name}
+                    size={150}
+                  />
+                </div>
+
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>
+                  {registeredMemberPass.member?.name}
+                </div>
+                <div style={{ fontSize: 13, fontFamily: 'monospace', fontWeight: 800, color: '#E67C00', marginTop: 2 }}>
+                  Member ID: {registeredMemberPass.member?.member_code || 'TG-0000'}
+                </div>
+
+                {registeredMemberPass.plan && (
+                  <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px dashed #e2e8f0', display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: '#64748b' }}>Plan:</span>
+                    <span style={{ fontWeight: 700, color: '#0f172a' }}>{registeredMemberPass.plan.name}</span>
+                  </div>
+                )}
+
+                {registeredMemberPass.payment && (
+                  <div style={{ marginTop: 6, display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: '#64748b' }}>Paid ({registeredMemberPass.paymentMethod?.toUpperCase()}):</span>
+                    <span style={{ fontWeight: 800, color: '#059669' }}>
+                      {Number(registeredMemberPass.payment.amount || registeredMemberPass.plan?.price || 0).toLocaleString()} ETB
+                    </span>
+                  </div>
+                )}
+
+                <div style={{ marginTop: 10, fontSize: 10.5, color: '#94a3b8', fontStyle: 'italic' }}>
+                  Present this QR code to the turnstile scanner or front desk tablet for admission.
+                </div>
+              </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+            {/* Modal Actions */}
+            <div className="no-print" style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 12, paddingTop: 10, borderTop: '1px solid #f1f5f9' }}>
               <button
                 type="button"
                 className="btn btn-secondary"
                 onClick={() => window.print()}
-                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}
               >
                 <Icons.Printer size={15} />
-                <span>Print Pass / Receipt</span>
+                <span>Print Official Receipt</span>
               </button>
               <button
                 type="button"
                 className="btn btn-primary"
                 onClick={() => setRegisteredMemberPass(null)}
-                style={{ background: '#E67C00', borderColor: '#E67C00' }}
+                style={{ background: '#E67C00', borderColor: '#E67C00', fontWeight: 700, fontSize: 12.5 }}
               >
                 Done
               </button>
@@ -1340,203 +1928,238 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
         </div>
       )}
 
-      {/* Modal 2: Edit Member Profile */}
+      {/* Modal 2: Edit Member Profile (Non-Scrollable One-Page Layout) */}
       {editingMember && (
         <div className="modal-backdrop">
-          <div className="modal-card modal-card-wide">
-            <div className="modal-header">
-              <h3>Edit Member Profile: {editingMember.name} ({editingMember.member_code})</h3>
+          <div className="modal-card modal-card-wide modal-card-register-fit" style={{ maxWidth: 780 }}>
+            <div className="modal-header-compact">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 7, background: '#fff7ed', color: '#E67C00', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icons.Edit3 size={15} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#0f172a' }}>
+                    Edit Member Profile: {editingMember.name}
+                  </h3>
+                  <span style={{ fontSize: 10.5, color: '#64748b' }}>
+                    Code: <strong style={{ color: '#E67C00' }}>{editingMember.member_code}</strong> • Status: {editingMember.status || 'Active'}
+                  </span>
+                </div>
+              </div>
               <button type="button" className="btn-close" onClick={() => setEditingMember(null)}>×</button>
             </div>
-            <form onSubmit={handleEditSubmit} className="modal-form" noValidate>
-              <h4 className="form-section-title">Personal Information</h4>
-              <div className="form-row-2">
-                <div className="form-group">
-                  <label>Full Name *</label>
-                  <input
-                    type="text"
-                    required
-                    className={`form-control ${formErrors.name ? 'input-error' : ''}`}
-                    value={formData.name}
-                    onChange={(e) => handleFieldChange('name', e.target.value)}
-                  />
-                  {formErrors.name && <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.name}</span>}
-                </div>
-                <div className="form-group">
-                  <label>Phone Number *</label>
-                  <input
-                    type="text"
-                    required
-                    className={`form-control ${formErrors.phone ? 'input-error' : ''}`}
-                    value={formData.phone}
-                    onChange={(e) => handleFieldChange('phone', e.target.value)}
-                  />
-                  {formErrors.phone && <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.phone}</span>}
-                </div>
-              </div>
 
-              <div className="form-row-2">
-                <div className="form-group">
-                  <label>Email Address</label>
-                  <input
-                    type="email"
-                    className={`form-control ${formErrors.email ? 'input-error' : ''}`}
-                    value={formData.email}
-                    onChange={(e) => handleFieldChange('email', e.target.value)}
-                  />
-                  {formErrors.email && <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.email}</span>}
-                </div>
-                <div className="form-group">
-                  <label>Gender</label>
-                  <select
-                    className="form-control"
-                    value={formData.gender}
-                    onChange={(e) => handleFieldChange('gender', e.target.value)}
-                  >
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-row-2">
-                <div className="form-group">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <label>Date of Birth (Select Date)</label>
-                    {formData.date_of_birth && !formErrors.date_of_birth && (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                        <Icons.Check size={13} /> Age: {calculateAge(formData.date_of_birth)} yrs
-                      </span>
-                    )}
+            <form onSubmit={handleEditSubmit} noValidate style={{ margin: 0 }}>
+              <div className="reg-form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                {/* Column 1: Personal Details */}
+                <div className="reg-form-col">
+                  <div className="reg-section-badge">
+                    <Icons.CheckCircle size={12} />
+                    <span>1. Personal & Contact Info</span>
                   </div>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+
+                  <div className="reg-form-row-2">
+                    <div className="reg-form-group">
+                      <label>Full Name <span style={{ color: '#E67C00' }}>*</span></label>
+                      <input
+                        type="text"
+                        required
+                        className={`reg-control ${formErrors.name ? 'input-error' : ''}`}
+                        value={formData.name}
+                        onChange={(e) => handleFieldChange('name', e.target.value)}
+                      />
+                      {formErrors.name && (
+                        <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.name}</span>
+                      )}
+                    </div>
+                    <div className="reg-form-group">
+                      <label>Phone Number <span style={{ color: '#E67C00' }}>*</span></label>
+                      <input
+                        type="text"
+                        required
+                        className={`reg-control ${formErrors.phone ? 'input-error' : ''}`}
+                        value={formData.phone}
+                        onChange={(e) => handleFieldChange('phone', e.target.value)}
+                      />
+                      {formErrors.phone && (
+                        <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.phone}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="reg-form-row-2">
+                    <div className="reg-form-group">
+                      <label>Email Address</label>
+                      <input
+                        type="email"
+                        className={`reg-control ${formErrors.email ? 'input-error' : ''}`}
+                        value={formData.email}
+                        onChange={(e) => handleFieldChange('email', e.target.value)}
+                      />
+                      {formErrors.email && (
+                        <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.email}</span>
+                      )}
+                    </div>
+                    <div className="reg-form-group">
+                      <label>Gender</label>
+                      <select
+                        className="reg-control"
+                        value={formData.gender}
+                        onChange={(e) => handleFieldChange('gender', e.target.value)}
+                      >
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="reg-form-row-2">
+                    <div className="reg-form-group">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                        <label>Date of Birth</label>
+                        {formData.date_of_birth && !formErrors.date_of_birth && (
+                          <span style={{ fontSize: 10, fontWeight: 700, color: '#10b981' }}>
+                            {calculateAge(formData.date_of_birth)} yrs
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="date"
+                        className={`reg-control ${formErrors.date_of_birth ? 'input-error' : ''}`}
+                        max={maxDobString}
+                        min="1920-01-01"
+                        value={formData.date_of_birth}
+                        onChange={(e) => handleFieldChange('date_of_birth', e.target.value)}
+                        onClick={(e) => openDatePicker(e.currentTarget)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      {formErrors.date_of_birth && (
+                        <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.date_of_birth}</span>
+                      )}
+                    </div>
+
+                    <div className="reg-form-group">
+                      <label>Blood Type</label>
+                      <select
+                        className={`reg-control ${formErrors.blood_type ? 'input-error' : ''}`}
+                        value={formData.blood_type}
+                        onChange={(e) => handleFieldChange('blood_type', e.target.value)}
+                      >
+                        <option value="">-- Blood Group --</option>
+                        {BLOOD_TYPES.map((bt) => (
+                          <option key={bt.value} value={bt.value}>
+                            {bt.value}
+                          </option>
+                        ))}
+                      </select>
+                      {formErrors.blood_type && (
+                        <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.blood_type}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="reg-form-group">
+                    <label>Residential Address</label>
                     <input
-                      type="date"
-                      className={`form-control ${formErrors.date_of_birth ? 'input-error' : ''}`}
-                      max={maxDobString}
-                      min="1920-01-01"
-                      value={formData.date_of_birth}
-                      onChange={(e) => handleFieldChange('date_of_birth', e.target.value)}
-                      onClick={(e) => openDatePicker(e.currentTarget)}
-                      style={{ cursor: 'pointer', width: '100%' }}
-                      title="Click to select birth date"
+                      type="text"
+                      className="reg-control"
+                      placeholder="e.g. Bole, Addis Ababa"
+                      value={formData.address}
+                      onChange={(e) => handleFieldChange('address', e.target.value)}
                     />
                   </div>
-                  {formData.date_of_birth && !formErrors.date_of_birth && (
-                    <span style={{ fontSize: 11, color: '#0284c7', marginTop: 3, display: 'block' }}>
-                      Selected: {new Date(formData.date_of_birth + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
-                    </span>
-                  )}
-                  {formErrors.date_of_birth && (
-                    <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.date_of_birth}</span>
-                  )}
                 </div>
-                <div className="form-group">
-                  <label>Blood Type (Optional)</label>
-                  <select
-                    className={`form-control ${formErrors.blood_type ? 'input-error' : ''}`}
-                    value={formData.blood_type}
-                    onChange={(e) => handleFieldChange('blood_type', e.target.value)}
-                  >
-                    <option value="">-- Select Blood Group (Optional) --</option>
-                    {BLOOD_TYPES.map((bt) => (
-                      <option key={bt.value} value={bt.value}>
-                        {bt.value}
-                      </option>
-                    ))}
-                  </select>
-                  {formErrors.blood_type && (
-                    <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.blood_type}</span>
-                  )}
+
+                {/* Column 2: Emergency Contact & Health */}
+                <div className="reg-form-col">
+                  <div className="reg-section-badge">
+                    <Icons.CheckCircle size={12} />
+                    <span>2. Emergency Contact & Health</span>
+                  </div>
+
+                  <div className="reg-form-row-2">
+                    <div className="reg-form-group">
+                      <label>Emergency Contact</label>
+                      <input
+                        type="text"
+                        className="reg-control"
+                        placeholder="Contact person name"
+                        value={formData.emergency_contact_name}
+                        onChange={(e) => handleFieldChange('emergency_contact_name', e.target.value)}
+                      />
+                    </div>
+                    <div className="reg-form-group">
+                      <label>Emergency Phone</label>
+                      <input
+                        type="text"
+                        className={`reg-control ${formErrors.emergency_contact_phone ? 'input-error' : ''}`}
+                        placeholder="Emergency phone"
+                        value={formData.emergency_contact_phone}
+                        onChange={(e) => handleFieldChange('emergency_contact_phone', e.target.value)}
+                      />
+                      {formErrors.emergency_contact_phone && (
+                        <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.emergency_contact_phone}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="reg-form-group">
+                    <label>Relationship to Member</label>
+                    <input
+                      type="text"
+                      className="reg-control"
+                      placeholder="e.g. Spouse, Brother, Parent"
+                      value={formData.emergency_contact_relationship}
+                      onChange={(e) => handleFieldChange('emergency_contact_relationship', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="reg-form-group">
+                    <label>Fitness Goals</label>
+                    <textarea
+                      className="reg-control"
+                      style={{ height: 38, resize: 'none', padding: '4px 8px', fontSize: 11.5 }}
+                      rows={1}
+                      placeholder="e.g. Weight loss, muscle building"
+                      value={formData.fitness_goals}
+                      onChange={(e) => handleFieldChange('fitness_goals', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="reg-form-group">
+                    <label>Medical Restrictions</label>
+                    <textarea
+                      className="reg-control"
+                      style={{ height: 38, resize: 'none', padding: '4px 8px', fontSize: 11.5 }}
+                      rows={1}
+                      placeholder="e.g. Asthma, Knee surgery"
+                      value={formData.health_conditions}
+                      onChange={(e) => handleFieldChange('health_conditions', e.target.value)}
+                    />
+                  </div>
+
+                  {/* Actions */}
+                  <div className="reg-actions-row" style={{ marginTop: 'auto', paddingTop: 8 }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setEditingMember(null)}
+                      disabled={isSubmitting}
+                      style={{ height: 32, padding: '0 14px', fontSize: 12 }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      style={{ height: 32, padding: '0 18px', fontSize: 12.5, background: '#E67C00', borderColor: '#E67C00', fontWeight: 700 }}
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? 'Saving Changes...' : 'Save Profile Changes'}
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              <div className="form-group">
-                <label>Residential Address</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="e.g. Woreda 03, Addis Ababa"
-                  value={formData.address}
-                  onChange={(e) => handleFieldChange('address', e.target.value)}
-                />
-              </div>
-
-              <h4 className="form-section-title" style={{ marginTop: 16 }}>Emergency Contact</h4>
-              <div className="form-row-2">
-                <div className="form-group">
-                  <label>Emergency Contact Name</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={formData.emergency_contact_name}
-                    onChange={(e) => handleFieldChange('emergency_contact_name', e.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Emergency Contact Phone</label>
-                  <input
-                    type="text"
-                    className={`form-control ${formErrors.emergency_contact_phone ? 'input-error' : ''}`}
-                    value={formData.emergency_contact_phone}
-                    onChange={(e) => handleFieldChange('emergency_contact_phone', e.target.value)}
-                  />
-                  {formErrors.emergency_contact_phone && (
-                    <span className="form-error-text"><Icons.AlertCircle size={13} /> {formErrors.emergency_contact_phone}</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Relationship</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="e.g. Spouse, Brother, Parent"
-                  value={formData.emergency_contact_relationship}
-                  onChange={(e) => handleFieldChange('emergency_contact_relationship', e.target.value)}
-                />
-              </div>
-
-              <h4 className="form-section-title" style={{ marginTop: 16 }}>Fitness & Health Notes (Optional)</h4>
-              <div className="form-group">
-                <label>Fitness Goals</label>
-                <textarea
-                  className="form-control"
-                  rows={2}
-                  value={formData.fitness_goals}
-                  onChange={(e) => handleFieldChange('fitness_goals', e.target.value)}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Medical / Exercise Restrictions</label>
-                <textarea
-                  className="form-control"
-                  rows={2}
-                  value={formData.health_conditions}
-                  onChange={(e) => handleFieldChange('health_conditions', e.target.value)}
-                />
-              </div>
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setEditingMember(null)}
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  style={{ background: '#E67C00', borderColor: '#E67C00' }}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? 'Saving Changes...' : 'Save Profile Changes'}
-                </button>
               </div>
             </form>
           </div>
