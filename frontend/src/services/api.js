@@ -354,6 +354,14 @@ export const apiClient = {
     return this.get('/payments/summary');
   },
 
+  initializeChapa(payload) {
+    return this.post('/payments/chapa/initialize', payload);
+  },
+
+  verifyChapa(payload) {
+    return this.post('/payments/chapa/verify', payload);
+  },
+
   // Expenses & Outflows
   getExpenses(params = {}) {
     const query = new URLSearchParams();
