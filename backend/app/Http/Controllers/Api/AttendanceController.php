@@ -128,11 +128,18 @@ class AttendanceController extends Controller
             ->groupBy('method')
             ->pluck('count', 'method');
 
-        // Hourly breakdown for peak gym traffic analysis
+        // Hourly breakdown for peak gym traffic analysis (driver agnostic: MySQL, SQLite, PostgreSQL)
+        $driver = DB::connection()->getDriverName();
+        $hourExpr = match ($driver) {
+            'sqlite' => 'strftime("%H", check_in_time)',
+            'pgsql' => 'to_char(check_in_time, \'HH24\')',
+            default => 'DATE_FORMAT(check_in_time, "%H")', // MySQL, MariaDB
+        };
+
         $hourlyDistribution = (clone $baseQuery)
             ->whereDate('check_in_time', $today)
             ->where('status', 'admitted')
-            ->select(DB::raw('strftime("%H", check_in_time) as hour'), DB::raw('COUNT(*) as count'))
+            ->select(DB::raw("{$hourExpr} as hour"), DB::raw('COUNT(*) as count'))
             ->groupBy('hour')
             ->pluck('count', 'hour');
 
