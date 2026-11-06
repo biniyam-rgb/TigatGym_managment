@@ -1,12 +1,32 @@
 import { useState } from 'react';
 import { useAuth } from '../context/useAuth';
 
-// Crisp SVG Icons (Replacing all emojis)
+// Crisp SVG Icons
+const DumbbellBadgeIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 5v14M18 5v14M3 8v8M21 8v8M6 12h12" />
+  </svg>
+);
+
 const AlertCircleIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
     <circle cx="12" cy="12" r="10" />
     <line x1="12" y1="8" x2="12" y2="12" />
     <line x1="12" y1="16" x2="12.01" y2="16" />
+  </svg>
+);
+
+const MailIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+    <rect width="20" height="16" x="2" y="4" rx="2" />
+    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+  </svg>
+);
+
+const LockIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+    <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
   </svg>
 );
 
@@ -25,35 +45,41 @@ const EyeOffIcon = () => (
 );
 
 const CrownIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z" />
     <path d="M5 20h14" />
   </svg>
 );
 
 const ShieldIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
   </svg>
 );
 
 const ClipboardIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
     <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
   </svg>
 );
 
 const DumbbellIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M6 5v14M18 5v14M2 9v6M22 9v6M6 12h12" />
   </svg>
 );
 
 const UserIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
     <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
+const ZapIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ff7a00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
   </svg>
 );
 
@@ -66,8 +92,9 @@ const MailCheckIcon = () => (
 
 export default function LoginForm({ onSuccess }) {
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('receptionist@tigatgym.com');
+  const [password, setPassword] = useState('Password123!');
+  const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -75,13 +102,13 @@ export default function LoginForm({ onSuccess }) {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
 
-  // Quick Demo fill accounts with SVG icons — Member listed first
+  // Quick Demo fill accounts - Organized into 3 top (staff/gym) + 2 bottom (management)
   const demoAccounts = [
-    { role: 'Member', email: 'member@tigatgym.com', pass: 'Password123!', icon: <UserIcon /> },
-    { role: 'Trainer', email: 'trainer@tigatgym.com', pass: 'Password123!', icon: <DumbbellIcon /> },
-    { role: 'Admin', email: 'admin@tigatgym.com', pass: 'Password123!', icon: <ShieldIcon /> },
-    { role: 'Owner', email: 'owner@tigatgym.com', pass: 'Password123!', icon: <CrownIcon /> },
-    { role: 'Receptionist', email: 'receptionist@tigatgym.com', pass: 'Password123!', icon: <ClipboardIcon /> },
+    { role: 'Member', email: 'member@tigatgym.com', pass: 'Password123!', icon: <UserIcon />, span: 'col-span-2' },
+    { role: 'Trainer', email: 'trainer@tigatgym.com', pass: 'Password123!', icon: <DumbbellIcon />, span: 'col-span-2' },
+    { role: 'Receptionist', email: 'receptionist@tigatgym.com', pass: 'Password123!', icon: <ClipboardIcon />, span: 'col-span-2' },
+    { role: 'Admin', email: 'admin@tigatgym.com', pass: 'Password123!', icon: <ShieldIcon />, span: 'col-span-3' },
+    { role: 'Owner', email: 'owner@tigatgym.com', pass: 'Password123!', icon: <CrownIcon />, span: 'col-span-3' },
   ];
 
   const handleSubmit = async (e) => {
@@ -111,143 +138,195 @@ export default function LoginForm({ onSuccess }) {
   };
 
   return (
-    <div className="tigat-login-page">
-      {/* Background Athlete Photograph */}
-      <div className="tigat-login-bg-photo" aria-hidden="true"></div>
-      <div className="tigat-login-vignette" aria-hidden="true"></div>
+    <div className="gymcore-split-page">
+      {/* Background Gym Photography */}
+      <div className="gymcore-split-bg-photo" aria-hidden="true" />
 
-      {/* Dynamic Angular Red & Charcoal Geometric Slashes */}
-      <div className="tigat-slash-left-charcoal" aria-hidden="true"></div>
-      <div className="tigat-slash-left-red" aria-hidden="true"></div>
-      <div className="tigat-slash-left-accent-line" aria-hidden="true"></div>
-      <div className="tigat-slash-left-bottom-red" aria-hidden="true"></div>
+      {/* Left Brand Column */}
+      <div className="gymcore-split-left">
+        <div className="gymcore-split-left-glow" aria-hidden="true" />
 
-      <div className="tigat-slash-right-charcoal" aria-hidden="true"></div>
-      <div className="tigat-slash-right-red" aria-hidden="true"></div>
-      <div className="tigat-slash-right-accent-line" aria-hidden="true"></div>
+        {/* Concentric Watermark Motif */}
+        <svg
+          className="gymcore-split-watermark"
+          viewBox="0 0 600 600"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <circle cx="340" cy="300" r="90" stroke="rgba(255, 122, 0, 0.16)" strokeWidth="2.5" />
+          <circle cx="340" cy="300" r="160" stroke="rgba(255, 122, 0, 0.12)" strokeWidth="2" />
+          <circle cx="340" cy="300" r="230" stroke="rgba(255, 122, 0, 0.08)" strokeWidth="2" strokeDasharray="6 6" />
+          <circle cx="340" cy="300" r="300" stroke="rgba(255, 122, 0, 0.05)" strokeWidth="1.5" />
+          <circle cx="340" cy="300" r="370" stroke="rgba(255, 122, 0, 0.03)" strokeWidth="1.5" strokeDasharray="10 10" />
+        </svg>
 
-      {/* Main Single Full-Screen Center Column */}
-      <div className="tigat-login-center-column">
-        {/* Tigat Gym Tiger Logo with Glowing Aura */}
-        <div className="tigat-logo-wrapper">
-          <div className="tigat-logo-glow-aura" aria-hidden="true"></div>
-          <img
-            src="/tigat-tiger-logo.png"
-            alt="TIGAT GYM"
-            className="tigat-tiger-crest-img"
-          />
+        {/* Top-Left Brand Logo & Name */}
+        <div className="gymcore-split-brand-header">
+          <div className="gymcore-split-brand-badge">
+            <DumbbellBadgeIcon />
+          </div>
+          <div className="gymcore-split-brand-text">
+            <span className="brand-white">TIGAT</span>
+            <span className="brand-orange">GYM</span>
+          </div>
         </div>
 
-        {/* Title: PLEASE LOG IN */}
-        <h1 className="tigat-login-title">PLEASE LOG IN</h1>
+        {/* Hero Motivational Headline & Description */}
+        <div className="gymcore-split-hero">
+          <div className="gymcore-split-accent-bar" />
+          <h1 className="gymcore-split-headline">
+            STRONGER EVERY<br />
+            DAY.<br />
+            BETTER EVERY<br />
+            SESSION.
+          </h1>
+          <p className="gymcore-split-description">
+            Welcome to TIGAT GYM. Your fitness journey, membership, and training experience are powered by GymCore.
+          </p>
+        </div>
 
-        {/* Error notification */}
-        {errorMessage && (
-          <div className="tigat-login-error">
-            <AlertCircleIcon />
-            <span>{errorMessage}</span>
+        {/* Bottom spacer for balanced alignment */}
+        <div style={{ height: 16 }} />
+      </div>
+
+      {/* Right Form Column */}
+      <div className="gymcore-split-right">
+        <div className="gymcore-split-card">
+          {/* GymCore App Heading */}
+          <div className="gymcore-split-app-header">
+            <div className="gymcore-split-app-name">GymCore</div>
+            <div className="gymcore-split-app-sub">TIGAT GYM Management</div>
           </div>
-        )}
 
-        {/* Unified Glassmorphism Form Card with Smooth Curved Borders */}
-        <form onSubmit={handleSubmit} className="tigat-form-card" autoComplete="off">
-          <div className="tigat-inputs-container">
-            {/* Email Address Underline Field */}
-            <div className={`tigat-floating-field ${email ? 'has-value' : ''}`}>
-              <input
-                id="tigat-login-usr"
-                type="text"
-                name="tigat_auth_usr"
-                required
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="none"
-                spellCheck="false"
-                data-lpignore="true"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="tigat-floating-input"
-                placeholder=" "
-              />
-              <label htmlFor="tigat-login-usr" className="tigat-floating-label">
-                Email Address
+          <h2 className="gymcore-split-welcome">WELCOME BACK</h2>
+          <p className="gymcore-split-subtitle">Sign in to access your GymCore account.</p>
+
+          {/* Error Message */}
+          {errorMessage && (
+            <div className="gymcore-split-error">
+              <AlertCircleIcon />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="gymcore-split-form" autoComplete="off">
+            {/* Email Address */}
+            <div className="gymcore-field-group">
+              <label htmlFor="gymcore-email" className="gymcore-field-label">
+                Email address
               </label>
+              <div className="gymcore-input-box">
+                <span className="gymcore-input-icon">
+                  <MailIcon />
+                </span>
+                <input
+                  id="gymcore-email"
+                  type="email"
+                  name="tigat_auth_usr"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="gymcore-native-input"
+                  placeholder="you@example.com"
+                />
+              </div>
             </div>
 
-            {/* Password Underline Field */}
-            <div className={`tigat-floating-field ${password ? 'has-value' : ''}`}>
-              <input
-                id="tigat-login-pwd"
-                type={showPassword ? 'text' : 'password'}
-                name="tigat_auth_pwd"
-                required
-                autoComplete="new-password"
-                data-lpignore="true"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="tigat-floating-input tigat-password-input"
-                placeholder=" "
-              />
-              <label htmlFor="tigat-login-pwd" className="tigat-floating-label">
+            {/* Password */}
+            <div className="gymcore-field-group">
+              <label htmlFor="gymcore-pwd" className="gymcore-field-label">
                 Password
               </label>
-              <button
-                type="button"
-                className="tigat-pwd-toggle-btn"
-                onClick={() => setShowPassword(!showPassword)}
-                title={showPassword ? 'Hide password' : 'Show password'}
-                tabIndex={-1}
-                aria-label="Toggle password visibility"
-              >
-                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-              </button>
+              <div className="gymcore-input-box">
+                <span className="gymcore-input-icon">
+                  <LockIcon />
+                </span>
+                <input
+                  id="gymcore-pwd"
+                  type={showPassword ? 'text' : 'password'}
+                  name="tigat_auth_pwd"
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="gymcore-native-input"
+                  placeholder="Enter your password"
+                />
+                <button
+                  type="button"
+                  className="gymcore-pwd-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                  tabIndex={-1}
+                  aria-label="Toggle password visibility"
+                >
+                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                </button>
+              </div>
             </div>
 
-            {/* Forgot your password? Link */}
-            <div className="tigat-forgot-wrap">
+            {/* Remember Me & Forgot Password */}
+            <div className="gymcore-form-options">
+              <label className="gymcore-checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                />
+                <span>Remember me</span>
+              </label>
               <button
                 type="button"
-                className="tigat-forgot-btn"
+                className="gymcore-forgot-link"
                 onClick={() => {
                   setForgotEmail(email);
                   setForgotSent(false);
                   setIsForgotModalOpen(true);
                 }}
               >
-                Forgot your password?
+                Forgot password?
               </button>
             </div>
-          </div>
 
-          {/* Solid White Rectangular LOGIN Button */}
-          <button
-            type="submit"
-            className="tigat-login-submit-btn"
-            disabled={isLoading}
-          >
-            {isLoading ? 'LOGGING IN...' : 'LOGIN'}
-          </button>
-        </form>
+            {/* Solid Orange Sign In Button */}
+            <button
+              type="submit"
+              className="gymcore-signin-btn"
+              disabled={isLoading}
+            >
+              {isLoading ? 'SIGNING IN...' : 'SIGN IN'}
+            </button>
+          </form>
 
-        {/* Prominently Visible Quick Demo Sign-In Dock */}
-        <div className="tigat-demo-dock">
-          <span className="tigat-demo-label">Quick Demo Sign-In:</span>
-          <div className="tigat-demo-pills">
-            {demoAccounts.map((acc) => {
-              const isSelected = email === acc.email;
-              return (
-                <button
-                  key={acc.role}
-                  type="button"
-                  className={`tigat-demo-pill ${isSelected ? 'pill-active' : ''}`}
-                  onClick={() => fillDemo(acc)}
-                  title={`Click to autofill ${acc.role} credentials (${acc.email})`}
-                >
-                  <span className="demo-pill-icon">{acc.icon}</span>
-                  <span className="demo-pill-name">{acc.role}</span>
-                </button>
-              );
-            })}
+          {/* Quick Demo Role Dock */}
+          <div className="gymcore-demo-dock">
+            <div className="gymcore-demo-header">
+              <span className="gymcore-demo-title">
+                <ZapIcon />
+                <span>Quick Demo Sign-In</span>
+              </span>
+              <span className="gymcore-demo-badge">1-Click Auto Fill</span>
+            </div>
+            <div className="gymcore-demo-grid">
+              {demoAccounts.map((acc) => {
+                const isSelected = email === acc.email;
+                return (
+                  <button
+                    key={acc.role}
+                    type="button"
+                    className={`gymcore-demo-btn ${acc.span} ${isSelected ? 'btn-active' : ''}`}
+                    onClick={() => fillDemo(acc)}
+                    title={`Autofill ${acc.role} credentials (${acc.email})`}
+                  >
+                    <span className="demo-btn-icon">{acc.icon}</span>
+                    <span className="demo-btn-name">{acc.role}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
