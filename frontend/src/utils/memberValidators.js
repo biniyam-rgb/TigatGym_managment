@@ -113,6 +113,13 @@ export function validateSingleField(field, value, allData = {}, isRegister = tru
       return null;
     }
 
+    case 'membership_plan_id': {
+      if (isRegister && (!value || String(value).trim() === '')) {
+        return 'Please select a membership plan for the member.';
+      }
+      return null;
+    }
+
     case 'payment_amount': {
       if (isRegister && allData.membership_plan_id) {
         const num = Number(value);
@@ -126,7 +133,7 @@ export function validateSingleField(field, value, allData = {}, isRegister = tru
     case 'payment_reference': {
       if (isRegister && allData.membership_plan_id && allData.payment_method === 'chapa') {
         if (!value || !value.trim()) {
-          return 'Chapa Transaction Reference / Receipt ID (e.g. CHP-123456) is required.';
+          return 'Chapa Transaction Reference (e.g. CHP-123456) or completed push is required.';
         }
       }
       return null;
@@ -158,10 +165,13 @@ export function validateMemberForm(data, isRegister = true) {
     'emergency_contact_phone',
   ];
 
-  if (isRegister && data.membership_plan_id) {
-    fieldsToValidate.push('payment_amount', 'start_date');
-    if (data.payment_method === 'chapa') {
-      fieldsToValidate.push('payment_reference');
+  if (isRegister) {
+    fieldsToValidate.push('membership_plan_id');
+    if (data.membership_plan_id) {
+      fieldsToValidate.push('payment_amount', 'start_date');
+      if (data.payment_method === 'chapa') {
+        fieldsToValidate.push('payment_reference');
+      }
     }
   }
 
