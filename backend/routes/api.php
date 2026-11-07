@@ -41,6 +41,9 @@ Route::prefix('auth')->group(function () {
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:password-reset');
 });
 
+// Chapa Webhook / Callback Route (Public, invoked by Chapa payment gateway)
+Route::match(['get', 'post'], '/payments/chapa/callback', [PaymentController::class, 'chapaCallback']);
+
 /*
 |--------------------------------------------------------------------------
 | Protected API Routes (Requires Authenticated Sanctum Token & Active Status)
