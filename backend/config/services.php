@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'chapa' => [
+        'secret_key' => env('CHAPA_SECRET_KEY'),
+        'base_url' => rtrim(env('CHAPA_BASE_URL', 'https://api.chapa.global'), '/'),
+        'webhook_secret' => env('CHAPA_WEBHOOK_SECRET'),
+        'timeout' => (int) env('CHAPA_TIMEOUT', 15),
+    ],
+
 ];
