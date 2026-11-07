@@ -11,7 +11,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(\App\Services\ChapaService::class, function () {
+            return new \App\Services\ChapaService();
+        });
     }
 
     public function boot(): void
