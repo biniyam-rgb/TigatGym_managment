@@ -3,9 +3,9 @@ import { useAuth } from '../context/useAuth';
 export default function ReceptionProfileView({ onOpenPasswordModal, onNavigate }) {
   const { user, primaryRole, logout } = useAuth();
 
-  const receptionistName = user?.name || 'Sara Ahmed';
+  const receptionistName = user?.name || 'Selamawit Kebede';
   const receptionistEmail = user?.email || 'reception@tigatgym.com';
-  const initials = receptionistName.split(' ').map((p) => p[0]).join('').substring(0, 2).toUpperCase() || 'SA';
+  const initials = receptionistName.split(' ').map((p) => p[0]).join('').substring(0, 2).toUpperCase() || 'SK';
 
   return (
     <div className="reception-profile-page" style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>

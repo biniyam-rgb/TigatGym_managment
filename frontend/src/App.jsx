@@ -68,7 +68,7 @@ function GymCoreApp() {
   }
 
   // Titles mapping based on active view (clean SaaS header titles with no dense text)
-  const firstName = user?.name ? user.name.split(' ')[0] : 'Sara';
+  const firstName = user?.name ? user.name.split(' ')[0] : 'Selam';
   const viewTitles = {
     dashboard: {
       title: `Welcome back, ${firstName}!`,
