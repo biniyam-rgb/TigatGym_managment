@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\MemberProfile;
 use App\Models\MembershipPlan;
 use App\Models\Payment;
 use App\Models\Role;
@@ -10,6 +11,7 @@ use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class MemberRegistrationFlowTest extends TestCase
@@ -55,7 +57,7 @@ class MemberRegistrationFlowTest extends TestCase
         // 2. Invalid blood type
         $res2 = $this->withHeader('Authorization', "Bearer {$token}")
             ->postJson('/api/members', [
-                'name' => 'John Doe',
+                'name' => 'Zelalem Tadesse',
                 'phone' => '+251911223344',
                 'blood_type' => 'XYZ',
             ]);
@@ -65,7 +67,7 @@ class MemberRegistrationFlowTest extends TestCase
         // 3. Invalid DOB (future date)
         $res3 = $this->withHeader('Authorization', "Bearer {$token}")
             ->postJson('/api/members', [
-                'name' => 'John Doe',
+                'name' => 'Zelalem Tadesse',
                 'phone' => '+251911223344',
                 'date_of_birth' => now()->addDay()->toDateString(),
             ]);
@@ -158,7 +160,7 @@ class MemberRegistrationFlowTest extends TestCase
         // Register Member
         $regResponse = $this->withHeader('Authorization', "Bearer {$token}")
             ->postJson('/api/members', [
-                'name' => 'Sara Tadesse',
+                'name' => 'Selamawit Tadesse',
                 'phone' => '0922334455',
                 'gender' => 'female',
                 'blood_type' => 'A+',
@@ -199,26 +201,58 @@ class MemberRegistrationFlowTest extends TestCase
     {
         [, $token] = $this->createStaff();
 
-        // 1. Initialize Chapa Mobile Payment (e.g. Telebirr, CBE Birr, M-Pesa)
+        $member = User::create([
+            'name' => 'Abebe Bikila',
+            'email' => 'abebe_' . uniqid() . '@tigatgym.com',
+            'phone' => '+251911223344',
+            'status' => 'active',
+            'password' => Hash::make('Password123!'),
+        ]);
+        $member->roles()->attach(Role::where('name', 'member')->firstOrFail()->id);
+        MemberProfile::create([
+            'user_id' => $member->id,
+            'member_code' => 'TG-0999',
+            'qr_code_token' => 'QR-0999',
+            'joined_at' => now(),
+        ]);
+
+        $plan = MembershipPlan::create([
+            'name' => 'Monthly Standard Plan',
+            'slug' => 'monthly-standard-' . uniqid(),
+            'price' => 1500.00,
+            'currency' => 'ETB',
+            'duration_type' => 'month',
+            'duration_value' => 1,
+            'is_active' => true,
+        ]);
+
+        Http::fake([
+            'https://api.chapa.global/v2/payments/hosted' => Http::response([
+                'status' => 'success',
+                'message' => 'Hosted checkout created',
+                'data' => [
+                    'checkout_url' => 'https://checkout.chapa.global/checkout/payment/CHP-TG-MOCK999',
+                ],
+            ], 200),
+        ]);
+
+        // 1. Initialize Chapa Hosted Payment
         $initResponse = $this->withHeader('Authorization', "Bearer {$token}")
             ->postJson('/api/payments/chapa/initialize', [
-                'amount' => 1500,
-                'phone' => '0911223344',
-                'provider' => 'telebirr',
-                'name' => 'Abebe Bikila',
-                'plan_name' => 'Monthly Standard',
+                'member_id' => $member->id,
+                'membership_plan_id' => $plan->id,
             ]);
 
-        $initResponse->assertStatus(200)
+        $initResponse->assertStatus(201)
             ->assertJson([
                 'status' => 'success',
             ]);
 
-        $txRef = $initResponse->json('data.tx_ref');
-        $this->assertStringStartsWith('CHP-TG-', $txRef);
-        $this->assertEquals('telebirr', $initResponse->json('data.provider'));
+        $txRef = $initResponse->json('data.merchant_reference');
+        $this->assertNotEmpty($txRef);
+        $this->assertLessThanOrEqual(20, strlen($txRef));
 
-        // 2. Verify Member PIN Authorization
+        // 2. Verify Member PIN Authorization (Approval)
         $verifyResponse = $this->withHeader('Authorization', "Bearer {$token}")
             ->postJson('/api/payments/chapa/verify', [
                 'tx_ref' => $txRef,
@@ -234,5 +268,28 @@ class MemberRegistrationFlowTest extends TestCase
                     'verified' => true,
                 ],
             ]);
+
+        // 3. Verify Member Cancels Payment on Phone
+        $cancelResponse = $this->withHeader('Authorization', "Bearer {$token}")
+            ->postJson('/api/payments/chapa/verify', [
+                'tx_ref' => $txRef,
+                'simulate_status' => 'cancelled',
+            ]);
+
+        $cancelResponse->assertStatus(422)
+            ->assertJson([
+                'status' => 'cancelled',
+                'data' => [
+                    'status' => 'cancelled',
+                    'verified' => false,
+                ],
+            ]);
+
+        // 4. Verify public Chapa Webhook / Callback endpoint
+        $webhookResponse = $this->postJson('/api/payments/chapa/callback', [
+            'trx_ref' => $txRef,
+            'status' => 'success',
+        ]);
+        $webhookResponse->assertStatus(200);
     }
 }
