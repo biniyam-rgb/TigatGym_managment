@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\ChapaException;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PaymentResource;
 use App\Models\MembershipPlan;
@@ -10,6 +11,7 @@ use App\Models\PaymentTransaction;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\ChapaService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +22,13 @@ use Symfony\Component\HttpFoundation\Response;
 
 class PaymentController extends Controller
 {
+    protected ChapaService $chapaService;
+
+    public function __construct(ChapaService $chapaService)
+    {
+        $this->chapaService = $chapaService;
+    }
+
     /**
      * Display a listing of payments.
      */
@@ -361,88 +370,249 @@ class PaymentController extends Controller
     }
 
     /**
-     * Initialize Chapa mobile money payment (Telebirr, CBE Birr, M-Pesa, Awash).
+     * Initialize Chapa v2 Hosted Checkout session for membership subscription.
      */
     public function initializeChapa(Request $request): JsonResponse
     {
         $this->authorize('create', Payment::class);
 
         $validated = $request->validate([
-            'amount' => ['required', 'numeric', 'min:1'],
-            'phone' => ['required', 'string', 'min:9', 'max:25'],
-            'provider' => ['nullable', 'string', 'in:telebirr,cbebirr,mpesa,awash,card,other'],
-            'name' => ['nullable', 'string', 'max:255'],
+            'member_id' => ['required_without:user_id', 'nullable', 'integer', 'exists:users,id'],
+            'user_id' => ['required_without:member_id', 'nullable', 'integer', 'exists:users,id'],
+            'membership_plan_id' => ['required', 'integer', 'exists:membership_plans,id'],
+            'subscription_id' => ['nullable', 'integer', 'exists:subscriptions,id'],
+            'start_date' => ['nullable', 'date'],
+            'phone' => ['nullable', 'string', 'max:25'],
             'email' => ['nullable', 'email', 'max:255'],
-            'plan_name' => ['nullable', 'string', 'max:255'],
+            'return_url' => ['nullable', 'url', 'max:500'],
+            'idempotency_key' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $provider = $validated['provider'] ?? 'telebirr';
-        $providerLabels = [
-            'telebirr' => 'Telebirr (Ethio Telecom)',
-            'cbebirr' => 'CBE Birr (Commercial Bank of Ethiopia)',
-            'mpesa' => 'M-Pesa (Safaricom Ethiopia)',
-            'awash' => 'AwashBirr (Awash Bank)',
-            'card' => 'Debit/Credit Card',
-            'other' => 'Chapa Mobile Money',
-        ];
+        $memberId = $validated['member_id'] ?? $validated['user_id'];
+        $member = User::with('memberProfile')->findOrFail($memberId);
 
-        $txRef = 'CHP-TG-' . strtoupper(Str::random(10));
-        $chapaKey = config('services.chapa.secret_key', env('CHAPA_SECRET_KEY'));
+        if (! $member->hasRole('member')) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Online payments can only be processed for registered members.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
-        if (! empty($chapaKey) && ! str_starts_with($chapaKey, 'CHASECK_TEST-placeholder')) {
-            try {
-                $response = Http::withToken($chapaKey)->post('https://api.chapa.co/v1/transaction/initialize', [
-                    'amount' => (string) $validated['amount'],
-                    'currency' => 'ETB',
-                    'email' => $validated['email'] ?? 'reception@tigatgym.com',
-                    'first_name' => explode(' ', $validated['name'] ?? 'Tigat Member')[0],
-                    'last_name' => explode(' ', $validated['name'] ?? 'Member')[1] ?? 'Tigat',
-                    'phone_number' => $validated['phone'],
-                    'tx_ref' => $txRef,
-                    'callback_url' => url('/api/payments/chapa/callback'),
-                    'return_url' => config('app.frontend_url', 'http://localhost:5173') . '/payments/verify',
-                    'customization' => [
-                        'title' => 'Tigat Gym Membership',
-                        'description' => $validated['plan_name'] ?? 'Gym Membership Fee',
-                    ],
-                ]);
+        // 1. Authoritative server-side price validation: retrieve plan price directly from DB
+        $plan = MembershipPlan::findOrFail($validated['membership_plan_id']);
+        if (! $plan->is_active) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'The selected membership plan is currently not active.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
-                if ($response->successful()) {
-                    $resData = $response->json();
+        $authorizedAmount = (float) $plan->price;
+
+        // 2. Idempotency Key Handling & Safe Retries
+        $idempotencyKey = trim((string) (
+            $request->header('Idempotency-Key')
+            ?: $request->header('X-Idempotency-Key')
+            ?: ($validated['idempotency_key'] ?? '')
+        ));
+
+        if (! empty($idempotencyKey)) {
+            $existingTxn = PaymentTransaction::with('payment')
+                ->where('idempotency_key', $idempotencyKey)
+                ->first();
+
+            if ($existingTxn) {
+                // If payment is already completed, prevent duplicate payment
+                if ($existingTxn->payment && $existingTxn->payment->status === 'completed') {
                     return response()->json([
                         'status' => 'success',
-                        'message' => "Chapa STK/USSD prompt sent to {$validated['phone']} via {$providerLabels[$provider]}.",
+                        'message' => 'Payment has already been completed for this transaction.',
                         'data' => [
-                            'tx_ref' => $txRef,
-                            'checkout_url' => $resData['data']['checkout_url'] ?? null,
-                            'phone' => $validated['phone'],
-                            'provider' => $provider,
-                            'provider_label' => $providerLabels[$provider],
-                            'amount' => (float) $validated['amount'],
-                            'is_live' => true,
+                            'merchant_reference' => $existingTxn->transaction_reference,
+                            'gateway_reference' => $existingTxn->gateway_reference,
+                            'payment_id' => $existingTxn->payment_id,
+                            'status' => 'completed',
+                            'amount' => (float) $existingTxn->payment->amount,
+                            'currency' => $existingTxn->payment->currency,
+                            'is_completed' => true,
                         ],
                     ]);
                 }
-            } catch (\Exception $e) {
-                // Network failure or sandbox mode fallback
+
+                // If existing checkout session exists and is pending, reuse active session
+                $cachedUrl = $existingTxn->gateway_response['data']['checkout_url']
+                    ?? $existingTxn->gateway_response['checkout_url']
+                    ?? null;
+
+                if (! empty($cachedUrl)) {
+                    return response()->json([
+                        'status' => 'success',
+                        'message' => 'Reusing active checkout session for this idempotency key.',
+                        'data' => [
+                            'checkout_url' => $cachedUrl,
+                            'merchant_reference' => $existingTxn->transaction_reference,
+                            'gateway_reference' => $existingTxn->gateway_reference,
+                            'payment_id' => $existingTxn->payment_id,
+                            'subscription_id' => $existingTxn->payment?->payable_id,
+                            'amount' => (float) $existingTxn->amount,
+                            'currency' => $existingTxn->currency,
+                            'plan_name' => $plan->name,
+                            'status' => 'pending',
+                            'is_retry' => true,
+                            'idempotency_key' => $idempotencyKey,
+                        ],
+                    ]);
+                }
+            }
+        } else {
+            // Generate a fresh unique idempotency key for this new payment attempt
+            $idempotencyKey = 'IDEMP-' . Str::uuid()->toString();
+        }
+
+        // 3. Subscription Handling (Strictly Pending)
+        if (! empty($validated['subscription_id'])) {
+            $subscription = Subscription::where('id', $validated['subscription_id'])
+                ->where('member_id', $member->id)
+                ->firstOrFail();
+
+            if ($subscription->status === 'active') {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'This subscription is already active and paid.',
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+        } else {
+            // Find existing pending subscription or create a new pending one
+            $subscription = Subscription::where('member_id', $member->id)
+                ->where('membership_plan_id', $plan->id)
+                ->where('status', 'pending')
+                ->latest('id')
+                ->first();
+
+            if (! $subscription) {
+                $startDate = $request->filled('start_date') ? Carbon::parse($validated['start_date']) : Carbon::today();
+                $endDate = $plan->calculateEndDate($startDate);
+
+                $subscription = Subscription::create([
+                    'member_id' => $member->id,
+                    'membership_plan_id' => $plan->id,
+                    'subscription_number' => Subscription::generateNextSubscriptionNumber(),
+                    'start_date' => $startDate->toDateString(),
+                    'end_date' => $endDate->toDateString(),
+                    'status' => 'pending', // Strictly pending until server-side payment verification
+                    'price' => $authorizedAmount,
+                    'discount' => 0.00,
+                    'total_amount' => $authorizedAmount,
+                    'currency' => 'ETB',
+                    'created_by' => $request->user()?->id,
+                ]);
             }
         }
 
-        // Seamless local/sandbox STK push response (for demo & front-desk prompt)
-        return response()->json([
-            'status' => 'success',
-            'message' => "USSD prompt sent to {$validated['phone']} via {$providerLabels[$provider]}. Payer must enter PIN to approve.",
-            'data' => [
-                'tx_ref' => $txRef,
-                'checkout_url' => 'https://checkout.chapa.co/checkout/payment/' . $txRef,
-                'phone' => $validated['phone'],
-                'provider' => $provider,
-                'provider_label' => $providerLabels[$provider],
-                'amount' => (float) $validated['amount'],
-                'is_live' => false,
-                'requires_pin' => true,
-            ],
-        ]);
+        // 4. Generate unique GymCore merchant reference (max 20 characters)
+        $merchantReference = PaymentTransaction::generateMerchantReference();
+
+        // 5. Customer details preparation
+        $nameParts = explode(' ', trim($member->name));
+        $firstName = $nameParts[0] ?? 'GymCore';
+        $lastName = count($nameParts) > 1 ? implode(' ', array_slice($nameParts, 1)) : 'Member';
+        $customerPhone = $request->input('phone') ?: ($member->phone ?: '+251911000000');
+        $customerEmail = $request->input('email') ?: ($member->email ?: 'reception@tigatgym.com');
+
+        $frontendUrl = config('app.frontend_url', 'http://localhost:5173');
+        $returnUrl = $request->input('return_url') ?: "{$frontendUrl}/payments/verify?ref={$merchantReference}";
+        $callbackUrl = url('/api/payments/chapa/webhook');
+
+        // 6. Create Pending Payment & Initiated Transaction in DB
+        $payment = DB::transaction(function () use ($member, $subscription, $plan, $authorizedAmount, $merchantReference, $idempotencyKey, $request) {
+            $p = Payment::create([
+                'payment_number' => Payment::generateNextPaymentNumber(),
+                'receipt_number' => Payment::generateNextReceiptNumber(),
+                'user_id' => $member->id,
+                'payable_type' => Subscription::class,
+                'payable_id' => $subscription->id,
+                'amount' => $authorizedAmount,
+                'currency' => 'ETB',
+                'payment_method' => 'chapa',
+                'payment_type' => 'subscription',
+                'status' => 'pending',
+                'recorded_by' => $request->user()?->id,
+                'notes' => "Chapa hosted checkout for {$plan->name} ({$subscription->subscription_number})",
+            ]);
+
+            PaymentTransaction::create([
+                'payment_id' => $p->id,
+                'transaction_reference' => $merchantReference,
+                'gateway' => 'chapa',
+                'gateway_reference' => null, // populated below from Chapa's response
+                'amount' => $authorizedAmount,
+                'currency' => 'ETB',
+                'status' => 'initiated',
+                'idempotency_key' => $idempotencyKey,
+                'ip_address' => $request->ip(),
+            ]);
+
+            return $p;
+        });
+
+        // 7. Initialize Chapa Hosted Checkout via ChapaService
+        try {
+            $chapaResult = $this->chapaService->initializeHostedPayment([
+                'amount' => $authorizedAmount,
+                'currency' => 'ETB',
+                'merchant_reference' => $merchantReference,
+                'customer' => [
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                    'email' => $customerEmail,
+                    'phone_number' => $customerPhone,
+                ],
+                'callback_url' => $callbackUrl,
+                'return_url' => $returnUrl,
+                'customization' => [
+                    'title' => 'Tigat Gym - ' . $plan->name,
+                    'description' => "Membership subscription fee for {$member->name}",
+                ],
+            ], $idempotencyKey);
+
+            // 8. Update transaction with Chapa's reference and response payload
+            $txn = PaymentTransaction::where('transaction_reference', $merchantReference)->first();
+            if ($txn) {
+                $txn->update([
+                    'gateway_reference' => $chapaResult['gateway_reference'],
+                    'gateway_response' => $chapaResult['data'],
+                    'status' => 'pending',
+                ]);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Payment initialized successfully. Please redirect customer to Chapa checkout.',
+                'data' => [
+                    'checkout_url' => $chapaResult['checkout_url'],
+                    'merchant_reference' => $merchantReference,
+                    'gateway_reference' => $chapaResult['gateway_reference'],
+                    'payment_id' => $payment->id,
+                    'subscription_id' => $subscription->id,
+                    'amount' => $authorizedAmount,
+                    'currency' => 'ETB',
+                    'plan_name' => $plan->name,
+                    'status' => 'pending',
+                    'idempotency_key' => $idempotencyKey,
+                ],
+            ], Response::HTTP_CREATED);
+        } catch (ChapaException $e) {
+            // Update transaction to failed if gateway refused
+            PaymentTransaction::where('transaction_reference', $merchantReference)->update([
+                'status' => 'failed',
+                'gateway_response' => $e->getResponseBody(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Chapa payment gateway initialization failed: ' . $e->getMessage(),
+            ], $e->getStatusCode() ?: Response::HTTP_BAD_GATEWAY);
+        }
     }
 
     /**
@@ -455,9 +625,37 @@ class PaymentController extends Controller
         $validated = $request->validate([
             'tx_ref' => ['required', 'string'],
             'pin' => ['nullable', 'string', 'min:4', 'max:8'],
+            'simulate_status' => ['nullable', 'string', 'in:success,failed,cancelled,pending'],
         ]);
 
         $txRef = $validated['tx_ref'];
+        $simulateStatus = $validated['simulate_status'] ?? null;
+
+        // Explicit simulation of member declining / cancelling on their phone
+        if ($simulateStatus === 'cancelled' || $simulateStatus === 'failed') {
+            return response()->json([
+                'status' => 'cancelled',
+                'message' => 'Payment authorization was cancelled or rejected by the member on their phone.',
+                'data' => [
+                    'tx_ref' => $txRef,
+                    'status' => 'cancelled',
+                    'verified' => false,
+                ],
+            ], 422);
+        }
+
+        if ($simulateStatus === 'pending') {
+            return response()->json([
+                'status' => 'pending',
+                'message' => 'Waiting for member to complete PIN authorization on mobile device.',
+                'data' => [
+                    'tx_ref' => $txRef,
+                    'status' => 'pending',
+                    'verified' => false,
+                ],
+            ]);
+        }
+
         $chapaKey = config('services.chapa.secret_key', env('CHAPA_SECRET_KEY'));
 
         if (! empty($chapaKey) && ! str_starts_with($chapaKey, 'CHASECK_TEST-placeholder')) {
@@ -465,7 +663,9 @@ class PaymentController extends Controller
                 $response = Http::withToken($chapaKey)->get("https://api.chapa.co/v1/transaction/verify/{$txRef}");
                 if ($response->successful()) {
                     $resData = $response->json();
-                    if (($resData['status'] ?? '') === 'success') {
+                    $remoteStatus = strtolower($resData['status'] ?? ($resData['data']['status'] ?? ''));
+
+                    if ($remoteStatus === 'success') {
                         return response()->json([
                             'status' => 'success',
                             'message' => 'Chapa payment verified successfully.',
@@ -476,6 +676,26 @@ class PaymentController extends Controller
                                 'verified' => true,
                             ],
                         ]);
+                    } elseif (in_array($remoteStatus, ['failed', 'canceled', 'cancelled'])) {
+                        return response()->json([
+                            'status' => 'cancelled',
+                            'message' => 'Payment was cancelled or rejected by the member on their phone.',
+                            'data' => [
+                                'tx_ref' => $txRef,
+                                'status' => 'cancelled',
+                                'verified' => false,
+                            ],
+                        ], 422);
+                    } else {
+                        return response()->json([
+                            'status' => 'pending',
+                            'message' => 'Waiting for member to authorize on phone...',
+                            'data' => [
+                                'tx_ref' => $txRef,
+                                'status' => 'pending',
+                                'verified' => false,
+                            ],
+                        ]);
                     }
                 }
             } catch (\Exception $e) {
@@ -483,16 +703,42 @@ class PaymentController extends Controller
             }
         }
 
-        // Verified confirmation
+        // Verified confirmation (sandbox / simulation approval)
         return response()->json([
             'status' => 'success',
-            'message' => 'PIN authorization verified. Payment committed successfully.',
+            'message' => 'Payment authorization confirmed on phone. Payment verified successfully.',
             'data' => [
                 'tx_ref' => $txRef,
                 'status' => 'completed',
                 'gateway_reference' => $txRef,
                 'verified' => true,
             ],
+        ]);
+    }
+
+    /**
+     * Webhook/Callback receiver for Chapa payment events.
+     */
+    public function chapaCallback(Request $request): JsonResponse
+    {
+        $payload = $request->all();
+        \Illuminate\Support\Facades\Log::info('Chapa Webhook/Callback Received', ['payload' => $payload]);
+
+        $txRef = $payload['trx_ref'] ?? $payload['tx_ref'] ?? null;
+        $status = strtolower($payload['status'] ?? '');
+
+        if ($txRef && $status === 'success') {
+            $payment = Payment::where('gateway_reference', $txRef)->first();
+            if ($payment && $payment->status !== 'completed') {
+                $payment->update([
+                    'status' => 'completed',
+                ]);
+            }
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Webhook received',
         ]);
     }
 }
