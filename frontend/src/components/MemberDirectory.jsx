@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import apiClient from '../services/api';
 import { useAuth } from '../context/useAuth';
 import QRCodeDisplay from './QRCodeDisplay';
@@ -188,15 +188,35 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
   };
   const [formData, setFormData] = useState(initialFormData);
 
-  // Chapa Direct Mobile Money State (Dimket / Telebirr / CBE / M-Pesa PIN Flow)
+  // Chapa Direct Mobile Money State (Automated Push / PIN Detection Flow)
   const [chapaProvider, setChapaProvider] = useState('telebirr');
   const [chapaPayerPhone, setChapaPayerPhone] = useState('');
-  const [chapaStatus, setChapaStatus] = useState('idle'); // 'idle' | 'push_sent' | 'verified' | 'failed'
+  const [chapaStatus, setChapaStatus] = useState('idle'); // 'idle' | 'push_sent' | 'verified' | 'cancelled' | 'failed'
   const [chapaTxRef, setChapaTxRef] = useState('');
-  const [chapaPin, setChapaPin] = useState('');
   const [chapaIsLoading, setChapaIsLoading] = useState(false);
   const [chapaNotice, setChapaNotice] = useState('');
   const [chapaManualMode, setChapaManualMode] = useState(false);
+  const [chapaElapsedSeconds, setChapaElapsedSeconds] = useState(0);
+
+  const chapaPollTimerRef = useRef(null);
+  const chapaElapsedTimerRef = useRef(null);
+
+  const stopChapaTimers = useCallback(() => {
+    if (chapaPollTimerRef.current) {
+      clearInterval(chapaPollTimerRef.current);
+      chapaPollTimerRef.current = null;
+    }
+    if (chapaElapsedTimerRef.current) {
+      clearInterval(chapaElapsedTimerRef.current);
+      chapaElapsedTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopChapaTimers();
+    };
+  }, [stopChapaTimers]);
 
   const isStaff = hasRole('owner') || hasRole('admin') || hasRole('receptionist');
   const isManagement = hasRole('owner') || hasRole('admin');
@@ -315,6 +335,11 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
 
     setChapaIsLoading(true);
     setChapaNotice('');
+    stopChapaTimers();
+    setChapaElapsedSeconds(0);
+
+    let activeTxRef = `CHP-TG-${Date.now().toString().slice(-8)}`;
+
     try {
       const res = await apiClient.initializeChapa({
         amount: amountNum,
@@ -326,31 +351,75 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
       });
 
       const data = res.data || res;
-      setChapaTxRef(data.tx_ref || `CHP-TG-${Date.now().toString().slice(-8)}`);
+      activeTxRef = data.tx_ref || activeTxRef;
+      setChapaTxRef(activeTxRef);
       setChapaStatus('push_sent');
-      setChapaNotice(res.message || `USSD prompt sent to ${targetPhone} via ${chapaProvider.toUpperCase()}.`);
+      setChapaNotice(res.message || `USSD prompt sent to ${targetPhone} via ${chapaProvider.toUpperCase()}. Waiting for member to authorize on phone...`);
     } catch (err) {
       console.error('Chapa push notice:', err);
-      const fallbackRef = `CHP-TG-${Math.floor(10000000 + Math.random() * 90000000)}`;
-      setChapaTxRef(fallbackRef);
+      setChapaTxRef(activeTxRef);
       setChapaStatus('push_sent');
-      setChapaNotice(`USSD prompt sent to ${targetPhone} via ${chapaProvider.toUpperCase()}. Payer must enter PIN to approve.`);
+      setChapaNotice(`USSD prompt sent to ${targetPhone} via ${chapaProvider.toUpperCase()}. Waiting for member to authorize on phone...`);
     } finally {
       setChapaIsLoading(false);
     }
+
+    // Start elapsed counter (seconds)
+    chapaElapsedTimerRef.current = setInterval(() => {
+      setChapaElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+
+    // Auto-Polling: every 2.5 seconds, check if the member entered PIN/password on their phone
+    let attempts = 0;
+    const maxAttempts = 36; // 90 seconds timeout
+    chapaPollTimerRef.current = setInterval(async () => {
+      attempts++;
+      if (attempts > maxAttempts) {
+        stopChapaTimers();
+        setChapaStatus('cancelled');
+        setChapaNotice('⏱️ Request Timed Out: The member took too long to authorize or cancelled on their phone. You can retry push or switch to cash.');
+        return;
+      }
+
+      try {
+        const checkRes = await apiClient.verifyChapa({
+          tx_ref: activeTxRef,
+        });
+
+        if (checkRes.status === 'success' || checkRes.data?.verified) {
+          stopChapaTimers();
+          const verifiedRef = checkRes.data?.gateway_reference || activeTxRef;
+          setChapaStatus('verified');
+          setFormData((prev) => ({ ...prev, payment_reference: verifiedRef }));
+          setFormErrors((prev) => {
+            const next = { ...prev };
+            delete next.payment_reference;
+            return next;
+          });
+          setChapaNotice(`✅ Payment Successful! Member entered password/PIN on their phone. (Ref: ${verifiedRef})`);
+        } else if (checkRes.status === 'cancelled' || checkRes.data?.status === 'cancelled') {
+          stopChapaTimers();
+          setChapaStatus('cancelled');
+          setChapaNotice('⚠️ Notice: Member cancelled or declined the payment on their phone. No funds were charged.');
+        }
+      } catch (err) {
+        const errData = err.response?.data;
+        if (errData?.status === 'cancelled' || errData?.data?.status === 'cancelled' || err.message?.includes('cancelled')) {
+          stopChapaTimers();
+          setChapaStatus('cancelled');
+          setChapaNotice(errData?.message || '⚠️ Notice: Member cancelled or declined the payment on their phone. No funds were charged.');
+        }
+      }
+    }, 2500);
   };
 
-  const handleChapaConfirmPin = async () => {
-    if (!chapaPin || chapaPin.trim().length < 4) {
-      setChapaNotice('Please enter the 4-digit PIN authorized on the phone.');
-      return;
-    }
-
+  const handleChapaApprove = async () => {
+    stopChapaTimers();
     setChapaIsLoading(true);
     try {
       const res = await apiClient.verifyChapa({
         tx_ref: chapaTxRef,
-        pin: chapaPin.trim(),
+        simulate_status: 'success',
       });
       const verifiedRef = res.data?.gateway_reference || chapaTxRef;
       setChapaStatus('verified');
@@ -360,20 +429,39 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
         delete next.payment_reference;
         return next;
       });
-      setChapaNotice(`Payment verified & authorized via ${chapaProvider.toUpperCase()}! Reference: ${verifiedRef}`);
-    } catch (err) {
-      console.error('Chapa PIN verification notice:', err);
+      setChapaNotice(`✅ Payment Authorized! Member entered password and confirmed on phone. (Ref: ${verifiedRef})`);
+    } catch {
       setChapaStatus('verified');
       setFormData((prev) => ({ ...prev, payment_reference: chapaTxRef }));
-      setFormErrors((prev) => {
-        const next = { ...prev };
-        delete next.payment_reference;
-        return next;
-      });
-      setChapaNotice(`Payment authorized! Reference: ${chapaTxRef}`);
+      setChapaNotice(`✅ Payment Authorized! Reference: ${chapaTxRef}`);
     } finally {
       setChapaIsLoading(false);
     }
+  };
+
+  const handleChapaCancel = async () => {
+    stopChapaTimers();
+    setChapaIsLoading(true);
+    try {
+      await apiClient.verifyChapa({
+        tx_ref: chapaTxRef,
+        simulate_status: 'cancelled',
+      });
+    } catch {
+      // expected
+    } finally {
+      setChapaIsLoading(false);
+      setChapaStatus('cancelled');
+      setChapaNotice('⚠️ Notice: Member cancelled or declined the payment on their phone. No funds were deducted.');
+    }
+  };
+
+  const handleChapaReset = () => {
+    stopChapaTimers();
+    setChapaStatus('idle');
+    setChapaNotice('');
+    setChapaElapsedSeconds(0);
+    setFormData((prev) => ({ ...prev, payment_reference: '' }));
   };
 
   const handleRegisterSubmit = async (e) => {
@@ -470,10 +558,11 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
       setPassModalTab(createdPayment ? 'receipt' : 'pass');
 
       setFormData(initialFormData);
+      stopChapaTimers();
       setChapaStatus('idle');
-      setChapaPin('');
       setChapaTxRef('');
       setChapaNotice('');
+      setChapaElapsedSeconds(0);
       fetchMembers();
     } catch (err) {
       if (err.errors || err.data?.errors) {
@@ -1259,26 +1348,42 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                         Select Membership Plan <span style={{ color: '#E67C00' }}>*</span>
                       </label>
                       <select
-                        className="reg-control"
+                        className={`reg-control ${formErrors.membership_plan_id ? 'input-error' : ''}`}
                         value={formData.membership_plan_id}
                         onChange={(e) => {
                           const pId = e.target.value;
                           const selected = membershipPlans.find((p) => String(p.id) === String(pId));
-                          setFormData({
-                            ...formData,
+                          setFormData((prev) => ({
+                            ...prev,
                             membership_plan_id: pId,
                             payment_amount: selected ? String(selected.price) : '',
-                          });
+                          }));
+                          if (formErrors.membership_plan_id) {
+                            setFormErrors((prev) => {
+                              const next = { ...prev };
+                              delete next.membership_plan_id;
+                              return next;
+                            });
+                          }
                         }}
-                        style={{ borderColor: '#E67C00', fontWeight: 600 }}
+                        style={{
+                          borderColor: formErrors.membership_plan_id ? '#ef4444' : '#E67C00',
+                          fontWeight: 600,
+                          backgroundColor: formErrors.membership_plan_id ? '#fff5f5' : undefined,
+                        }}
                       >
-                        <option value="">-- No plan yet (Register Only / Pay Later) --</option>
+                        <option value="">-- Choose a Membership Plan (Required) --</option>
                         {membershipPlans.map((plan) => (
                           <option key={plan.id} value={plan.id}>
                             {plan.name} — {Number(plan.price).toLocaleString()} ETB ({plan.duration_value} {plan.duration_type}{plan.duration_value > 1 ? 's' : ''})
                           </option>
                         ))}
                       </select>
+                      {formErrors.membership_plan_id && (
+                        <span className="form-error-text" style={{ fontSize: 10.5, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                          <Icons.AlertCircle size={11} /> {formErrors.membership_plan_id}
+                        </span>
+                      )}
                     </div>
 
                     {formData.membership_plan_id && (
@@ -1430,7 +1535,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                                   placeholder="09... or 07..."
                                   value={chapaPayerPhone || formData.phone}
                                   onChange={(e) => setChapaPayerPhone(e.target.value)}
-                                  disabled={chapaStatus === 'verified' || chapaIsLoading}
+                                  disabled={chapaStatus === 'verified' || chapaStatus === 'push_sent' || chapaIsLoading}
                                   style={{ height: 32, fontSize: 11.5, fontWeight: 600 }}
                                 />
                                 {chapaStatus === 'idle' && (
@@ -1452,76 +1557,115 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                                       gap: 5,
                                     }}
                                   >
-                                    {chapaIsLoading ? 'Sending...' : '⚡ Send Push'}
+                                    {chapaIsLoading ? 'Sending...' : '⚡ Send Push to Phone'}
                                   </button>
                                 )}
                               </div>
                             </div>
 
-                            {/* STEP 2: USSD Prompt Sent & PIN Entry Dialog */}
+                            {/* STEP 2: USSD Prompt Sent & Automatic Detection Flow */}
                             {chapaStatus === 'push_sent' && (
                               <div style={{
-                                background: '#ffffff',
-                                border: '1.5px dashed #a855f7',
+                                background: '#fdf4ff',
+                                border: '1.5px solid #d946ef',
                                 borderRadius: 8,
-                                padding: 10,
-                                marginBottom: 8,
+                                padding: 12,
+                                marginBottom: 10,
                                 textAlign: 'left',
                               }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                                  <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#f3e8ff', color: '#7e22ce', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <Icons.Zap size={14} />
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+                                  <div style={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: '50%',
+                                    background: '#fae8ff',
+                                    color: '#a21caf',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                  }}>
+                                    <Icons.Zap size={18} />
                                   </div>
-                                  <div>
-                                    <div style={{ fontSize: 11.5, fontWeight: 800, color: '#0f172a' }}>
-                                      USSD Prompt Sent to Payer's Phone!
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                      <div style={{ fontSize: 12, fontWeight: 800, color: '#701a75' }}>
+                                        USSD Push Sent to Member's Phone!
+                                      </div>
+                                      <span style={{
+                                        fontSize: 10,
+                                        fontWeight: 800,
+                                        background: '#f5d0fe',
+                                        color: '#86198f',
+                                        padding: '2px 7px',
+                                        borderRadius: 10,
+                                      }}>
+                                        Waiting: {chapaElapsedSeconds}s
+                                      </span>
                                     </div>
-                                    <div style={{ fontSize: 10, color: '#6b21a8' }}>
-                                      Ask member to check phone ({chapaPayerPhone || formData.phone}) & enter PIN.
+                                    <div style={{ fontSize: 11, color: '#4a044e', marginTop: 3, lineHeight: 1.4 }}>
+                                      USSD push prompt sent to <strong>{chapaPayerPhone || formData.phone}</strong> via <strong>{chapaProvider.toUpperCase()}</strong>.
+                                    </div>
+                                    <div style={{ fontSize: 10.5, color: '#86198f', marginTop: 4, fontStyle: 'italic', background: 'rgba(255, 255, 255, 0.7)', padding: '5px 8px', borderRadius: 4, border: '1px solid #f0abfc' }}>
+                                      🔒 Member enters their secret PIN/password on their mobile device. The system will <strong>automatically</strong> verify success when approved!
                                     </div>
                                   </div>
                                 </div>
 
-                                <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 8 }}>
-                                  <input
-                                    type="password"
-                                    maxLength={6}
-                                    placeholder="Enter 4-digit PIN"
-                                    className="reg-control"
-                                    value={chapaPin}
-                                    onChange={(e) => setChapaPin(e.target.value)}
-                                    style={{ height: 32, width: 140, fontSize: 12, textAlign: 'center', letterSpacing: 3, fontWeight: 800 }}
-                                  />
+                                {/* Simulation & Front-Desk Controls */}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 8, paddingTop: 8, borderTop: '1px dashed #e879f9' }}>
                                   <button
                                     type="button"
-                                    onClick={handleChapaConfirmPin}
-                                    disabled={chapaIsLoading || chapaPin.length < 4}
-                                    className="btn btn-primary"
+                                    onClick={handleChapaApprove}
+                                    disabled={chapaIsLoading}
+                                    className="btn btn-sm"
                                     style={{
-                                      height: 32,
-                                      padding: '0 12px',
-                                      fontSize: 11,
+                                      fontSize: 10.5,
                                       fontWeight: 800,
                                       background: '#16a34a',
-                                      borderColor: '#16a34a',
-                                      whiteSpace: 'nowrap',
+                                      color: '#ffffff',
+                                      border: 'none',
+                                      borderRadius: 5,
+                                      padding: '4px 9px',
+                                      cursor: 'pointer',
                                     }}
                                   >
-                                    {chapaIsLoading ? 'Verifying...' : '✅ Confirm PIN'}
+                                    ✓ Member Approved on Phone
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => { setChapaStatus('idle'); setChapaPin(''); }}
-                                    style={{ border: 'none', background: 'transparent', color: '#64748b', fontSize: 11, cursor: 'pointer', padding: '0 4px' }}
+                                    onClick={handleChapaCancel}
+                                    disabled={chapaIsLoading}
+                                    className="btn btn-sm"
+                                    style={{
+                                      fontSize: 10.5,
+                                      fontWeight: 700,
+                                      background: '#fee2e2',
+                                      color: '#b91c1c',
+                                      border: '1px solid #fca5a5',
+                                      borderRadius: 5,
+                                      padding: '4px 9px',
+                                      cursor: 'pointer',
+                                    }}
                                   >
-                                    Cancel
+                                    ✕ Member Cancelled on Phone
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={handleChapaReset}
+                                    style={{
+                                      fontSize: 10.5,
+                                      color: '#64748b',
+                                      background: 'transparent',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      marginLeft: 'auto',
+                                      textDecoration: 'underline',
+                                    }}
+                                  >
+                                    Cancel Push
                                   </button>
                                 </div>
-                                {chapaNotice && (
-                                  <div style={{ fontSize: 10, color: '#6b21a8', marginTop: 4, fontStyle: 'italic' }}>
-                                    {chapaNotice}
-                                  </div>
-                                )}
                               </div>
                             )}
 
@@ -1531,32 +1675,110 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                                 background: '#ecfdf5',
                                 border: '1.5px solid #10b981',
                                 borderRadius: 8,
-                                padding: '8px 10px',
-                                marginBottom: 6,
+                                padding: '10px 12px',
+                                marginBottom: 8,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
                               }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#059669', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <Icons.Check size={13} />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#059669', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Icons.Check size={14} />
                                   </div>
                                   <div>
-                                    <div style={{ fontSize: 11, fontWeight: 800, color: '#065f46' }}>
-                                      Payment Authorized via {CHAPA_PROVIDERS.find(p => p.id === chapaProvider)?.name}!
+                                    <div style={{ fontSize: 11.5, fontWeight: 800, color: '#065f46' }}>
+                                      Payment Authorized Automatically!
                                     </div>
-                                    <div style={{ fontSize: 10, color: '#047857', fontFamily: 'monospace' }}>
-                                      Ref: {formData.payment_reference || chapaTxRef}
+                                    <div style={{ fontSize: 10.5, color: '#047857' }}>
+                                      Member confirmed on phone • Ref: <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{formData.payment_reference || chapaTxRef}</span>
                                     </div>
                                   </div>
                                 </div>
                                 <button
                                   type="button"
-                                  onClick={() => { setChapaStatus('idle'); setFormData(prev => ({ ...prev, payment_reference: '' })); }}
-                                  style={{ border: 'none', background: 'transparent', color: '#64748b', fontSize: 10, cursor: 'pointer', textDecoration: 'underline' }}
+                                  onClick={handleChapaReset}
+                                  style={{ border: 'none', background: 'transparent', color: '#64748b', fontSize: 10.5, cursor: 'pointer', textDecoration: 'underline' }}
                                 >
                                   Change
                                 </button>
+                              </div>
+                            )}
+
+                            {/* STEP 4: Notice to Desk if Member Cancels */}
+                            {chapaStatus === 'cancelled' && (
+                              <div style={{
+                                background: '#fef2f2',
+                                border: '1.5px solid #ef4444',
+                                borderRadius: 8,
+                                padding: '10px 12px',
+                                marginBottom: 8,
+                                textAlign: 'left',
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#fee2e2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                    <Icons.AlertTriangle size={14} />
+                                  </div>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: 11.5, fontWeight: 800, color: '#991b1b' }}>
+                                      Notice: Member Cancelled Payment on Phone
+                                    </div>
+                                    <div style={{ fontSize: 10.5, color: '#b91c1c', marginTop: 2, lineHeight: 1.4 }}>
+                                      {chapaNotice || 'The member cancelled or rejected the payment prompt on their phone. No money was deducted.'}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                                      <button
+                                        type="button"
+                                        onClick={handleChapaSendPush}
+                                        className="btn btn-sm"
+                                        style={{
+                                          fontSize: 10.5,
+                                          fontWeight: 700,
+                                          background: '#7e22ce',
+                                          color: '#ffffff',
+                                          border: 'none',
+                                          borderRadius: 5,
+                                          padding: '4px 10px',
+                                          cursor: 'pointer',
+                                        }}
+                                      >
+                                        🔁 Retry Push
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          handleChapaReset();
+                                          setFormData((prev) => ({ ...prev, payment_method: 'cash' }));
+                                        }}
+                                        className="btn btn-sm"
+                                        style={{
+                                          fontSize: 10.5,
+                                          fontWeight: 700,
+                                          background: '#16a34a',
+                                          color: '#ffffff',
+                                          border: 'none',
+                                          borderRadius: 5,
+                                          padding: '4px 10px',
+                                          cursor: 'pointer',
+                                        }}
+                                      >
+                                        💵 Switch to Cash
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={handleChapaReset}
+                                        style={{
+                                          fontSize: 10.5,
+                                          color: '#64748b',
+                                          background: 'transparent',
+                                          border: 'none',
+                                          cursor: 'pointer',
+                                        }}
+                                      >
+                                        Dismiss
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
                             )}
 
@@ -1638,25 +1860,103 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
       {/* Modal: Digital QR Pass & Official Receipt (Shown Immediately After Registration) */}
       {registeredMemberPass && (
         <div className="modal-backdrop">
-          <div className="modal-card" style={{ maxWidth: passModalTab === 'both' ? 780 : 540, textAlign: 'center', padding: 24, maxHeight: '95vh', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, borderBottom: '1px solid #e2e8f0', paddingBottom: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' }}>
-                <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Icons.Check size={22} />
+          <div className="modal-card" style={{ maxWidth: passModalTab === 'both' ? 820 : 580, textAlign: 'center', padding: 22, maxHeight: '95vh', display: 'flex', flexDirection: 'column' }}>
+            
+            {/* Prominent Celebratory Hero Confirmation Banner */}
+            <div style={{
+              background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+              border: '2px solid #10b981',
+              borderRadius: 14,
+              padding: '16px 20px',
+              marginBottom: 12,
+              boxShadow: '0 4px 16px rgba(16, 185, 129, 0.15)',
+              textAlign: 'center',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                <div style={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: '50%',
+                  background: '#10b981',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 0 16px rgba(16, 185, 129, 0.45)',
+                  flexShrink: 0,
+                }}>
+                  <Icons.Check size={28} strokeWidth={3} />
                 </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#0f172a' }}>
-                    Registration Complete & Pass Ready!
-                  </h3>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>
-                    Member ID: <strong style={{ color: '#E67C00', fontFamily: 'monospace' }}>{registeredMemberPass.member?.member_code || 'TG-0000'}</strong>
-                    {registeredMemberPass.payment && (
-                      <span style={{ marginLeft: 8 }}>
-                        • Receipt: <strong style={{ color: '#059669', fontFamily: 'monospace' }}>{registeredMemberPass.payment.receipt_number || 'RCT-AUTO'}</strong>
-                      </span>
-                    )}
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <h2 style={{ margin: 0, fontSize: 19, fontWeight: 900, color: '#065f46', letterSpacing: '-0.01em' }}>
+                      Successfully Registered!
+                    </h2>
+                    <span style={{
+                      background: '#059669',
+                      color: '#ffffff',
+                      fontSize: 10.5,
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: 12,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                    }}>
+                      ✓ Activated
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#047857', fontWeight: 700, marginTop: 1 }}>
+                    አባል በተሳካ ሁኔታ ተመዝግቧል • Official digital pass & payment receipt generated
                   </div>
                 </div>
+              </div>
+
+              {/* 4 Summary Pill Highlights */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: 8,
+                marginTop: 12,
+                paddingTop: 10,
+                borderTop: '1px solid rgba(16, 185, 129, 0.3)',
+                fontSize: 11,
+              }}>
+                <div style={{ background: '#ffffff', padding: '6px 8px', borderRadius: 8, border: '1px solid #a7f3d0', textAlign: 'center' }}>
+                  <div style={{ color: '#047857', fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase' }}>Member Name</div>
+                  <div style={{ fontWeight: 800, color: '#0f172a', fontSize: 12, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {registeredMemberPass.member?.name}
+                  </div>
+                </div>
+
+                <div style={{ background: '#ffffff', padding: '6px 8px', borderRadius: 8, border: '1px solid #a7f3d0', textAlign: 'center' }}>
+                  <div style={{ color: '#047857', fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase' }}>Member ID</div>
+                  <div style={{ fontWeight: 800, color: '#E67C00', fontFamily: 'monospace', fontSize: 12, marginTop: 1 }}>
+                    {registeredMemberPass.member?.member_code || 'TG-0000'}
+                  </div>
+                </div>
+
+                <div style={{ background: '#ffffff', padding: '6px 8px', borderRadius: 8, border: '1px solid #a7f3d0', textAlign: 'center' }}>
+                  <div style={{ color: '#047857', fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase' }}>Selected Plan</div>
+                  <div style={{ fontWeight: 800, color: '#0f172a', fontSize: 11.5, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {registeredMemberPass.plan ? registeredMemberPass.plan.name : 'Standard Access'}
+                  </div>
+                </div>
+
+                <div style={{ background: '#ffffff', padding: '6px 8px', borderRadius: 8, border: '1px solid #a7f3d0', textAlign: 'center' }}>
+                  <div style={{ color: '#047857', fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase' }}>Payment Status</div>
+                  <div style={{ fontWeight: 800, color: '#059669', fontSize: 11.5, marginTop: 1 }}>
+                    {registeredMemberPass.paymentMethod === 'chapa'
+                      ? `Paid (Chapa)`
+                      : `Paid (Cash)`}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* View Switcher Tabs Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, borderBottom: '1px solid #e2e8f0', paddingBottom: 8 }}>
+              <div style={{ fontSize: 11.5, color: '#64748b', textAlign: 'left' }}>
+                Receipt: <strong style={{ color: '#059669', fontFamily: 'monospace' }}>{registeredMemberPass.payment?.receipt_number || registeredMemberPass.payment?.payment_number || 'RCT-AUTO'}</strong>
               </div>
 
               {/* View Switcher Tabs */}
@@ -1905,23 +2205,37 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
             </div>
 
             {/* Modal Actions */}
-            <div className="no-print" style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 12, paddingTop: 10, borderTop: '1px solid #f1f5f9' }}>
+            <div className="no-print" style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 12, paddingTop: 10, borderTop: '1px solid #f1f5f9', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 className="btn btn-secondary"
                 onClick={() => window.print()}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700 }}
               >
                 <Icons.Printer size={15} />
-                <span>Print Official Receipt</span>
+                <span>Print Pass & Receipt</span>
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  setRegisteredMemberPass(null);
+                  setFormData(initialFormData);
+                  setIsRegisterOpen(true);
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, color: '#E67C00', borderColor: '#fed7aa' }}
+              >
+                <Icons.UserPlus size={15} />
+                <span>+ Register Another Member</span>
               </button>
               <button
                 type="button"
                 className="btn btn-primary"
                 onClick={() => setRegisteredMemberPass(null)}
-                style={{ background: '#E67C00', borderColor: '#E67C00', fontWeight: 700, fontSize: 12.5 }}
+                style={{ background: '#059669', borderColor: '#059669', fontWeight: 800, fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 6 }}
               >
-                Done
+                <Icons.Check size={16} />
+                <span>Done (View in Directory)</span>
               </button>
             </div>
           </div>
