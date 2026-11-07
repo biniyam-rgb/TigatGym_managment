@@ -49,37 +49,37 @@ const DEFAULT_METRICS = {
 };
 
 const DEFAULT_UPCOMING_CLASSES = [
-  { id: 'c1', name: 'Morning HIIT Blast', time_trainer: '09:00 AM - Sarah J.', booked: 18, capacity: 20 },
-  { id: 'c2', name: 'Vinyasa Flow Yoga', time_trainer: '12:00 PM - Mike R.', booked: 20, capacity: 20 },
-  { id: 'c3', name: 'Power Spin', time_trainer: '06:00 PM - Chloe T.', booked: 15, capacity: 25 },
-  { id: 'c4', name: 'Boxing Fundamentals', time_trainer: '07:30 PM - David L.', booked: 10, capacity: 15 },
+  { id: 'c1', name: 'Morning HIIT Blast', time_trainer: '09:00 AM - Kalkidan T.', booked: 18, capacity: 20 },
+  { id: 'c2', name: 'Vinyasa Flow Yoga', time_trainer: '12:00 PM - Biniyam A.', booked: 20, capacity: 20 },
+  { id: 'c3', name: 'Power Spin', time_trainer: '06:00 PM - Fitsum K.', booked: 15, capacity: 25 },
+  { id: 'c4', name: 'Boxing Fundamentals', time_trainer: '07:30 PM - Amir M.', booked: 10, capacity: 15 },
 ];
 
 const DEFAULT_ACTIVE_MEMBERS = [
   {
     id: 'm1',
-    name: 'John Doe',
+    name: 'Zelalem Tadesse',
     checked_in: 'Checked in: 2 min ago',
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&auto=format&fit=crop&q=80',
     color: '#3b82f6',
   },
   {
     id: 'm2',
-    name: 'Emily Clark',
+    name: 'Kalkidan Abera',
     checked_in: 'Checked in: 5 min ago',
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&auto=format&fit=crop&q=80',
     color: '#ec4899',
   },
   {
     id: 'm3',
-    name: 'Brian Smith',
+    name: 'Ashenafi Desta',
     checked_in: 'Checked in: 8 min ago',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&auto=format&fit=crop&q=80',
     color: '#8b5cf6',
   },
   {
     id: 'm4',
-    name: 'Olivia Rodriguez',
+    name: 'Bututu Bekele',
     checked_in: 'Checked in: 12 min ago',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80',
     color: '#10b981',
