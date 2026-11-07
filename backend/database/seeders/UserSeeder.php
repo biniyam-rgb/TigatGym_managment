@@ -19,7 +19,7 @@ class UserSeeder extends Seeder
     {
         $accounts = [
             [
-                'name' => 'Tigat Owner',
+                'name' => 'Tewodros Owner',
                 'email' => 'owner@tigatgym.com',
                 'phone' => '+251911000001',
                 'role' => 'owner',
@@ -31,7 +31,7 @@ class UserSeeder extends Seeder
                 'role' => 'admin',
             ],
             [
-                'name' => 'Sara Receptionist',
+                'name' => 'Selamawit Receptionist',
                 'email' => 'receptionist@tigatgym.com',
                 'phone' => '+251911000003',
                 'role' => 'receptionist',
@@ -51,7 +51,7 @@ class UserSeeder extends Seeder
         ];
 
         foreach ($accounts as $data) {
-            $user = User::firstOrCreate(
+            $user = User::updateOrCreate(
                 ['email' => $data['email']],
                 [
                     'name' => $data['name'],
