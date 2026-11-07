@@ -57,4 +57,17 @@ class PaymentTransaction extends Model
 
         return $ref;
     }
+
+    /**
+     * Generate a unique Chapa v2 compliant merchant reference (max 20 characters).
+     * Format: TG-YYMMDD-XXXXXX (16 chars)
+     */
+    public static function generateMerchantReference(): string
+    {
+        do {
+            $ref = 'TG-' . date('ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
+        } while (self::where('transaction_reference', $ref)->exists());
+
+        return $ref;
+    }
 }
