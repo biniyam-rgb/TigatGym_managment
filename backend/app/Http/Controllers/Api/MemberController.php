@@ -9,6 +9,7 @@ use App\Models\Role;
 use App\Models\TrainerAssignment;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\GymMailService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -151,10 +152,45 @@ class MemberController extends Controller
             return $profile;
         });
 
+        // Automatically dispatch official 1-year member card & access details to member's email
+        if ($memberProfile->user) {
+            GymMailService::sendMemberCard($memberProfile->user, $memberProfile);
+        }
+
         return response()->json([
             'message' => "Member {$memberProfile->member_code} registered successfully.",
             'member' => new MemberResource($memberProfile->load(['user', 'subscriptions.membershipPlan'])),
         ], Response::HTTP_CREATED);
+    }
+
+    /**
+     * Send or resend member permanent card to their registered email.
+     */
+    public function sendCardEmail(MemberProfile $member): JsonResponse
+    {
+        $this->authorize('view', $member);
+
+        $user = $member->user;
+        if (! $user || empty($user->email) || str_ends_with($user->email, '@members.tigatgym.com')) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Member does not have a valid personal email address registered.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $sent = GymMailService::sendMemberCard($user, $member);
+
+        if ($sent) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Permanent member card emailed successfully to {$user->email}.",
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Could not send email. Please check server email/SMTP configuration.',
+        ], Response::HTTP_INTERNAL_SERVER_ERROR);
     }
 
     /**

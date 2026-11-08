@@ -59,6 +59,7 @@ class MemberResource extends JsonResource
             // QR code token for scanning/display
             'qr_code_token' => ($canViewSensitive || $isStaff) ? $this->qr_code_token : null,
             'joined_at' => $this->joined_at?->format('Y-m-d'),
+            'card_expires_at' => $this->joined_at ? $this->joined_at->copy()->addYear()->format('Y-m-d') : null,
             'created_at' => $this->created_at?->toIso8601String(),
             'active_subscription' => $activeSubscription ? [
                 'id' => $activeSubscription->id,
