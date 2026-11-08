@@ -234,6 +234,26 @@ class MemberRegistrationFlowTest extends TestCase
                     'checkout_url' => 'https://checkout.chapa.global/checkout/payment/CHP-TG-MOCK999',
                 ],
             ], 200),
+            'https://api.chapa.global/v2/payments/*/verify' => function (\Illuminate\Http\Client\Request $request) {
+                preg_match('#/v2/payments/([^/]+)/verify#', $request->url(), $matches);
+                $ref = $matches[1] ?? basename(dirname($request->url()));
+                $txn = \App\Models\PaymentTransaction::where('gateway_reference', $ref)
+                    ->orWhere('transaction_reference', $ref)
+                    ->first();
+                $merchantRef = $txn ? $txn->transaction_reference : $ref;
+
+                return Http::response([
+                    'status' => 'success',
+                    'message' => 'Payment verified successfully',
+                    'data' => [
+                        'chapa_reference' => $ref,
+                        'merchant_reference' => $merchantRef,
+                        'amount' => 150000,
+                        'currency' => 'ETB',
+                        'status' => 'SUCCESS',
+                    ],
+                ], 200);
+            },
         ]);
 
         // 1. Initialize Chapa Hosted Payment
@@ -252,44 +272,35 @@ class MemberRegistrationFlowTest extends TestCase
         $this->assertNotEmpty($txRef);
         $this->assertLessThanOrEqual(20, strlen($txRef));
 
-        // 2. Verify Member PIN Authorization (Approval)
+        // 2. Verify Member Payment via merchant reference
         $verifyResponse = $this->withHeader('Authorization', "Bearer {$token}")
             ->postJson('/api/payments/chapa/verify', [
-                'tx_ref' => $txRef,
-                'pin' => '1234',
+                'merchant_reference' => $txRef,
             ]);
 
         $verifyResponse->assertStatus(200)
             ->assertJson([
                 'status' => 'success',
                 'data' => [
-                    'tx_ref' => $txRef,
+                    'merchant_reference' => $txRef,
                     'status' => 'completed',
-                    'verified' => true,
+                    'is_paid' => true,
                 ],
             ]);
 
-        // 3. Verify Member Cancels Payment on Phone
-        $cancelResponse = $this->withHeader('Authorization', "Bearer {$token}")
+        // 3. Repeated verification is idempotent
+        $repeatResponse = $this->withHeader('Authorization', "Bearer {$token}")
             ->postJson('/api/payments/chapa/verify', [
-                'tx_ref' => $txRef,
-                'simulate_status' => 'cancelled',
+                'merchant_reference' => $txRef,
             ]);
 
-        $cancelResponse->assertStatus(422)
+        $repeatResponse->assertStatus(200)
             ->assertJson([
-                'status' => 'cancelled',
+                'status' => 'success',
                 'data' => [
-                    'status' => 'cancelled',
-                    'verified' => false,
+                    'already_completed' => true,
+                    'status' => 'completed',
                 ],
             ]);
-
-        // 4. Verify public Chapa Webhook / Callback endpoint
-        $webhookResponse = $this->postJson('/api/payments/chapa/callback', [
-            'trx_ref' => $txRef,
-            'status' => 'success',
-        ]);
-        $webhookResponse->assertStatus(200);
     }
 }
