@@ -1,69 +1,111 @@
+// SVG Dumbbell Icon matching the login screen brand emblem (Crisp White, No Shadow)
+const DumbbellIcon = ({ iconSize = 20, strokeWidth = 2.8, strokeColor = '#ffffff' }) => (
+  <svg
+    width={iconSize}
+    height={iconSize}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={strokeColor}
+    strokeWidth={strokeWidth}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{ display: 'block' }}
+  >
+    <path d="M6 5v14M18 5v14M3 8v8M21 8v8M6 12h12" />
+  </svg>
+);
+
 export default function BrandLogo({
-  variant = 'sidebar', // 'sidebar' | 'login' | 'pass' | 'header'
+  variant = 'sidebar', // 'sidebar' | 'login' | 'pass' | 'header' | 'reception'
   size,
   showSubtext = true,
   className = '',
 }) {
-  // 1. Sidebar Brand Lockup matching Tigat Gym identity:
-  // [ Glowing High-Res Tigat Tiger Crest Emblem ] + TIGAT GYM + ትጋት ጂም
+
+  // 1. Sidebar Brand Lockup (Matches the Login Brand Identity)
+  // [ Orange Dumbbell Badge ] + TIGAT (white in dark mode, dark in light mode) + GYM (orange #FF7A00)
   if (variant === 'sidebar') {
     return (
-      <div className={`brand-sidebar-lockup ${className}`}>
-        {/* Prominent Illuminated Tiger Crest Tile */}
-        <div className="brand-tiger-tile">
-          <img
-            src="/tigat-tiger-logo.png"
-            alt="Tigat Gym Crest"
-            className="brand-sidebar-tiger-img"
-          />
+      <div
+        className={`brand-sidebar-lockup gymcore-split-brand-header ${className}`}
+        style={{
+          textDecoration: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          height: '100%',
+        }}
+      >
+        {/* Vibrant Orange Brand Badge with crisp dumbbell */}
+        <div
+          className="gymcore-split-brand-badge"
+          style={{
+            width: size || 34,
+            height: size || 34,
+            background: 'linear-gradient(135deg, #ff7a00 0%, #ea580c 100%)',
+            borderRadius: 7,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            boxShadow: 'none',
+          }}
+        >
+          <DumbbellIcon iconSize={size ? Math.round(size * 0.6) : 20} strokeWidth={2.8} />
         </div>
 
-        {/* Brand Typography & Green Live Signal Waves */}
-        <div className="brand-title-wrap">
-          <div className="brand-title-line">
-            <span className="brand-title-bold">TIGAT GYM</span>
-            <span className="brand-signal-wifi" title="Live System Connected">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12.55a11 11 0 0 1 14.08 0" />
-                <path d="M1.42 9a16 16 0 0 1 21.16 0" />
-                <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
-                <circle cx="12" cy="20" r="1.2" fill="#10b981" stroke="none" />
-              </svg>
+        {/* Brand Typography matching Login screen */}
+        <div className="brand-title-wrap" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div
+            className="gymcore-split-brand-text"
+            style={{
+              fontSize: size ? Math.max(15, Math.round(size * 0.5)) : 18,
+              fontWeight: 900,
+              letterSpacing: '1.6px',
+              textTransform: 'uppercase',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              lineHeight: 1.15,
+            }}
+          >
+            <span className="brand-text-tigat brand-title-bold">
+              TIGAT
+            </span>
+            <span className="brand-text-gym brand-orange" style={{ color: '#ff7a00' }}>
+              GYM
             </span>
           </div>
           {showSubtext && (
-            <span className="brand-subtext-amharic">FITNESS FOR LIFE</span>
+            <span
+              className="brand-subtext-clean"
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                color: '#ea580c',
+                letterSpacing: '0.08em',
+                marginTop: 2,
+              }}
+            >
+              FITNESS FOR LIFE
+            </span>
           )}
         </div>
       </div>
     );
   }
 
-  // 2. Sign-In / Login Screen Showcase Emblem (Clean Transparent Logo)
+  // 2. Sign-In / Login Screen Showcase Emblem
   if (variant === 'login') {
     return (
-      <div className={`brand-emblem-login ${className}`}>
-        {/* Soft Radial Ambient Aura Ring */}
-        <div className="brand-aura-ring" />
-
-        {/* Compact Framed Glass Podium */}
-        <div className="brand-login-podium">
-          <img
-            src="/tigat-tiger-logo.png"
-            alt="TIGAT GYM"
-            className="brand-logo-img-stylish"
-            style={{ width: size || 135, maxWidth: '100%', height: 'auto', objectFit: 'contain' }}
-          />
+      <div className={`gymcore-split-brand-header ${className}`} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="gymcore-split-brand-badge" style={{ width: size || 40, height: size || 40, borderRadius: 8 }}>
+          <DumbbellIcon iconSize={size ? Math.round(size * 0.6) : 24} strokeWidth={2.8} />
         </div>
-
-        {showSubtext && (
-          <div className="brand-login-typography">
-            <div className="brand-badge-pill">
-              <span className="brand-status-dot" />
-              <span>TIGAT GYM • MANAGEMENT SYSTEM</span>
-            </div>
-          </div>
-        )}
+        <div className="gymcore-split-brand-text" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="brand-text-tigat brand-title-bold">TIGAT</span>
+          <span className="brand-orange" style={{ color: '#ff7a00' }}>GYM</span>
+        </div>
       </div>
     );
   }
@@ -71,36 +113,58 @@ export default function BrandLogo({
   // 3. Digital Pass Holographic Seal (Compact Crest)
   if (variant === 'pass') {
     return (
-      <div className={`brand-emblem-pass ${className}`}>
-        <div className="brand-pass-podium">
-          <img
-            src="/tigat-tiger-logo.png"
-            alt="TIGAT GYM"
-            className="brand-logo-img-stylish brand-logo-pass"
-            style={{ width: size || 44, height: 'auto', objectFit: 'contain' }}
-          />
+      <div className={`brand-emblem-pass ${className}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div
+          style={{
+            width: size || 34,
+            height: size || 34,
+            background: 'linear-gradient(135deg, #ff7a00 0%, #ea580c 100%)',
+            borderRadius: 7,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: 'none',
+          }}
+        >
+          <DumbbellIcon iconSize={size ? Math.round(size * 0.58) : 19} strokeWidth={2.6} />
+        </div>
+        <div style={{ textAlign: 'left' }}>
+          <div style={{ fontSize: 14, fontWeight: 900, letterSpacing: '1.2px', textTransform: 'uppercase', lineHeight: 1.15, display: 'flex', gap: 4 }}>
+            <span className="brand-text-tigat">TIGAT</span>{' '}
+            <span className="brand-text-gym" style={{ color: '#ff7a00' }}>GYM</span>
+          </div>
+          {showSubtext && <div style={{ fontSize: 9, color: '#64748b', fontWeight: 700 }}>OFFICIAL PASS</div>}
         </div>
       </div>
     );
   }
 
-  // 4. Compact Header / Minimal Badge
+  // 4. Compact Header / Minimal Badge / Reception
   return (
-    <div className={`brand-emblem-compact ${className}`}>
-      <div className="brand-tiger-tile" style={{ width: 34, height: 34, borderRadius: 10 }}>
-        <img
-          src="/tigat-tiger-logo.png"
-          alt="TIGAT GYM"
-          style={{ width: 26, height: 26, objectFit: 'contain' }}
-        />
+    <div className={`brand-emblem-compact gymcore-split-brand-header ${className}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      <div
+        style={{
+          width: size || 32,
+          height: size || 32,
+          background: 'linear-gradient(135deg, #ff7a00 0%, #ea580c 100%)',
+          borderRadius: 6,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: 'none',
+          flexShrink: 0,
+        }}
+      >
+        <DumbbellIcon iconSize={size ? Math.round(size * 0.6) : 18} strokeWidth={2.6} />
       </div>
       {showSubtext && (
-        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-          <span style={{ fontSize: 13, fontWeight: 800, color: 'inherit', letterSpacing: '0.02em' }}>
-            TIGAT GYM
-          </span>
-          <span style={{ fontSize: 9.5, color: '#ea580c', fontWeight: 700 }}>
-            ትጋት ጂም
+        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15, textAlign: 'left' }}>
+          <div style={{ fontSize: 14, fontWeight: 900, letterSpacing: '1px', textTransform: 'uppercase', display: 'flex', gap: 4 }}>
+            <span className="brand-text-tigat">TIGAT</span>{' '}
+            <span className="brand-text-gym" style={{ color: '#ff7a00' }}>GYM</span>
+          </div>
+          <span style={{ fontSize: 8.5, color: '#ea580c', fontWeight: 700, letterSpacing: '0.05em' }}>
+            FITNESS FOR LIFE
           </span>
         </div>
       )}

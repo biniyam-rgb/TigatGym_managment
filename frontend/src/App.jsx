@@ -19,6 +19,7 @@ import EquipmentManagement from './components/EquipmentManagement';
 import ReceptionNotificationsView from './components/ReceptionNotificationsView';
 import ReceptionProfileView from './components/ReceptionProfileView';
 import ChangePasswordModal from './components/ChangePasswordModal';
+import ChapaVerificationModal from './components/ChapaVerificationModal';
 import BrandLogo from './components/BrandLogo';
 import './App.css';
 
@@ -27,6 +28,27 @@ function GymCoreApp() {
   const [activeView, setActiveView] = useState('dashboard'); // Default to Overview Dashboard matching Image 1
   const [navParams, setNavParams] = useState(null);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [chapaVerificationRef, setChapaVerificationRef] = useState(null);
+
+  // Intercept Chapa return redirect from hosted checkout
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const paymentProvider = params.get('payment');
+      const merchantRef = params.get('merchant_reference') || params.get('reference') || params.get('trx_ref') || params.get('tx_ref');
+
+      if ((paymentProvider === 'chapa' || merchantRef) && merchantRef) {
+        // Clean query parameters from URL bar immediately to prevent repeated verification on refresh
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+
+        // Open verification modal with the merchant reference asynchronously
+        setTimeout(() => setChapaVerificationRef(merchantRef), 0);
+      }
+    } catch (e) {
+      console.error('Error parsing return redirect parameters:', e);
+    }
+  }, []);
 
   // Seamless navigation with parameters (e.g. { openRegister: true })
   const handleNavigate = (view, params = null) => {
@@ -38,6 +60,31 @@ function GymCoreApp() {
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('gymcore_theme') || 'light';
   });
+
+  // Collapsible sidebar state with persistence
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('gymcore_sidebar_collapsed') === 'true';
+  });
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('gymcore_sidebar_collapsed', String(next));
+      return next;
+    });
+  };
+
+  // Keyboard shortcut Ctrl+B to toggle sidebar
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -93,15 +140,17 @@ function GymCoreApp() {
 
   return (
     <div className="gymcore-app-shell">
-      {/* Fixed Left Sidebar matching reference image */}
+      {/* Fixed Left Sidebar with Collapsible State */}
       <Sidebar
         activeView={activeView}
         onViewChange={(v) => handleNavigate(v, null)}
         onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={toggleSidebar}
       />
 
-      {/* Main Content Area */}
-      <div className="gymcore-main-wrapper">
+      {/* Main Content Area (Automatically adjusts width when sidebar collapses) */}
+      <div className={`gymcore-main-wrapper ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         <Header
           title={currentMeta.title}
           subtitle={currentMeta.subtitle}
@@ -152,6 +201,16 @@ function GymCoreApp() {
       <ChangePasswordModal
         isOpen={isPasswordModalOpen}
         onClose={() => setIsPasswordModalOpen(false)}
+      />
+
+      {/* Chapa Return Redirect Verification Modal */}
+      <ChapaVerificationModal
+        isOpen={Boolean(chapaVerificationRef)}
+        merchantReference={chapaVerificationRef}
+        onClose={() => setChapaVerificationRef(null)}
+        onVerified={() => {
+          setActiveView('memberships');
+        }}
       />
     </div>
   );

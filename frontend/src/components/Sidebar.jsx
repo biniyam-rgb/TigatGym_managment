@@ -150,7 +150,13 @@ function NavIcon({ id }) {
   }
 }
 
-export default function Sidebar({ activeView, onViewChange, onOpenPasswordModal }) {
+export default function Sidebar({
+  activeView,
+  onViewChange,
+  onOpenPasswordModal,
+  isCollapsed = false,
+  onToggleCollapse,
+}) {
   const { user, primaryRole, hasRole, logout } = useAuth();
 
   // Navigation items structured by permissions
@@ -189,13 +195,58 @@ export default function Sidebar({ activeView, onViewChange, onOpenPasswordModal 
     : defaultNavItems.filter((item) => item.roles.some((r) => hasRole(r)));
 
   return (
-    <aside className="gymcore-sidebar">
-      {/* Brand Header with Horizontal Lockup matching Tigat Gym branding */}
+    <aside className={`gymcore-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+      {/* Brand Header with Directional Collapse/Expand Arrow */}
       <div className="sidebar-brand">
-        <BrandLogo variant="sidebar" />
+        {isCollapsed ? (
+          <button
+            type="button"
+            className="sidebar-collapse-btn"
+            onClick={onToggleCollapse}
+            title="Expand sidebar (Ctrl+B)"
+            aria-label="Expand sidebar"
+            style={{
+              width: 38,
+              height: 38,
+              margin: '0 auto',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 8,
+              background: 'rgba(255, 122, 0, 0.15)',
+              border: '1px solid rgba(255, 122, 0, 0.35)',
+              color: '#ff7a00',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            {/* Right-pointing arrow (→) to indicate expand */}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+          </button>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <BrandLogo variant="sidebar" />
+            {/* Left-pointing arrow (←) to indicate collapse */}
+            <button
+              type="button"
+              className="sidebar-collapse-btn"
+              onClick={onToggleCollapse}
+              title="Collapse sidebar (Ctrl+B)"
+              aria-label="Collapse sidebar"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Navigation Links with Consistent Lucide SVG Icons & Orange Active Highlight (#FF8A00) */}
+      {/* Navigation Links with Consistent Lucide SVG Icons & Tooltips */}
       <nav className="sidebar-nav">
         {visibleNav.map((item) => {
           const isActive = activeView === item.id;
@@ -205,55 +256,60 @@ export default function Sidebar({ activeView, onViewChange, onOpenPasswordModal 
               type="button"
               className={`nav-item-btn ${isActive ? 'active' : ''}`}
               onClick={() => onViewChange(item.id)}
+              title={isCollapsed ? item.label : undefined}
             >
               <span className="nav-icon">
                 <NavIcon id={item.id} />
               </span>
-              <span className="nav-label">{item.label}</span>
+              {!isCollapsed && <span className="nav-label">{item.label}</span>}
             </button>
           );
         })}
       </nav>
 
-      {/* Sidebar Footer: Logout separately placed at the bottom */}
+      {/* Sidebar Footer: User details and Logout */}
       <div className="sidebar-footer">
         {primaryRole !== 'receptionist' && (
-          <div className="sidebar-user-row">
+          <div className="sidebar-user-row" title={isCollapsed ? `${user?.name} (${user?.email})` : undefined}>
             <div className="sidebar-user-avatar">
               {user?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
-            <div className="sidebar-user-meta">
-              <span className="sidebar-user-name">{user?.name}</span>
-              <span className="sidebar-user-email">
-                {user?.email || `${primaryRole?.toUpperCase()} ACCOUNT`}
-              </span>
-            </div>
-            <button
-              type="button"
-              className="sidebar-user-key-btn"
-              onClick={onOpenPasswordModal}
-              title="Change Password"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="7.5" cy="15.5" r="4.5" />
-                <path d="m21 3-9.5 9.5" />
-                <path d="m15.5 7.5 3 3" />
-              </svg>
-            </button>
+            {!isCollapsed && (
+              <>
+                <div className="sidebar-user-meta">
+                  <span className="sidebar-user-name">{user?.name}</span>
+                  <span className="sidebar-user-email">
+                    {user?.email || `${primaryRole?.toUpperCase()} ACCOUNT`}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="sidebar-user-key-btn"
+                  onClick={onOpenPasswordModal}
+                  title="Change Password"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="7.5" cy="15.5" r="4.5" />
+                    <path d="m21 3-9.5 9.5" />
+                    <path d="m15.5 7.5 3 3" />
+                  </svg>
+                </button>
+              </>
+            )}
           </div>
         )}
 
-        {/* Dedicated Separate Logout Button matching prompt specifications */}
+        {/* Dedicated Separate Logout Button */}
         <button
           type="button"
           className="sidebar-signout-btn"
           onClick={logout}
-          title="Sign out of GymCore"
+          title={isCollapsed ? 'Sign out of GymCore' : undefined}
         >
           <span className="nav-icon">
             <NavIcon id="logout" />
           </span>
-          <span>Logout</span>
+          {!isCollapsed && <span>Logout</span>}
         </button>
       </div>
     </aside>

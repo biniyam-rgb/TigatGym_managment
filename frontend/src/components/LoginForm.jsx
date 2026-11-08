@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useAuth } from '../context/useAuth';
 
-// Crisp SVG Icons
+// Crisp SVG Icons (Crisp White Dumbbell Emblem)
 const DumbbellBadgeIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M6 5v14M18 5v14M3 8v8M21 8v8M6 12h12" />
   </svg>
 );

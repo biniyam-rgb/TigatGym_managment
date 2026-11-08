@@ -140,22 +140,10 @@ export default function Header({
           </button>
 
           {isNotifOpen && (
-            <div style={{
-              position: 'absolute',
-              top: 'calc(100% + 10px)',
-              right: 0,
-              width: 320,
-              background: '#ffffff',
-              border: '1px solid #e2e8f0',
-              borderRadius: 16,
-              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.12)',
-              zIndex: 1000,
-              overflow: 'hidden',
-              textAlign: 'left',
-            }}>
+            <div className="header-notif-dropdown">
               {/* Popover Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
-                <span style={{ fontWeight: 800, fontSize: 13.5, color: '#0f172a' }}>
+              <div className="header-notif-top">
+                <span className="header-notif-title">
                   Notifications ({notifications.length})
                 </span>
                 {notifications.length > 0 && (
@@ -167,7 +155,7 @@ export default function Header({
                       localStorage.setItem('tigat_dismissed_notifs', JSON.stringify([...new Set([...dismissed, ...ids])]));
                       setNotifications([]);
                     }}
-                    style={{ background: 'transparent', border: 'none', color: '#E67C00', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
+                    style={{ background: 'transparent', border: 'none', color: '#ff8a00', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
                   >
                     Mark all read
                   </button>
@@ -184,26 +172,16 @@ export default function Header({
                   notifications.map((n) => (
                     <div
                       key={n.id}
+                      className="header-notif-row"
                       onClick={() => {
                         setIsNotifOpen(false);
                         if (onNavigate) onNavigate(n.view);
                       }}
-                      style={{
-                        padding: '12px 16px',
-                        borderBottom: '1px solid #f8fafc',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        gap: 10,
-                        alignItems: 'flex-start',
-                        transition: 'background 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#fffaf5'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                     >
                       <span style={{ fontSize: 16 }}>{n.type === 'danger' ? '⚠️' : '⏰'}</span>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0f172a' }}>{n.title}</div>
-                        <div style={{ fontSize: 11.5, color: '#64748b', marginTop: 2 }}>{n.message}</div>
+                        <div className="header-notif-item-title">{n.title}</div>
+                        <div className="header-notif-item-desc">{n.message}</div>
                       </div>
                     </div>
                   ))
@@ -211,14 +189,14 @@ export default function Header({
               </div>
 
               {/* Popover Footer */}
-              <div style={{ padding: '10px 16px', textAlign: 'center', borderTop: '1px solid #f1f5f9', background: '#fafafa' }}>
+              <div className="header-notif-footer">
                 <button
                   type="button"
                   onClick={() => {
                     setIsNotifOpen(false);
                     if (onNavigate) onNavigate('notifications');
                   }}
-                  style={{ background: 'transparent', border: 'none', color: '#E67C00', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}
+                  style={{ background: 'transparent', border: 'none', color: '#ff8a00', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}
                 >
                   View All Notifications →
                 </button>
