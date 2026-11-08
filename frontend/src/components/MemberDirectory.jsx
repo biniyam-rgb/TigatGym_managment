@@ -3,6 +3,7 @@ import apiClient from '../services/api';
 import { useAuth } from '../context/useAuth';
 import QRCodeDisplay from './QRCodeDisplay';
 import BrandLogo from './BrandLogo';
+import PermanentMemberCard from './PermanentMemberCard';
 import { BLOOD_TYPES, calculateAge, validateMemberForm, validateSingleField } from '../utils/memberValidators';
 
 // Crisp Lucide-style SVG Icons (replacing emojis)
@@ -156,6 +157,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
   const [membershipPlans, setMembershipPlans] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState({});
+  const [registerError, setRegisterError] = useState('');
 
   // Date boundaries for calendar choosers
   const maxDobString = new Date().toISOString().split('T')[0];
@@ -193,6 +195,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
   const [chapaPayerPhone, setChapaPayerPhone] = useState('');
   const [chapaStatus, setChapaStatus] = useState('idle'); // 'idle' | 'push_sent' | 'verified' | 'cancelled' | 'failed'
   const [chapaTxRef, setChapaTxRef] = useState('');
+  const [chapaCheckoutUrl, setChapaCheckoutUrl] = useState('');
   const [chapaIsLoading, setChapaIsLoading] = useState(false);
   const [chapaNotice, setChapaNotice] = useState('');
   const [chapaManualMode, setChapaManualMode] = useState(false);
@@ -321,6 +324,25 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
   };
 
   const handleChapaSendPush = async () => {
+    // Strict Validation: Member credentials (Name and Phone) must be provided before paying
+    const nameErr = validateSingleField('name', formData.name, formData, true);
+    const phoneErr = validateSingleField('phone', formData.phone, formData, true);
+    const emailErr = validateSingleField('email', formData.email, formData, true);
+
+    if (nameErr || phoneErr || emailErr) {
+      setFormErrors((prev) => ({
+        ...prev,
+        ...(nameErr ? { name: nameErr } : {}),
+        ...(phoneErr ? { phone: phoneErr } : {}),
+        ...(emailErr ? { email: emailErr } : {}),
+      }));
+      setNotification({
+        type: 'danger',
+        message: 'Strict Validation: Please enter valid member credentials (Full Name and Phone Number) before initiating payment.',
+      });
+      return;
+    }
+
     const targetPhone = (chapaPayerPhone || formData.phone || '').trim();
     if (!targetPhone) {
       setFormErrors((prev) => ({ ...prev, phone: 'Please enter a valid payer phone number for Chapa push.' }));
@@ -338,28 +360,36 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
     stopChapaTimers();
     setChapaElapsedSeconds(0);
 
-    let activeTxRef = `CHP-TG-${Date.now().toString().slice(-8)}`;
+    let activeMerchantRef = `TG-${Date.now().toString().slice(-8)}`;
+    const returnUrl = window.location.origin + window.location.pathname + '?payment=chapa';
 
     try {
       const res = await apiClient.initializeChapa({
         amount: amountNum,
         phone: targetPhone,
         provider: chapaProvider,
-        name: formData.name,
-        email: formData.email,
+        name: formData.name.trim(),
+        email: formData.email?.trim() || undefined,
         plan_name: selectedPlan?.name,
+        membership_plan_id: Number(formData.membership_plan_id),
+        return_url: returnUrl,
       });
 
       const data = res.data || res;
-      activeTxRef = data.tx_ref || activeTxRef;
-      setChapaTxRef(activeTxRef);
+      activeMerchantRef = data.merchant_reference || data.tx_ref || activeMerchantRef;
+      const checkoutUrl = data.checkout_url || '';
+
+      setChapaTxRef(activeMerchantRef);
+      setChapaCheckoutUrl(checkoutUrl);
       setChapaStatus('push_sent');
-      setChapaNotice(res.message || `USSD prompt sent to ${targetPhone} via ${chapaProvider.toUpperCase()}. Waiting for member to authorize on phone...`);
+      setChapaNotice(res.message || `Chapa Hosted Checkout session created! Open checkout page or authorize payment.`);
     } catch (err) {
-      console.error('Chapa push notice:', err);
-      setChapaTxRef(activeTxRef);
-      setChapaStatus('push_sent');
-      setChapaNotice(`USSD prompt sent to ${targetPhone} via ${chapaProvider.toUpperCase()}. Waiting for member to authorize on phone...`);
+      console.error('Chapa initialization error:', err);
+      const errMsg = err.response?.data?.message || err.message || `Failed to initialize Chapa payment session.`;
+      setChapaNotice(errMsg);
+      setChapaStatus('cancelled');
+      setChapaIsLoading(false);
+      return;
     } finally {
       setChapaIsLoading(false);
     }
@@ -369,26 +399,26 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
       setChapaElapsedSeconds((prev) => prev + 1);
     }, 1000);
 
-    // Auto-Polling: every 2.5 seconds, check if the member entered PIN/password on their phone
+    // Auto-Polling: every 3 seconds, check if payment is confirmed on gateway
     let attempts = 0;
-    const maxAttempts = 36; // 90 seconds timeout
+    const maxAttempts = 40; // 120 seconds timeout
     chapaPollTimerRef.current = setInterval(async () => {
       attempts++;
       if (attempts > maxAttempts) {
         stopChapaTimers();
         setChapaStatus('cancelled');
-        setChapaNotice('⏱️ Request Timed Out: The member took too long to authorize or cancelled on their phone. You can retry push or switch to cash.');
+        setChapaNotice('⏱️ Request Timed Out: The member took too long to authorize or cancelled payment. You can retry or switch to cash.');
         return;
       }
 
       try {
         const checkRes = await apiClient.verifyChapa({
-          tx_ref: activeTxRef,
+          merchant_reference: activeMerchantRef,
         });
 
-        if (checkRes.status === 'success' || checkRes.data?.verified) {
+        if (checkRes.status === 'success' && (checkRes.data?.is_paid || checkRes.data?.status === 'completed')) {
           stopChapaTimers();
-          const verifiedRef = checkRes.data?.gateway_reference || activeTxRef;
+          const verifiedRef = checkRes.data?.gateway_reference || activeMerchantRef;
           setChapaStatus('verified');
           setFormData((prev) => ({ ...prev, payment_reference: verifiedRef }));
           setFormErrors((prev) => {
@@ -396,44 +426,53 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
             delete next.payment_reference;
             return next;
           });
-          setChapaNotice(`✅ Payment Successful! Member entered password/PIN on their phone. (Ref: ${verifiedRef})`);
-        } else if (checkRes.status === 'cancelled' || checkRes.data?.status === 'cancelled') {
+          setChapaNotice(`✅ Payment Confirmed & Membership Activated! Ref: ${verifiedRef}`);
+        } else if (checkRes.status === 'failed' || checkRes.data?.status === 'failed' || checkRes.status === 'cancelled') {
           stopChapaTimers();
           setChapaStatus('cancelled');
-          setChapaNotice('⚠️ Notice: Member cancelled or declined the payment on their phone. No funds were charged.');
+          setChapaNotice('⚠️ Notice: Member cancelled or declined the payment. No funds were charged.');
         }
       } catch (err) {
         const errData = err.response?.data;
-        if (errData?.status === 'cancelled' || errData?.data?.status === 'cancelled' || err.message?.includes('cancelled')) {
+        if (errData?.status === 'cancelled' || errData?.status === 'failed') {
           stopChapaTimers();
           setChapaStatus('cancelled');
-          setChapaNotice(errData?.message || '⚠️ Notice: Member cancelled or declined the payment on their phone. No funds were charged.');
+          setChapaNotice(errData?.message || '⚠️ Notice: Payment was unsuccessful or cancelled.');
         }
       }
-    }, 2500);
+    }, 3000);
   };
 
-  const handleChapaApprove = async () => {
-    stopChapaTimers();
+  const handleChapaCheckStatusNow = async () => {
+    if (!chapaTxRef) return;
     setChapaIsLoading(true);
     try {
-      const res = await apiClient.verifyChapa({
-        tx_ref: chapaTxRef,
-        simulate_status: 'success',
+      const checkRes = await apiClient.verifyChapa({
+        merchant_reference: chapaTxRef,
       });
-      const verifiedRef = res.data?.gateway_reference || chapaTxRef;
-      setChapaStatus('verified');
-      setFormData((prev) => ({ ...prev, payment_reference: verifiedRef }));
-      setFormErrors((prev) => {
-        const next = { ...prev };
-        delete next.payment_reference;
-        return next;
-      });
-      setChapaNotice(`✅ Payment Authorized! Member entered password and confirmed on phone. (Ref: ${verifiedRef})`);
-    } catch {
-      setChapaStatus('verified');
-      setFormData((prev) => ({ ...prev, payment_reference: chapaTxRef }));
-      setChapaNotice(`✅ Payment Authorized! Reference: ${chapaTxRef}`);
+
+      if (checkRes.status === 'success' && (checkRes.data?.is_paid || checkRes.data?.status === 'completed')) {
+        stopChapaTimers();
+        const verifiedRef = checkRes.data?.gateway_reference || chapaTxRef;
+        setChapaStatus('verified');
+        setFormData((prev) => ({ ...prev, payment_reference: verifiedRef }));
+        setFormErrors((prev) => {
+          const next = { ...prev };
+          delete next.payment_reference;
+          return next;
+        });
+        setChapaNotice(`✅ Payment Confirmed & Membership Activated! (Ref: ${verifiedRef})`);
+      } else if (checkRes.status === 'pending' || checkRes.data?.status === 'pending') {
+        setChapaNotice(`⏳ Payment is still pending on Chapa. Awaiting completion.`);
+      } else {
+        stopChapaTimers();
+        setChapaStatus('cancelled');
+        setChapaNotice(checkRes.message || 'Payment has not been completed or was cancelled.');
+      }
+    } catch (err) {
+      console.error('Manual check error:', err);
+      const msg = err.response?.data?.message || err.message || 'Failed to verify payment with Chapa.';
+      setChapaNotice(msg);
     } finally {
       setChapaIsLoading(false);
     }
@@ -441,19 +480,9 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
 
   const handleChapaCancel = async () => {
     stopChapaTimers();
-    setChapaIsLoading(true);
-    try {
-      await apiClient.verifyChapa({
-        tx_ref: chapaTxRef,
-        simulate_status: 'cancelled',
-      });
-    } catch {
-      // expected
-    } finally {
-      setChapaIsLoading(false);
-      setChapaStatus('cancelled');
-      setChapaNotice('⚠️ Notice: Member cancelled or declined the payment on their phone. No funds were deducted.');
-    }
+    setChapaIsLoading(false);
+    setChapaStatus('cancelled');
+    setChapaNotice('⚠️ Notice: Checkout session cancelled by front-desk. You can re-initiate or switch to Cash.');
   };
 
   const handleChapaReset = () => {
@@ -461,17 +490,21 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
     setChapaStatus('idle');
     setChapaNotice('');
     setChapaElapsedSeconds(0);
+    setChapaCheckoutUrl('');
     setFormData((prev) => ({ ...prev, payment_reference: '' }));
   };
 
   const handleRegisterSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+    setRegisterError('');
     const errors = validateMemberForm(formData, true);
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
+      const firstErr = Object.values(errors)[0];
+      setRegisterError(firstErr || 'Please review and fix the highlighted form errors before proceeding.');
       setNotification({
         type: 'danger',
-        message: 'Please review and fix the highlighted form errors before proceeding.',
+        message: firstErr || 'Please review and fix the highlighted form errors before proceeding.',
       });
       return;
     }
@@ -558,6 +591,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
       setPassModalTab(createdPayment ? 'receipt' : 'pass');
 
       setFormData(initialFormData);
+      setRegisterError('');
       stopChapaTimers();
       setChapaStatus('idle');
       setChapaTxRef('');
@@ -565,6 +599,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
       setChapaElapsedSeconds(0);
       fetchMembers();
     } catch (err) {
+      console.error('Registration submission error:', err);
       if (err.errors || err.data?.errors) {
         const rawErrors = err.errors || err.data?.errors;
         const normalized = {};
@@ -572,6 +607,10 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
           normalized[key] = Array.isArray(val) ? val[0] : String(val);
         }
         setFormErrors(normalized);
+        const firstErr = Object.values(normalized)[0];
+        setRegisterError(firstErr || err.message || 'Validation failed. Please verify form fields.');
+      } else {
+        setRegisterError(err.message || 'Failed to register member. Please check form fields and try again.');
       }
       setNotification({ type: 'danger', message: err.message || 'Failed to register member' });
     } finally {
@@ -1145,6 +1184,34 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
             </div>
 
             <form onSubmit={handleRegisterSubmit} noValidate style={{ margin: 0 }}>
+              {/* In-Modal Alert Banner for Immediate Visibility */}
+              {registerError && (
+                <div style={{
+                  background: '#fef2f2',
+                  border: '1.5px solid #ef4444',
+                  borderRadius: 8,
+                  padding: '9px 12px',
+                  marginBottom: 10,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  color: '#991b1b',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.12)',
+                }}>
+                  <Icons.AlertCircle size={16} style={{ flexShrink: 0, color: '#dc2626' }} />
+                  <span style={{ flex: 1 }}>{registerError}</span>
+                  <button
+                    type="button"
+                    onClick={() => setRegisterError('')}
+                    style={{ background: 'transparent', border: 'none', color: '#991b1b', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 4px' }}
+                    title="Dismiss alert"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
               <div className="reg-form-grid">
                 {/* Column 1: Member Profile & Emergency Details */}
                 <div className="reg-form-col">
@@ -1612,25 +1679,49 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                                   </div>
                                 </div>
 
-                                {/* Simulation & Front-Desk Controls */}
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 8, paddingTop: 8, borderTop: '1px dashed #e879f9' }}>
+                                {/* Chapa Hosted Checkout & Verification Controls */}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginTop: 10, paddingTop: 8, borderTop: '1px dashed #e879f9' }}>
+                                  {chapaCheckoutUrl && (
+                                    <a
+                                      href={chapaCheckoutUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="btn btn-sm"
+                                      style={{
+                                        fontSize: 11,
+                                        fontWeight: 800,
+                                        background: '#E67C00',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        borderRadius: 6,
+                                        padding: '6px 12px',
+                                        textDecoration: 'none',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 5,
+                                        boxShadow: '0 2px 8px rgba(230, 124, 0, 0.3)',
+                                      }}
+                                    >
+                                      Proceed to Chapa Checkout ↗
+                                    </a>
+                                  )}
                                   <button
                                     type="button"
-                                    onClick={handleChapaApprove}
+                                    onClick={handleChapaCheckStatusNow}
                                     disabled={chapaIsLoading}
                                     className="btn btn-sm"
                                     style={{
-                                      fontSize: 10.5,
-                                      fontWeight: 800,
-                                      background: '#16a34a',
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      background: '#0284c7',
                                       color: '#ffffff',
                                       border: 'none',
-                                      borderRadius: 5,
-                                      padding: '4px 9px',
+                                      borderRadius: 6,
+                                      padding: '6px 10px',
                                       cursor: 'pointer',
                                     }}
                                   >
-                                    ✓ Member Approved on Phone
+                                    {chapaIsLoading ? 'Verifying...' : 'Check Status Now'}
                                   </button>
                                   <button
                                     type="button"
@@ -1639,31 +1730,16 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                                     className="btn btn-sm"
                                     style={{
                                       fontSize: 10.5,
-                                      fontWeight: 700,
+                                      fontWeight: 600,
                                       background: '#fee2e2',
                                       color: '#b91c1c',
                                       border: '1px solid #fca5a5',
-                                      borderRadius: 5,
-                                      padding: '4px 9px',
+                                      borderRadius: 6,
+                                      padding: '6px 9px',
                                       cursor: 'pointer',
                                     }}
                                   >
-                                    ✕ Member Cancelled on Phone
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={handleChapaReset}
-                                    style={{
-                                      fontSize: 10.5,
-                                      color: '#64748b',
-                                      background: 'transparent',
-                                      border: 'none',
-                                      cursor: 'pointer',
-                                      marginLeft: 'auto',
-                                      textDecoration: 'underline',
-                                    }}
-                                  >
-                                    Cancel Push
+                                    Cancel
                                   </button>
                                 </div>
                               </div>
@@ -1843,6 +1919,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     </button>
                     <button
                       type="submit"
+                      onClick={handleRegisterSubmit}
                       className="btn btn-primary"
                       style={{ height: 32, padding: '0 18px', fontSize: 12.5, background: '#E67C00', borderColor: '#E67C00', fontWeight: 700 }}
                       disabled={isSubmitting}
@@ -1993,7 +2070,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     boxShadow: passModalTab === 'pass' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                   }}
                 >
-                  🎟️ QR Pass
+                  💳 Permanent Card (1-Yr)
                 </button>
                 <button
                   type="button"
@@ -2036,8 +2113,8 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                   <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>
                     <BrandLogo variant="reception" size={48} showSubtext={false} />
                   </div>
-                  <h4 style={{ margin: 0, color: '#0f172a', fontSize: 15, fontWeight: 900, letterSpacing: '0.04em' }}>
-                    ትጋት ጂም • TIGAT GYM
+                  <h4 style={{ margin: 0, color: '#0f172a', fontSize: 16, fontWeight: 900, letterSpacing: '0.06em' }}>
+                    TIGAT GYM
                   </h4>
                   <div style={{ fontSize: 10.5, color: '#E67C00', fontWeight: 800, letterSpacing: '0.08em', marginTop: 1 }}>
                     OFFICIAL PAYMENT RECEIPT
@@ -2148,60 +2225,34 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                 </div>
               </div>
 
-              {/* DIGITAL PASS CARD (Turnstile QR & Member ID) */}
+              {/* OFFICIAL 1-YEAR PERMANENT MEMBERSHIP CARD */}
               <div
                 style={{
                   display: passModalTab === 'receipt' ? 'none' : 'block',
-                  background: '#ffffff',
-                  border: '2px solid #E67C00',
-                  borderRadius: 16,
-                  padding: 20,
-                  boxShadow: '0 8px 30px rgba(230, 124, 0, 0.1)',
+                  width: '100%',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, borderBottom: '1px solid #f1f5f9', paddingBottom: 10 }}>
-                  <BrandLogo variant="reception" />
-                  <span className="badge" style={{ background: '#ecfdf5', color: '#059669', fontWeight: 700, fontSize: 11 }}>
-                    Active Turnstile Pass
+                <div style={{ marginBottom: 10, textAlign: 'center' }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: '#ea580c', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                    1-Year Permanent Member Card • Issued for Turnstile Access
                   </span>
                 </div>
-
-                <div style={{ margin: '14px 0', display: 'flex', justifyContent: 'center' }}>
-                  <QRCodeDisplay
-                    value={registeredMemberPass.member?.qr_code_token || registeredMemberPass.member?.qr_token || registeredMemberPass.member?.member_code || 'TIGAT-MEMBER'}
-                    memberCode={registeredMemberPass.member?.member_code}
-                    memberName={registeredMemberPass.member?.name}
-                    size={150}
-                  />
-                </div>
-
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>
-                  {registeredMemberPass.member?.name}
-                </div>
-                <div style={{ fontSize: 13, fontFamily: 'monospace', fontWeight: 800, color: '#E67C00', marginTop: 2 }}>
-                  Member ID: {registeredMemberPass.member?.member_code || 'TG-0000'}
-                </div>
-
-                {registeredMemberPass.plan && (
-                  <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px dashed #e2e8f0', display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                    <span style={{ color: '#64748b' }}>Plan:</span>
-                    <span style={{ fontWeight: 700, color: '#0f172a' }}>{registeredMemberPass.plan.name}</span>
-                  </div>
-                )}
-
-                {registeredMemberPass.payment && (
-                  <div style={{ marginTop: 6, display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                    <span style={{ color: '#64748b' }}>Paid ({registeredMemberPass.paymentMethod?.toUpperCase()}):</span>
-                    <span style={{ fontWeight: 800, color: '#059669' }}>
-                      {Number(registeredMemberPass.payment.amount || registeredMemberPass.plan?.price || 0).toLocaleString()} ETB
-                    </span>
-                  </div>
-                )}
-
-                <div style={{ marginTop: 10, fontSize: 10.5, color: '#94a3b8', fontStyle: 'italic' }}>
-                  Present this QR code to the turnstile scanner or front desk tablet for admission.
-                </div>
+                <PermanentMemberCard
+                  member={{
+                    ...registeredMemberPass.member,
+                    joined_at: registeredMemberPass.member?.joined_at || registeredMemberPass.issuedAt || new Date().toISOString().split('T')[0],
+                    card_expires_at: registeredMemberPass.member?.card_expires_at,
+                  }}
+                  membershipTitle="PREMIUM MEMBER"
+                  fallbackStartDate={registeredMemberPass.issuedAt}
+                  showActions={false}
+                />
               </div>
+            </div>
+
+            {/* Automatic Email Confirmation Banner */}
+            <div className="no-print" style={{ margin: '8px 0', padding: '8px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, textAlign: 'center', fontSize: 12, color: '#166534', fontWeight: 600 }}>
+              ✉️ Official 1-Year Member Card & Payment Receipt are automatically sent to the member's registered email address.
             </div>
 
             {/* Modal Actions */}
@@ -2480,93 +2531,59 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
         </div>
       )}
 
-      {/* Modal 3: Digital Gym Card & QR Pass */}
+      {/* Modal 3: Official 1-Year Permanent Member Card */}
       {selectedMember && (
         <div className="modal-backdrop">
-          <div className="modal-card">
+          <div className="modal-card" style={{ maxWidth: 540, maxHeight: '92vh', overflowY: 'auto' }}>
             <div className="modal-header">
-              <h3>TIGAT GYM — Digital Member Pass</h3>
+              <div>
+                <h3 style={{ margin: 0, color: 'var(--gym-text-primary, #ffffff)' }}>TIGAT GYM — Permanent Member Card</h3>
+                <span style={{ fontSize: 11, color: '#ea580c', fontWeight: 700 }}>
+                  1-Year Official Membership Credential
+                </span>
+              </div>
               <button type="button" className="btn-close" onClick={() => setSelectedMember(null)}>×</button>
             </div>
 
-            <div className="digital-card-container">
-              <div className="gym-pass-card">
-                <div className="pass-header">
-                  <div className="brand-group">
-                    <BrandLogo variant="pass" size={48} showSubtext={false} />
-                    <div>
-                      <div className="brand-title-sm">TIGAT GYM</div>
-                      <span className="brand-subtitle-xs">ትጋት ጂም • MEMBER ACCESS</span>
-                    </div>
-                  </div>
-                  <span className="badge-member-code">{selectedMember.member_code}</span>
-                </div>
-
-                <div className="pass-body">
-                  <div className="pass-qr-wrapper">
-                    <QRCodeDisplay
-                      value={selectedMember.qr_code_token}
-                      memberCode={selectedMember.member_code}
-                      memberName={selectedMember.name}
-                      size={180}
-                    />
-                  </div>
-
-                  <div className="pass-details-list">
-                    <div className="pass-row">
-                      <span className="pass-label">Full Name:</span>
-                      <strong className="pass-val">{selectedMember.name}</strong>
-                    </div>
-                    <div className="pass-row">
-                      <span className="pass-label">Phone:</span>
-                      <span className="pass-val">{selectedMember.phone}</span>
-                    </div>
-                    <div className="pass-row">
-                      <span className="pass-label">Membership:</span>
-                      <span className="pass-val highlight">
-                        {selectedMember.active_subscription
-                          ? selectedMember.active_subscription.plan_name
-                          : 'No Active Subscription'}
-                      </span>
-                    </div>
-                    <div className="pass-row">
-                      <span className="pass-label">Joined Date:</span>
-                      <span className="pass-val text-muted">{selectedMember.joined_at}</span>
-                    </div>
-                    {selectedMember.date_of_birth && (
-                      <div className="pass-row">
-                        <span className="pass-label">Age / DOB:</span>
-                        <span className="pass-val">
-                          {calculateAge(selectedMember.date_of_birth)} yrs ({selectedMember.date_of_birth.slice(0, 10)})
-                        </span>
-                      </div>
-                    )}
-                    {selectedMember.blood_type && (
-                      <div className="pass-row">
-                        <span className="pass-label">Blood Type:</span>
-                        <span className="pass-val" style={{ color: '#dc2626', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                          <Icons.Droplet size={13} /> {selectedMember.blood_type}
-                        </span>
-                      </div>
-                    )}
-                    {selectedMember.emergency_contact_name && (
-                      <div className="pass-row">
-                        <span className="pass-label">Emergency:</span>
-                        <span className="pass-val text-sm">
-                          {selectedMember.emergency_contact_name} ({selectedMember.emergency_contact_phone})
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="pass-footer">
-                  <span>Tamper-proof encrypted QR identification token</span>
-                </div>
-              </div>
+            <div className="digital-card-container" style={{ padding: '10px 0' }}>
+              <PermanentMemberCard
+                member={selectedMember}
+                membershipTitle="PREMIUM MEMBER"
+                showActions={true}
+              />
             </div>
 
-            <div className="modal-actions" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            {/* Emergency & Medical Detail Strip */}
+            {(selectedMember.phone || selectedMember.blood_type || selectedMember.emergency_contact_phone) && (
+              <div
+                style={{
+                  background: 'rgba(255, 122, 0, 0.06)',
+                  border: '1px solid rgba(255, 122, 0, 0.18)',
+                  borderRadius: 10,
+                  padding: '8px 14px',
+                  fontSize: 11,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  color: 'var(--gym-text-muted, #94a3b8)',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                  marginTop: 4,
+                }}
+              >
+                {selectedMember.phone && (
+                  <span>Phone: <strong style={{ color: 'var(--gym-text-primary, #ffffff)' }}>{selectedMember.phone}</strong></span>
+                )}
+                {selectedMember.blood_type && (
+                  <span>Blood: <strong style={{ color: '#dc2626' }}>{selectedMember.blood_type}</strong></span>
+                )}
+                {selectedMember.emergency_contact_name && (
+                  <span>Contact: <strong style={{ color: 'var(--gym-text-primary, #ffffff)' }}>{selectedMember.emergency_contact_name} ({selectedMember.emergency_contact_phone})</strong></span>
+                )}
+              </div>
+            )}
+
+            <div className="modal-actions" style={{ justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
               {isStaff ? (
                 <button
                   type="button"
@@ -2582,12 +2599,10 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
 
               <button
                 type="button"
-                className="btn btn-primary btn-sm"
-                onClick={() => window.print()}
+                className="btn btn-secondary btn-sm"
+                onClick={() => setSelectedMember(null)}
               >
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <Icons.Printer size={14} /> Print Pass
-                </span>
+                Close
               </button>
             </div>
           </div>

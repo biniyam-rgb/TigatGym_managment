@@ -39,10 +39,10 @@ export function validateSingleField(field, value, allData = {}, isRegister = tru
       if (trimmed.length > 100) {
         return 'Full name cannot exceed 100 characters.';
       }
-      // Allow Latin letters, Ethiopic/Amharic Fidel (\u1200-\u137F), spaces, apostrophes, hyphens, dots
-      const nameRegex = /^[a-zA-Z\u1200-\u137F\s'. -]+$/;
+      // Allow Latin letters, digits (for test accounts like Member 1), Ethiopic/Amharic Fidel (\u1200-\u137F), spaces, apostrophes, hyphens, dots
+      const nameRegex = /^[a-zA-Z0-9\u1200-\u137F\s'. -]+$/;
       if (!nameRegex.test(trimmed)) {
-        return 'Full name should only contain letters and spaces.';
+        return 'Full name should only contain letters, numbers, and spaces.';
       }
       return null;
     }
@@ -121,7 +121,7 @@ export function validateSingleField(field, value, allData = {}, isRegister = tru
     }
 
     case 'payment_amount': {
-      if (isRegister && allData.membership_plan_id) {
+      if (isRegister && allData.membership_plan_id && value !== undefined && value !== '') {
         const num = Number(value);
         if (isNaN(num) || num <= 0) {
           return 'Payment amount must be greater than 0 ETB.';
