@@ -273,6 +273,9 @@ class AttendanceController extends Controller
                 $token = $matches[0];
             }
             $profile = MemberProfile::where('qr_code_token', $token)->first();
+            if (! $profile && preg_match('/TG-\d{4,6}/i', $token, $codeMatches)) {
+                $profile = MemberProfile::where('member_code', strtoupper($codeMatches[0]))->first();
+            }
             if ($profile) {
                 $member = $profile->user;
                 $method = 'qr_code';
@@ -480,6 +483,9 @@ class AttendanceController extends Controller
                 $token = $matches[0];
             }
             $profile = MemberProfile::where('qr_code_token', $token)->first();
+            if (! $profile && preg_match('/TG-\d{4,6}/i', $token, $codeMatches)) {
+                $profile = MemberProfile::where('member_code', strtoupper($codeMatches[0]))->first();
+            }
             if ($profile) {
                 $query->where('member_id', $profile->user_id)
                     ->where('check_in_time', '>=', Carbon::now()->subHours(24));
