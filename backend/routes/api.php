@@ -41,8 +41,9 @@ Route::prefix('auth')->group(function () {
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:password-reset');
 });
 
-// Chapa Webhook / Callback Route (Public, invoked by Chapa payment gateway)
-Route::match(['get', 'post'], '/payments/chapa/callback', [PaymentController::class, 'chapaCallback']);
+// Chapa Webhook & Callback Routes (Public, invoked by Chapa payment gateway)
+Route::post('/payments/chapa/webhook', [PaymentController::class, 'handleWebhook']);
+Route::match(['get', 'post'], '/payments/chapa/callback', [PaymentController::class, 'handleCallback']);
 
 /*
 |--------------------------------------------------------------------------
@@ -65,6 +66,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Module A: Member Management & Profiles
     Route::apiResource('members', MemberController::class);
     Route::post('/members/{member}/regenerate-qr', [MemberController::class, 'regenerateQr']);
+    Route::post('/members/{member}/send-card-email', [MemberController::class, 'sendCardEmail']);
 
     // Module C: Membership Plans & Subscriptions
     Route::apiResource('membership-plans', MembershipPlanController::class);
@@ -77,9 +79,10 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Module D: Payments & Financial Ledger
     Route::get('/payments/summary', [PaymentController::class, 'summary']);
     Route::post('/payments/chapa/initialize', [PaymentController::class, 'initializeChapa']);
-    Route::post('/payments/chapa/verify', [PaymentController::class, 'verifyChapa']);
+    Route::match(['get', 'post'], '/payments/chapa/verify/{reference?}', [PaymentController::class, 'verifyChapa']);
     Route::apiResource('payments', PaymentController::class)->except(['update', 'destroy']);
     Route::post('/payments/{payment}/refund', [PaymentController::class, 'refund']);
+    Route::post('/payments/{payment}/send-receipt-email', [PaymentController::class, 'sendReceiptEmail']);
 
     // Operating Expenses
     Route::get('/expenses/summary', [ExpenseController::class, 'summary']);
