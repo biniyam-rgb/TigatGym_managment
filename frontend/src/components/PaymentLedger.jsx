@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import apiClient from '../services/api';
 import { useAuth } from '../context/useAuth';
 import BrandLogo from './BrandLogo';
@@ -82,6 +82,36 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
     recipient: '',
     description: '',
   });
+
+  // Chapa Mobile Push & Verification Automation State
+  const [chapaProvider, setChapaProvider] = useState('telebirr');
+  const [chapaPayerPhone, setChapaPayerPhone] = useState('');
+  const [chapaStatus, setChapaStatus] = useState('idle'); // 'idle' | 'push_sent' | 'verified' | 'cancelled'
+  const [chapaTxRef, setChapaTxRef] = useState('');
+  const [chapaCheckoutUrl, setChapaCheckoutUrl] = useState('');
+  const [chapaIsLoading, setChapaIsLoading] = useState(false);
+  const [chapaNotice, setChapaNotice] = useState('');
+  const [chapaElapsedSeconds, setChapaElapsedSeconds] = useState(0);
+
+  const chapaPollTimerRef = useRef(null);
+  const chapaElapsedTimerRef = useRef(null);
+
+  const stopChapaTimers = useCallback(() => {
+    if (chapaPollTimerRef.current) {
+      clearInterval(chapaPollTimerRef.current);
+      chapaPollTimerRef.current = null;
+    }
+    if (chapaElapsedTimerRef.current) {
+      clearInterval(chapaElapsedTimerRef.current);
+      chapaElapsedTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopChapaTimers();
+    };
+  }, [stopChapaTimers]);
 
   const showNotification = (type, message) => {
     setNotification({ type, message });
@@ -273,10 +303,157 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
       notes: '',
     });
     setIsRecordPaymentOpen(true);
+    handleChapaReset();
+  };
+
+  const handleChapaReset = () => {
+    stopChapaTimers();
+    setChapaStatus('idle');
+    setChapaNotice('');
+    setChapaElapsedSeconds(0);
+    setChapaCheckoutUrl('');
+    setPaymentForm((prev) => ({ ...prev, gateway_reference: '' }));
+  };
+
+  const handleChapaSendPush = async () => {
+    const selectedMember = membersList.find(
+      (m) => String(m.user_id) === String(paymentForm.user_id) || String(m.id) === String(paymentForm.user_id)
+    );
+    const targetPhone = (chapaPayerPhone || selectedMember?.phone || '').trim();
+    if (!targetPhone) {
+      showNotification('error', 'Please enter or select a valid payer mobile phone number.');
+      return;
+    }
+    const amountNum = Number(paymentForm.amount) || 0;
+    if (amountNum <= 0) {
+      showNotification('error', 'Please enter a valid payment amount in ETB.');
+      return;
+    }
+
+    setChapaIsLoading(true);
+    setChapaNotice('');
+    stopChapaTimers();
+    setChapaElapsedSeconds(0);
+
+    let activeMerchantRef = `TG-${Date.now().toString().slice(-8)}`;
+    const returnUrl = window.location.origin + window.location.pathname + '?payment=chapa';
+
+    try {
+      const res = await apiClient.initializeChapa({
+        amount: amountNum,
+        phone: targetPhone,
+        provider: chapaProvider,
+        name: selectedMember?.name || 'Tigat Member',
+        email: selectedMember?.email,
+        return_url: returnUrl,
+      });
+
+      const data = res.data || res;
+      activeMerchantRef = data.merchant_reference || data.tx_ref || activeMerchantRef;
+      const checkoutUrl = data.checkout_url || '';
+
+      setChapaTxRef(activeMerchantRef);
+      setChapaCheckoutUrl(checkoutUrl);
+      setChapaStatus('push_sent');
+      setChapaNotice(res.message || `Chapa Hosted Checkout session created! Open checkout page or authorize payment.`);
+    } catch (err) {
+      console.error('Chapa initialization error:', err);
+      const errMsg = err.response?.data?.message || err.message || `Failed to initialize Chapa payment session.`;
+      setChapaNotice(errMsg);
+      setChapaStatus('cancelled');
+      setChapaIsLoading(false);
+      return;
+    } finally {
+      setChapaIsLoading(false);
+    }
+
+    // Start timer counter
+    chapaElapsedTimerRef.current = setInterval(() => {
+      setChapaElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+
+    // Auto-Polling: every 3 seconds
+    let attempts = 0;
+    const maxAttempts = 40; // 120s
+    chapaPollTimerRef.current = setInterval(async () => {
+      attempts++;
+      if (attempts > maxAttempts) {
+        stopChapaTimers();
+        setChapaStatus('cancelled');
+        setChapaNotice('⏱️ Request Timed Out: Payment was not completed within the time limit.');
+        return;
+      }
+
+      try {
+        const checkRes = await apiClient.verifyChapa({
+          merchant_reference: activeMerchantRef,
+        });
+
+        if (checkRes.status === 'success' && (checkRes.data?.is_paid || checkRes.data?.status === 'completed')) {
+          stopChapaTimers();
+          const verifiedRef = checkRes.data?.gateway_reference || activeMerchantRef;
+          setChapaStatus('verified');
+          setPaymentForm((prev) => ({ ...prev, gateway_reference: verifiedRef }));
+          setChapaNotice(`✅ Payment Successful! Verified Ref: ${verifiedRef}`);
+        } else if (checkRes.status === 'failed' || checkRes.data?.status === 'failed' || checkRes.status === 'cancelled') {
+          stopChapaTimers();
+          setChapaStatus('cancelled');
+          setChapaNotice('⚠️ Notice: Payment was cancelled or rejected.');
+        }
+      } catch (err) {
+        const errData = err.response?.data;
+        if (errData?.status === 'cancelled' || errData?.status === 'failed') {
+          stopChapaTimers();
+          setChapaStatus('cancelled');
+          setChapaNotice(errData?.message || '⚠️ Notice: Payment was unsuccessful or cancelled.');
+        }
+      }
+    }, 3000);
+  };
+
+  const handleChapaCheckStatusNow = async () => {
+    if (!chapaTxRef) return;
+    setChapaIsLoading(true);
+    try {
+      const checkRes = await apiClient.verifyChapa({
+        merchant_reference: chapaTxRef,
+      });
+
+      if (checkRes.status === 'success' && (checkRes.data?.is_paid || checkRes.data?.status === 'completed')) {
+        stopChapaTimers();
+        const verifiedRef = checkRes.data?.gateway_reference || chapaTxRef;
+        setChapaStatus('verified');
+        setPaymentForm((prev) => ({ ...prev, gateway_reference: verifiedRef }));
+        setChapaNotice(`✅ Payment Successful! Verified Ref: ${verifiedRef}`);
+      } else if (checkRes.status === 'pending' || checkRes.data?.status === 'pending') {
+        setChapaNotice(`⏳ Payment is still pending on Chapa. Awaiting completion.`);
+      } else {
+        stopChapaTimers();
+        setChapaStatus('cancelled');
+        setChapaNotice(checkRes.message || 'Payment has not been completed or was cancelled.');
+      }
+    } catch (err) {
+      console.error('Manual check error:', err);
+      const msg = err.response?.data?.message || err.message || 'Failed to verify payment with Chapa.';
+      setChapaNotice(msg);
+    } finally {
+      setChapaIsLoading(false);
+    }
+  };
+
+  const handleChapaCancel = async () => {
+    stopChapaTimers();
+    setChapaIsLoading(false);
+    setChapaStatus('cancelled');
+    setChapaNotice('⚠️ Notice: Checkout session cancelled by front-desk.');
   };
 
   // Member selection handler in Record Payment
   const handleMemberSelect = (memberId) => {
+    const member = membersList.find(m => String(m.user_id) === String(memberId) || String(m.id) === String(memberId));
+    if (member?.phone) {
+      setChapaPayerPhone(member.phone);
+    }
     setPaymentForm(prev => ({
       ...prev,
       user_id: memberId,
@@ -441,6 +618,25 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
   // Print Receipt Action
   const handlePrintReceipt = () => {
     window.print();
+  };
+
+  const [isSendingReceiptEmail, setIsSendingReceiptEmail] = useState(false);
+  const [receiptEmailStatus, setReceiptEmailStatus] = useState(null);
+
+  const handleEmailReceipt = async () => {
+    if (!selectedPayment?.id) return;
+    setIsSendingReceiptEmail(true);
+    setReceiptEmailStatus(null);
+    try {
+      const res = await apiClient.sendPaymentReceiptEmail(selectedPayment.id);
+      setReceiptEmailStatus({ success: true, message: res.message || 'Payment receipt emailed successfully!' });
+      setTimeout(() => setReceiptEmailStatus(null), 4000);
+    } catch (err) {
+      setReceiptEmailStatus({ success: false, message: err.message || 'Could not send receipt email.' });
+      setTimeout(() => setReceiptEmailStatus(null), 5000);
+    } finally {
+      setIsSendingReceiptEmail(false);
+    }
   };
 
   // Compute Net Operating Balance (Revenue - Expenses)
@@ -659,10 +855,10 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
             marginBottom: 20,
           }}>
             <div>
-              <h3 style={{ margin: 0, color: '#fff', fontSize: 18, fontWeight: 700 }}>
+              <h3 className="pay-section-heading" style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
                 Financial Transactions & Receipts
               </h3>
-              <p style={{ margin: '4px 0 0 0', color: '#a1a1aa', fontSize: 13 }}>
+              <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: 13 }}>
                 Audited ledger of all front-desk cash, mobile bank slip, POS, and online transactions.
               </p>
             </div>
@@ -993,10 +1189,10 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
             marginBottom: 20,
           }}>
             <div>
-              <h3 style={{ margin: 0, color: '#fff', fontSize: 18, fontWeight: 700 }}>
+              <h3 className="pay-section-heading" style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
                 Gym Operating Expenditures & Outflows
               </h3>
-              <p style={{ margin: '4px 0 0 0', color: '#a1a1aa', fontSize: 13 }}>
+              <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: 13 }}>
                 Track facility overhead: Facility rent, utilities, equipment maintenance, and supplies.
               </p>
             </div>
@@ -1237,10 +1433,10 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
           <div className="modal-card" style={{ maxWidth: 560 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
-                <h3 style={{ margin: 0, color: '#fff', fontSize: 18, fontWeight: 700 }}>
+                <h3 className="modal-title-themed" style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
                   Record Official Payment
                 </h3>
-                <p style={{ margin: '4px 0 0 0', color: '#a1a1aa', fontSize: 12 }}>
+                <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: 12 }}>
                   Issue branded Ethiopian Birr (ETB) receipt and update member balance.
                 </p>
               </div>
@@ -1287,7 +1483,7 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                   marginBottom: 16,
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <label className="form-label" style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#f8fafc' }}>
+                    <label className="form-label" style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>
                       Membership Plan (Required) <span style={{ color: '#ef4444' }}>*</span>
                     </label>
                     <span style={{ fontSize: 11, fontWeight: 600, color: '#E67C00', background: 'rgba(230, 124, 0, 0.15)', padding: '2px 8px', borderRadius: 6 }}>
@@ -1308,8 +1504,6 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                     }}
                     required={paymentForm.payment_type === 'subscription'}
                     style={{
-                      background: '#0d1117',
-                      color: '#ffffff',
                       border: '1.5px solid #E67C00',
                       borderRadius: 8,
                       padding: '10px 14px',
@@ -1325,9 +1519,9 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                     ))}
                   </select>
                   {paymentForm.membership_plan_id && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, fontSize: 12, color: '#fed7aa' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, fontSize: 12, color: '#ea580c' }}>
                       <span>✓ Plan selected: Service duration automatically calculated</span>
-                      <span style={{ fontWeight: 700, color: '#ffffff' }}>Price: {formatETB(paymentForm.amount)}</span>
+                      <span style={{ fontWeight: 700 }}>Price: {formatETB(paymentForm.amount)}</span>
                     </div>
                   )}
                 </div>
@@ -1417,34 +1611,289 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                 </div>
               </div>
 
-              {/* Conditional Chapa Reference Field */}
+              {/* Conditional Chapa Mobile Money & Reference Field */}
               {paymentForm.payment_method === 'chapa' && (
                 <div style={{
                   background: 'rgba(230, 124, 0, 0.08)',
-                  border: '1px solid rgba(230, 124, 0, 0.25)',
-                  borderRadius: 8,
-                  padding: 14,
+                  border: '1.5px solid rgba(230, 124, 0, 0.35)',
+                  borderRadius: 10,
+                  padding: 16,
                   marginBottom: 16,
                 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#E67C00', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>⚡</span> Chapa Transaction & Gateway Reference
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#E67C00', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>⚡</span> Chapa Mobile Money (Telebirr / CBE Birr)
+                    </div>
+                    <span style={{ fontSize: 11, background: 'rgba(230, 124, 0, 0.2)', padding: '2px 8px', borderRadius: 10 }}>
+                      Automatic STK Push
+                    </span>
                   </div>
 
-                  <div className="form-group">
+                  {/* Provider Selector */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
+                    {[
+                      { id: 'telebirr', name: 'Telebirr', icon: '📱' },
+                      { id: 'cbebirr', name: 'CBE Birr', icon: '🏦' },
+                      { id: 'mpesa', name: 'M-Pesa', icon: '🟢' },
+                    ].map((prov) => (
+                      <button
+                        key={prov.id}
+                        type="button"
+                        onClick={() => setChapaProvider(prov.id)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6,
+                          padding: '7px 8px',
+                          borderRadius: 6,
+                          background: chapaProvider === prov.id ? '#1e2430' : '#0d1017',
+                          border: chapaProvider === prov.id ? '1.5px solid #E67C00' : '1px solid #232936',
+                          color: chapaProvider === prov.id ? '#E67C00' : '#94a3b8',
+                          fontSize: 11.5,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <span>{prov.icon}</span>
+                        <span>{prov.name}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Payer Phone Input & Push Button */}
+                  <div className="form-group" style={{ marginBottom: 10 }}>
                     <label className="form-label" style={{ display: 'block', fontSize: 11, marginBottom: 4 }}>
-                      Chapa Tx Reference / Order ID <span style={{ color: '#ef4444' }}>*</span>
+                      Member Mobile Number <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="09... or 07..."
+                        value={chapaPayerPhone || membersList.find(m => String(m.user_id) === String(paymentForm.user_id) || String(m.id) === String(paymentForm.user_id))?.phone || ''}
+                        onChange={(e) => setChapaPayerPhone(e.target.value)}
+                        disabled={chapaStatus === 'verified' || chapaStatus === 'push_sent' || chapaIsLoading}
+                        style={{ height: 36, fontSize: 13 }}
+                      />
+                      {chapaStatus === 'idle' && (
+                        <button
+                          type="button"
+                          onClick={handleChapaSendPush}
+                          disabled={chapaIsLoading || !paymentForm.amount}
+                          className="btn btn-primary"
+                          style={{
+                            height: 36,
+                            padding: '0 14px',
+                            fontSize: 12,
+                            fontWeight: 800,
+                            whiteSpace: 'nowrap',
+                            background: '#E67C00',
+                            borderColor: '#E67C00',
+                          }}
+                        >
+                          {chapaIsLoading ? 'Sending...' : '⚡ Send Push to Phone'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Push Sent: Waiting for Member's Phone PIN */}
+                  {chapaStatus === 'push_sent' && (
+                    <div style={{
+                      background: 'rgba(230, 124, 0, 0.12)',
+                      border: '1px solid rgba(230, 124, 0, 0.4)',
+                      borderRadius: 8,
+                      padding: 12,
+                      marginBottom: 10,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 800, color: '#f59e0b' }}>
+                          USSD Prompt Sent to Member's Phone!
+                        </div>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24' }}>
+                          Waiting: {chapaElapsedSeconds}s
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 11.5, color: '#d4d4d8', marginBottom: 6 }}>
+                        Prompt delivered via <strong>{chapaProvider.toUpperCase()}</strong>. Member is entering password/PIN on their mobile phone.
+                      </div>
+                      <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic', marginBottom: 10 }}>
+                        🔒 The system will automatically detect approval when the member enters their PIN.
+                      </div>
+
+                      {/* Controls */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: 8 }}>
+                        {chapaCheckoutUrl && (
+                          <a
+                            href={chapaCheckoutUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-sm"
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 800,
+                              background: '#E67C00',
+                              color: '#ffffff',
+                              border: 'none',
+                              padding: '5px 12px',
+                              borderRadius: 6,
+                              textDecoration: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                            }}
+                          >
+                            Proceed to Chapa Checkout ↗
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleChapaCheckStatusNow}
+                          disabled={chapaIsLoading}
+                          className="btn btn-sm"
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            background: '#0284c7',
+                            color: '#ffffff',
+                            border: 'none',
+                            padding: '5px 10px',
+                            borderRadius: 6,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {chapaIsLoading ? 'Verifying...' : 'Check Status Now'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleChapaCancel}
+                          disabled={chapaIsLoading}
+                          className="btn btn-sm"
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            background: 'rgba(239, 68, 68, 0.2)',
+                            color: '#ef4444',
+                            border: '1px solid #ef4444',
+                            padding: '5px 10px',
+                            borderRadius: 6,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Verified Confirmation */}
+                  {chapaStatus === 'verified' && (
+                    <div style={{
+                      background: 'rgba(16, 185, 129, 0.15)',
+                      border: '1.5px solid #10b981',
+                      borderRadius: 8,
+                      padding: '10px 14px',
+                      marginBottom: 10,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}>
+                      <div>
+                        <div style={{ fontSize: 12.5, fontWeight: 800, color: '#34d399' }}>
+                          ✅ Payment Authorized Automatically!
+                        </div>
+                        <div style={{ fontSize: 11.5, color: '#a7f3d0' }}>
+                          Reference: <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{paymentForm.gateway_reference || chapaTxRef}</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleChapaReset}
+                        style={{ border: 'none', background: 'transparent', color: '#94a3b8', fontSize: 11, cursor: 'pointer', textDecoration: 'underline' }}
+                      >
+                        Change
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Cancelled Alert Notice */}
+                  {chapaStatus === 'cancelled' && (
+                    <div style={{
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      border: '1.5px solid #ef4444',
+                      borderRadius: 8,
+                      padding: 12,
+                      marginBottom: 10,
+                    }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 800, color: '#f87171', marginBottom: 4 }}>
+                        ⚠️ Notice: Payment Cancelled by Member
+                      </div>
+                      <div style={{ fontSize: 11.5, color: '#fca5a5', marginBottom: 10 }}>
+                        {chapaNotice || 'The member cancelled or rejected the payment prompt on their phone. No money was deducted.'}
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          type="button"
+                          onClick={handleChapaSendPush}
+                          className="btn btn-sm"
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            background: '#E67C00',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: 4,
+                            padding: '5px 12px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          🔁 Retry Push
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleChapaReset();
+                            setPaymentForm(prev => ({ ...prev, payment_method: 'cash' }));
+                          }}
+                          className="btn btn-sm"
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            background: '#16a34a',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: 4,
+                            padding: '5px 12px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          💵 Switch to Cash
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleChapaReset}
+                          style={{ border: 'none', background: 'transparent', color: '#94a3b8', fontSize: 11, cursor: 'pointer' }}
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Manual Code Fallback */}
+                  <div className="form-group" style={{ marginTop: 10 }}>
+                    <label className="form-label" style={{ display: 'block', fontSize: 11, marginBottom: 4, color: '#94a3b8' }}>
+                      Manual Reference Code (Optional / Auto-filled)
                     </label>
                     <input
                       type="text"
                       className="form-control"
                       value={paymentForm.gateway_reference}
                       onChange={(e) => setPaymentForm(prev => ({ ...prev, gateway_reference: e.target.value }))}
-                      placeholder="e.g. CHP-tx-987654321 or Chapa Ref ID"
-                      required
+                      placeholder="e.g. CHP-tx-987654321"
+                      style={{ fontSize: 12 }}
                     />
-                    <span style={{ fontSize: 11, color: '#94a3b8', marginTop: 4, display: 'block' }}>
-                      Enter the transaction reference from Chapa digital payment confirmation.
-                    </span>
                   </div>
                 </div>
               )}
@@ -1526,8 +1975,8 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
                   <BrandLogo variant="sidebar" size={80} showSubtext={false} />
                 </div>
-                <h4 style={{ margin: 0, color: '#f5f5f5', fontSize: 16, fontWeight: 800, letterSpacing: '0.05em' }}>
-                  ትጋት ጂም • TIGAT GYM
+                <h4 style={{ margin: 0, color: '#f5f5f5', fontSize: 16, fontWeight: 800, letterSpacing: '0.06em' }}>
+                  TIGAT GYM
                 </h4>
                 <div style={{ fontSize: 11, color: '#ff8a00', fontWeight: 700, letterSpacing: '0.1em', marginTop: 2 }}>
                   OFFICIAL PAYMENT RECEIPT
@@ -1625,23 +2074,51 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
               </div>
             </div>
 
-            {/* Print & Close Buttons */}
-            <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setIsReceiptModalOpen(false)}
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handlePrintReceipt}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}
-              >
-                <span>🖨️</span> Print Official Receipt
-              </button>
+            {/* Print, Email & Close Buttons */}
+            <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setIsReceiptModalOpen(false)}
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleEmailReceipt}
+                  disabled={isSendingReceiptEmail}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}
+                >
+                  <span>✉️</span> {isSendingReceiptEmail ? 'Sending...' : 'Email Receipt'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handlePrintReceipt}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}
+                >
+                  <span>🖨️</span> Print Official Receipt
+                </button>
+              </div>
+
+              {receiptEmailStatus && (
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: receiptEmailStatus.success ? '#16a34a' : '#dc2626',
+                    background: receiptEmailStatus.success ? '#f0fdf4' : '#fef2f2',
+                    padding: '6px 12px',
+                    borderRadius: 6,
+                    border: `1px solid ${receiptEmailStatus.success ? '#bbf7d0' : '#fecaca'}`,
+                    textAlign: 'right',
+                  }}
+                >
+                  {receiptEmailStatus.message}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1729,10 +2206,10 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
           <div className="modal-card" style={{ maxWidth: 520 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div>
-                <h3 style={{ margin: 0, color: '#fff', fontSize: 18, fontWeight: 700 }}>
+                <h3 className="modal-title-themed" style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
                   Record Gym Operating Expense
                 </h3>
-                <p style={{ margin: '4px 0 0 0', color: '#a1a1aa', fontSize: 12 }}>
+                <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: 12 }}>
                   Log facility expenditures (rent, utilities, gear repairs) for net accounting.
                 </p>
               </div>

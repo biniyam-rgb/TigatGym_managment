@@ -699,7 +699,7 @@ export default function SubscriptionManagement() {
                     <tr>
                       <td colSpan="8" style={{ textAlign: 'center', padding: '48px 0' }}>
                         <div style={{ fontSize: 36, marginBottom: 8 }}>📋</div>
-                        <div style={{ color: '#fff', fontSize: 16, fontWeight: 500 }}>No subscriptions found</div>
+                        <div className="subs-empty-title" style={{ fontSize: 16, fontWeight: 600 }}>No subscriptions found</div>
                         <div style={{ color: '#64748b', fontSize: 13, marginTop: 4 }}>
                           {subsSearch || subsStatusFilter
                             ? 'Try clearing filters to see more results.'
@@ -749,7 +749,7 @@ export default function SubscriptionManagement() {
 
                           {/* Member */}
                           <td>
-                            <div style={{ fontWeight: 600, color: '#fff', fontSize: 14 }}>
+                            <div className="subs-member-name" style={{ fontWeight: 600, fontSize: 14 }}>
                               {sub.member?.name || 'Unknown Member'}
                             </div>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 3 }}>
@@ -772,7 +772,7 @@ export default function SubscriptionManagement() {
 
                           {/* Plan */}
                           <td>
-                            <div style={{ color: '#e2e8f0', fontWeight: 500, fontSize: 13 }}>
+                            <div className="subs-plan-name" style={{ fontWeight: 600, fontSize: 13 }}>
                               {sub.plan?.name || 'Standard Package'}
                             </div>
                             <div style={{ display: 'flex', gap: 6, marginTop: 4, fontSize: 11 }}>
@@ -791,7 +791,7 @@ export default function SubscriptionManagement() {
 
                           {/* Validity */}
                           <td>
-                            <div style={{ fontSize: 13, color: '#cbd5e1' }}>
+                            <div className="subs-validity-text" style={{ fontSize: 13, fontWeight: 500 }}>
                               {sub.start_date} <span style={{ color: '#64748b' }}>→</span> {sub.end_date}
                             </div>
                             {isFrozen && sub.frozen_until && (
@@ -837,7 +837,7 @@ export default function SubscriptionManagement() {
 
                           {/* Price */}
                           <td>
-                            <div style={{ fontWeight: 600, color: '#fff', fontSize: 13 }}>
+                            <div className="subs-price-text" style={{ fontWeight: 700, fontSize: 13 }}>
                               {Number(sub.total_amount).toLocaleString()} {sub.currency || 'ETB'}
                             </div>
                             {Number(sub.discount) > 0 && (
@@ -964,7 +964,7 @@ export default function SubscriptionManagement() {
           ) : plans.length === 0 ? (
             <div className="dashboard-card" style={{ textAlign: 'center', padding: '60px 0' }}>
               <div style={{ fontSize: 44, marginBottom: 12 }}>📦</div>
-              <h3 style={{ color: '#fff', marginBottom: 6 }}>No Membership Packages Configured</h3>
+              <h3 className="subs-empty-heading" style={{ marginBottom: 6 }}>No Membership Packages Configured</h3>
               <p style={{ color: '#64748b', maxWidth: 420, margin: '0 auto 20px auto', fontSize: 13 }}>
                 Configure TIGAT GYM monthly, quarterly, or annual packages in Ethiopian Birr.
               </p>
@@ -1007,7 +1007,7 @@ export default function SubscriptionManagement() {
                       {/* Top Header: Name & Status */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                         <div>
-                          <h4 style={{ color: '#fff', fontSize: 17, fontWeight: 700, margin: 0 }}>
+                          <h4 className="subs-plan-card-title" style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>
                             {plan.name}
                           </h4>
                           <span style={{ fontSize: 12, color: '#ff8a00', fontFamily: 'monospace' }}>
@@ -1028,7 +1028,7 @@ export default function SubscriptionManagement() {
                       </div>
 
                       {/* Pricing Banner */}
-                      <div style={{ margin: '16px 0', padding: '12px 16px', background: 'rgba(0,0,0,0.3)', borderRadius: 8, border: '1px solid #1a1f2c' }}>
+                      <div className="subs-price-banner" style={{ margin: '16px 0', padding: '12px 16px', borderRadius: 8, border: '1px solid rgba(255, 138, 0, 0.2)' }}>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                           <span style={{ fontSize: 28, fontWeight: 800, color: '#ff8a00' }}>
                             {Number(plan.price).toLocaleString()}
@@ -1043,33 +1043,33 @@ export default function SubscriptionManagement() {
                       </div>
 
                       {/* Description */}
-                      <p style={{ color: '#94a3b8', fontSize: 13, minHeight: 40, lineHeight: 1.5, marginBottom: 16 }}>
+                      <p style={{ color: '#64748b', fontSize: 13, minHeight: 40, lineHeight: 1.5, marginBottom: 16 }}>
                         {plan.description || 'Access to modern strength training, cardio floor, and locker facilities.'}
                       </p>
 
                       {/* Perks Checklist */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#cbd5e1' }}>
+                        <div className="subs-perk-item" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
                           <span style={{ color: '#10b981' }}>✓</span>
                           <span>
-                            Access Hours: <strong style={{ color: '#fff', textTransform: 'capitalize' }}>{plan.access_hours_type?.replace('_', ' ') || 'All Day'}</strong>
+                            Access Hours: <strong className="subs-strong-text" style={{ textTransform: 'capitalize' }}>{plan.access_hours_type?.replace('_', ' ') || 'All Day'}</strong>
                           </span>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#cbd5e1' }}>
+                        <div className="subs-perk-item" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
                           <span style={{ color: plan.has_trainer_access ? '#10b981' : '#64748b' }}>
                             {plan.has_trainer_access ? '✓' : '✕'}
                           </span>
-                          <span style={{ color: plan.has_trainer_access ? '#cbd5e1' : '#64748b' }}>
+                          <span>
                             {plan.has_trainer_access ? 'Personal Trainer Consultation' : 'No Personal Trainer'}
                           </span>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#cbd5e1' }}>
+                        <div className="subs-perk-item" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
                           <span style={{ color: plan.has_class_access ? '#10b981' : '#64748b' }}>
                             {plan.has_class_access ? '✓' : '✕'}
                           </span>
-                          <span style={{ color: plan.has_class_access ? '#cbd5e1' : '#64748b' }}>
+                          <span>
                             {plan.has_class_access
                               ? `Group Classes (${plan.max_class_bookings ? `${plan.max_class_bookings} bookings` : 'Unlimited'})`
                               : 'No Fitness Classes'}
@@ -1118,7 +1118,7 @@ export default function SubscriptionManagement() {
         <div className="modal-backdrop">
           <div className="modal-card" style={{ maxWidth: 540 }}>
             <div className="modal-header">
-              <h3 style={{ color: '#fff', fontSize: 18, fontWeight: 600 }}>Assign Membership Pass</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 700 }}>Assign Membership Pass</h3>
               <button
                 type="button"
                 className="modal-close-btn"
@@ -1218,7 +1218,7 @@ export default function SubscriptionManagement() {
                   >
                     <div>
                       <div style={{ fontSize: 12, color: '#94a3b8' }}>Package Price</div>
-                      <div style={{ fontSize: 15, color: '#fff', fontWeight: 600 }}>
+                      <div className="subs-modal-val" style={{ fontSize: 15, fontWeight: 700 }}>
                         {Number(selectedAssignPlan.price).toLocaleString()} ETB
                       </div>
                     </div>
@@ -1271,7 +1271,7 @@ export default function SubscriptionManagement() {
         <div className="modal-backdrop">
           <div className="modal-card" style={{ maxWidth: 500 }}>
             <div className="modal-header">
-              <h3 style={{ color: '#fff', fontSize: 18, fontWeight: 600 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700 }}>
                 Renew Pass: {selectedSub.subscription_number}
               </h3>
               <button
@@ -1286,8 +1286,8 @@ export default function SubscriptionManagement() {
             <form onSubmit={handleRenewSubmit}>
               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {/* Member Summary */}
-                <div style={{ background: 'rgba(0,0,0,0.3)', padding: 12, borderRadius: 8, border: '1px solid #1a1f2c' }}>
-                  <div style={{ color: '#fff', fontWeight: 600 }}>{selectedSub.member?.name}</div>
+                <div className="subs-modal-summary-box" style={{ padding: 12, borderRadius: 8 }}>
+                  <div className="subs-modal-val" style={{ fontWeight: 700 }}>{selectedSub.member?.name}</div>
                   <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 2 }}>
                     Current Expiration: <strong style={{ color: '#ff8a00' }}>{selectedSub.end_date}</strong>
                   </div>
@@ -1368,7 +1368,7 @@ export default function SubscriptionManagement() {
         <div className="modal-backdrop">
           <div className="modal-card" style={{ maxWidth: 460 }}>
             <div className="modal-header">
-              <h3 style={{ color: '#fff', fontSize: 18, fontWeight: 600 }}>Freeze Membership Pass</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 700 }}>Freeze Membership Pass</h3>
               <button
                 type="button"
                 className="modal-close-btn"
@@ -1380,8 +1380,8 @@ export default function SubscriptionManagement() {
 
             <form onSubmit={handleFreezeSubmit}>
               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <p style={{ color: '#94a3b8', fontSize: 13, lineHeight: 1.5, margin: 0 }}>
-                  Freezing temporarily suspends gym access for <strong style={{ color: '#fff' }}>{selectedSub.member?.name}</strong>.
+                <p style={{ color: '#64748b', fontSize: 13, lineHeight: 1.5, margin: 0 }}>
+                  Freezing temporarily suspends gym access for <strong className="subs-strong-text">{selectedSub.member?.name}</strong>.
                   Their pass expiration date will automatically be extended by the freeze duration.
                 </p>
 
@@ -1517,7 +1517,7 @@ export default function SubscriptionManagement() {
         <div className="modal-backdrop">
           <div className="modal-card" style={{ maxWidth: 540 }}>
             <div className="modal-header">
-              <h3 style={{ color: '#fff', fontSize: 18, fontWeight: 600 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700 }}>
                 {selectedPlanForEdit ? `Edit Package: ${selectedPlanForEdit.name}` : 'Create Membership Package'}
               </h3>
               <button
@@ -1621,8 +1621,8 @@ export default function SubscriptionManagement() {
                 </div>
 
                 {/* Perks Checkboxes */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: 'rgba(0,0,0,0.2)', padding: 12, borderRadius: 8 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, color: '#fff' }}>
+                <div className="subs-checkbox-box" style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12, borderRadius: 8 }}>
+                  <label className="subs-checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13 }}>
                     <input
                       type="checkbox"
                       checked={planForm.has_trainer_access}
@@ -1631,7 +1631,7 @@ export default function SubscriptionManagement() {
                     Includes Trainer Consultation & Coaching
                   </label>
 
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, color: '#fff' }}>
+                  <label className="subs-checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13 }}>
                     <input
                       type="checkbox"
                       checked={planForm.has_class_access}
@@ -1654,7 +1654,7 @@ export default function SubscriptionManagement() {
                     </div>
                   )}
 
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, color: '#fff' }}>
+                  <label className="subs-checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13 }}>
                     <input
                       type="checkbox"
                       checked={planForm.is_active}
