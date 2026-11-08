@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import apiClient from '../services/api';
 import { useAuth } from '../context/useAuth';
+import { decodeQRFromImageData } from '../utils/qrCodeDecoder';
 
 export default function AttendanceScanner({ onNavigateToMemberships }) {
   const { hasRole } = useAuth();
@@ -17,7 +18,6 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
   // Camera & Simulator State
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
-  const [scanMode, setScanMode] = useState('check_in'); // 'check_in' | 'check_out'
   const [membersQuickList, setMembersQuickList] = useState([]);
   const [selectedSimMember, setSelectedSimMember] = useState('');
   const videoRef = useRef(null);
@@ -52,6 +52,7 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
 
   const scanInputRef = useRef(null);
   const lookupDebounceRef = useRef(null);
+  const handleProcessCheckInRef = useRef(null);
 
   // Focus scan input on load
   useEffect(() => {
@@ -163,7 +164,7 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
     };
   }, [page, activeFilter, searchQuery, fetchSummary]);
 
-  // Start Camera QR Scanner
+  // Start Camera QR Scanner (Supports native BarcodeDetector + Pure JS Canvas fallback for all PC browsers)
   const startCamera = async () => {
     setCameraError(null);
     try {
@@ -178,35 +179,75 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
       streamRef.current = stream;
       setIsCameraActive(true);
 
+      // Offscreen canvas for frame capture
+      let offscreenCanvas = null;
+      let offscreenCtx = null;
+      let barcodeDetector = null;
+      if ('BarcodeDetector' in window) {
+        try {
+          barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
+        } catch {
+          barcodeDetector = null;
+        }
+      }
+
       // Timeout to allow video element to mount
       setTimeout(() => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           videoRef.current.play().catch(console.error);
 
-          // BarcodeDetector loop if supported
-          if ('BarcodeDetector' in window) {
-            const barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
-            scanIntervalRef.current = setInterval(async () => {
-              if (!videoRef.current || videoRef.current.readyState < 2) return;
+          let isScanningFrame = false;
+
+          scanIntervalRef.current = setInterval(async () => {
+            const video = videoRef.current;
+            if (!video || video.readyState < 2 || !video.videoWidth || isScanningFrame) return;
+
+            isScanningFrame = true;
+            let detectedVal = null;
+
+            // 1. Try native BarcodeDetector if available
+            if (barcodeDetector) {
               try {
-                const barcodes = await barcodeDetector.detect(videoRef.current);
-                if (barcodes && barcodes.length > 0) {
-                  const detectedVal = barcodes[0].rawValue;
-                  if (detectedVal) {
-                    if (scanMode === 'check_out') {
-                      handleProcessCheckOut(null, null, detectedVal);
-                    } else {
-                      handleProcessCheckIn({ token: detectedVal });
-                    }
-                    stopCamera();
-                  }
+                const barcodes = await barcodeDetector.detect(video);
+                if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+                  detectedVal = barcodes[0].rawValue;
                 }
               } catch {
-                // Ignore detection frame tick errors
+                // Ignore frame exception, proceed to canvas fallback
               }
-            }, 300);
-          }
+            }
+
+            // 2. Pure JS In-Browser Canvas Decoder (Desktop Chrome, Edge, Firefox)
+            if (!detectedVal) {
+              try {
+                if (!offscreenCanvas) {
+                  offscreenCanvas = document.createElement('canvas');
+                  offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
+                }
+                const srcW = video.videoWidth;
+                const srcH = video.videoHeight;
+                const scale = Math.min(1, 800 / srcW);
+                const targetW = Math.round(srcW * scale);
+                const targetH = Math.round(srcH * scale);
+
+                offscreenCanvas.width = targetW;
+                offscreenCanvas.height = targetH;
+                offscreenCtx.drawImage(video, 0, 0, targetW, targetH);
+                const imgData = offscreenCtx.getImageData(0, 0, targetW, targetH);
+                detectedVal = decodeQRFromImageData(imgData);
+              } catch {
+                // Ignore transient frame draw error
+              }
+            }
+
+            if (detectedVal) {
+              handleProcessCheckInRef.current?.({ token: detectedVal });
+              stopCamera();
+            }
+
+            isScanningFrame = false;
+          }, 250);
         }
       }, 100);
     } catch (err) {
@@ -231,32 +272,55 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
     setIsCameraActive(false);
   };
 
-  // Upload and decode QR Code from image file
-  const handleImageUpload = async (e) => {
+  // Upload and decode QR Code from image file (Works on all PC browsers)
+  const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if ('BarcodeDetector' in window) {
-      try {
-        const barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
-        const imageBitmap = await createImageBitmap(file);
-        const barcodes = await barcodeDetector.detect(imageBitmap);
-        if (barcodes && barcodes.length > 0) {
-          const raw = barcodes[0].rawValue;
-          if (scanMode === 'check_out') {
-            handleProcessCheckOut(null, null, raw);
-          } else {
-            handleProcessCheckIn({ token: raw });
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = async () => {
+        let detectedVal = null;
+
+        // Method 1: Native BarcodeDetector if available
+        if ('BarcodeDetector' in window) {
+          try {
+            const barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
+            const barcodes = await barcodeDetector.detect(img);
+            if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+              detectedVal = barcodes[0].rawValue;
+            }
+          } catch {
+            // fallback to pure JS decoder
           }
-        } else {
-          alert('No QR code detected in the uploaded image. Please try a clearer image.');
         }
-      } catch (err) {
-        alert('QR Image Scan Error: ' + err.message);
-      }
-    } else {
-      alert('Your browser does not support image barcode detection. Please use camera or member simulator.');
-    }
+
+        // Method 2: Pure JS In-Browser Decoder fallback
+        if (!detectedVal) {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || img.width;
+            canvas.height = img.naturalHeight || img.height;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(img, 0, 0);
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            detectedVal = decodeQRFromImageData(imgData);
+          } catch (err) {
+            console.error('Image decode error:', err);
+          }
+        }
+
+        if (detectedVal) {
+          handleProcessCheckInRef.current?.({ token: detectedVal });
+        } else {
+          alert('No QR code detected in the uploaded image. Please ensure the QR code image is clear, sharp, and well-lit.');
+        }
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   // Handle instant lookup on typing (debounced)
@@ -289,7 +353,7 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
 
   // Process Check-In
   const handleProcessCheckIn = async (overridePayload = null) => {
-    const rawVal = overridePayload?.token || scanInput.trim();
+    const rawVal = (overridePayload?.token || scanInput || '').trim();
     if (!rawVal && !overridePayload?.member_id) return;
 
     setIsProcessingScan(true);
@@ -347,10 +411,16 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
     setScanResult(null);
 
     const payload = {};
+    const effectiveToken = (overrideToken || scanInput || '').trim();
     if (attendanceId) payload.attendance_id = attendanceId;
     else if (memberId) payload.member_id = memberId;
-    else if (overrideToken) payload.qr_token = overrideToken;
-    else if (scanInput.trim()) payload.qr_token = scanInput.trim();
+    else if (effectiveToken) {
+      if (effectiveToken.toUpperCase().startsWith('TG-')) {
+        payload.member_code = effectiveToken.toUpperCase();
+      } else {
+        payload.qr_token = effectiveToken;
+      }
+    }
 
     try {
       const res = await apiClient.checkOut(payload);
@@ -372,6 +442,56 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
       setIsProcessingScan(false);
     }
   };
+
+  useEffect(() => {
+    handleProcessCheckInRef.current = handleProcessCheckIn;
+  });
+
+  // Global hardware listener for USB Barcode / QR Scanner guns
+  useEffect(() => {
+    let keyBuffer = '';
+    let lastKeyTime = 0;
+
+    const handleGlobalScanKey = (e) => {
+      // Do not intercept if user is typing in a modal textarea or form input (other than scan input)
+      if (
+        e.target &&
+        (e.target.tagName === 'TEXTAREA' ||
+          (e.target.tagName === 'INPUT' && e.target !== scanInputRef.current))
+      ) {
+        return;
+      }
+
+      const now = Date.now();
+      const timeDiff = now - lastKeyTime;
+      lastKeyTime = now;
+
+      if (e.key === 'Enter') {
+        const trimmed = keyBuffer.trim();
+        // Hardware barcode gun burst: >= 3 chars typed in rapid succession
+        if (trimmed.length >= 3 && timeDiff < 120) {
+          e.preventDefault();
+          keyBuffer = '';
+          handleProcessCheckInRef.current?.({ token: trimmed });
+        } else {
+          keyBuffer = '';
+        }
+        return;
+      }
+
+      if (e.key.length === 1) {
+        // If keystrokes arrive faster than 75ms apart, it's a hardware scanner burst
+        if (timeDiff < 75) {
+          keyBuffer += e.key;
+        } else {
+          keyBuffer = e.key;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalScanKey);
+    return () => window.removeEventListener('keydown', handleGlobalScanKey);
+  }, []);
 
   // Open Correction Modal
   const handleOpenCorrection = (record) => {
@@ -405,88 +525,61 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
 
   return (
     <div className="attendance-scanner-container">
-      {/* Top Level Real-Time KPI Cards (Matching Tigat SaaS Clean Theme) */}
-      <div className="financial-kpi-grid" style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-        gap: 16,
-        marginBottom: 24,
-      }}>
+      {/* Top Level Real-Time KPI Cards (Theme-Aware SaaS Design) */}
+      <div className="att-kpi-grid">
         {/* Total Today */}
-        <div className="dashboard-card" style={{ padding: 20, background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 11.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Today's Scans
-            </span>
-            <span style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(230, 124, 0, 0.1)', color: '#E67C00', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              ⚡
-            </span>
+        <div className="att-kpi-card att-kpi-total">
+          <div className="att-kpi-header">
+            <span className="att-kpi-label">Today's Scans</span>
+            <span className="att-kpi-icon-pill">⚡</span>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#0f172a' }}>
+          <div className="att-kpi-val">
             {summary.today_total}
           </div>
-          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+          <div className="att-kpi-sub">
             Total check-in attempts today
           </div>
         </div>
 
         {/* Admitted */}
-        <div className="dashboard-card" style={{ padding: 20, background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 11.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Admitted Entry
-            </span>
-            <span style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(34, 197, 94, 0.1)', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              ✓
-            </span>
+        <div className="att-kpi-card att-kpi-admitted">
+          <div className="att-kpi-header">
+            <span className="att-kpi-label">Admitted Entry</span>
+            <span className="att-kpi-icon-pill">✓</span>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#16a34a' }}>
+          <div className="att-kpi-val">
             {summary.today_admitted}
           </div>
-          <div style={{ fontSize: 12, color: '#16a34a', marginTop: 4 }}>
+          <div className="att-kpi-sub">
             Active verified gym entries
           </div>
         </div>
 
         {/* Currently Inside Gym */}
-        <div className="dashboard-card" style={{
-          padding: 20,
-          background: '#ffffff',
-          border: '1.5px solid #E67C00',
-          borderRadius: 16,
-          boxShadow: '0 4px 14px rgba(230, 124, 0, 0.08)',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 11.5, fontWeight: 700, color: '#E67C00', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Currently Inside
-            </span>
-            <span style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(230, 124, 0, 0.15)', color: '#E67C00', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              🏋️
-            </span>
+        <div className="att-kpi-card att-kpi-inside">
+          <div className="att-kpi-header">
+            <span className="att-kpi-label">Currently Inside</span>
+            <span className="att-kpi-icon-pill">🏋️</span>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#E67C00', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="att-kpi-val">
             <span>{summary.currently_inside}</span>
-            <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#16a34a', boxShadow: '0 0 10px #16a34a' }}></span>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#16a34a', boxShadow: '0 0 10px #16a34a', display: 'inline-block' }}></span>
           </div>
-          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+          <div className="att-kpi-sub">
             Active workout sessions right now
           </div>
         </div>
 
         {/* Denied Entries */}
-        <div className="dashboard-card" style={{ padding: 20, background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 11.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Denied / Alerts
-            </span>
-            <span style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(239, 68, 68, 0.1)', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              ✕
-            </span>
+        <div className="att-kpi-card att-kpi-denied">
+          <div className="att-kpi-header">
+            <span className="att-kpi-label">Denied / Alerts</span>
+            <span className="att-kpi-icon-pill">✕</span>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#dc2626' }}>
+          <div className="att-kpi-val">
             {summary.today_denied}
           </div>
-          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+          <div className="att-kpi-sub">
             Expired, frozen or passback alerts
           </div>
         </div>
@@ -494,80 +587,24 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
 
       {/* Main Front-Desk Scanner Console */}
       {isStaff && (
-        <div className="dashboard-card" style={{
-          padding: 24,
-          marginBottom: 24,
-          background: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: 20,
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
-        }}>
+        <div className="att-console-card">
           {/* Header Row with Camera & Action Tools */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 18 }}>
+          <div className="att-console-header">
             <div>
-              <h3 style={{ margin: 0, color: '#0f172a', fontSize: 18, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h3 className="att-console-title">
                 <span>📷</span> Front-Desk QR Code Check-in Station
               </h3>
-              <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: 13 }}>
+              <p className="att-console-desc">
                 Scan member digital QR pass using live camera, barcode gun, or fast member simulator.
               </p>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {/* Scan Mode Switcher (Check-in vs Check-out) */}
-              <div style={{ display: 'flex', background: '#f1f5f9', padding: 3, borderRadius: 10, border: '1px solid #e2e8f0' }}>
-                <button
-                  type="button"
-                  onClick={() => setScanMode('check_in')}
-                  style={{
-                    border: 'none',
-                    padding: '6px 12px',
-                    borderRadius: 8,
-                    fontSize: 12.5,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    background: scanMode === 'check_in' ? '#E67C00' : 'transparent',
-                    color: scanMode === 'check_in' ? '#ffffff' : '#64748b',
-                  }}
-                >
-                  ✓ Check In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setScanMode('check_out')}
-                  style={{
-                    border: 'none',
-                    padding: '6px 12px',
-                    borderRadius: 8,
-                    fontSize: 12.5,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    background: scanMode === 'check_out' ? '#0f172a' : 'transparent',
-                    color: scanMode === 'check_out' ? '#ffffff' : '#64748b',
-                  }}
-                >
-                  👋 Check Out
-                </button>
-              </div>
-
+            <div className="att-console-actions">
               {/* Camera Scanner Toggle Button */}
               <button
                 type="button"
                 onClick={isCameraActive ? stopCamera : startCamera}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '8px 16px',
-                  borderRadius: 10,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  border: isCameraActive ? '1px solid #ef4444' : 'none',
-                  background: isCameraActive ? '#fef2f2' : '#E67C00',
-                  color: isCameraActive ? '#ef4444' : '#ffffff',
-                  boxShadow: isCameraActive ? 'none' : '0 2px 10px rgba(230, 124, 0, 0.25)',
-                }}
+                className={`att-camera-toggle-btn ${isCameraActive ? 'camera-active' : ''}`}
               >
                 <span>{isCameraActive ? '⏹' : '📷'}</span>
                 <span>{isCameraActive ? 'Stop Camera' : 'Start Camera Scanner'}</span>
@@ -585,19 +622,7 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 title="Upload QR Code Photo or Screenshot"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '8px 14px',
-                  borderRadius: 10,
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  background: '#ffffff',
-                  border: '1px solid #e2e8f0',
-                  color: '#475569',
-                }}
+                className="att-tool-btn"
               >
                 <span>📁</span>
                 <span>Upload QR Image</span>
@@ -670,34 +695,22 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
           )}
 
           {/* Fast Member Pass Test Simulator Bar */}
-          <div style={{
-            background: '#fffaf5',
-            border: '1.5px solid #fed7aa',
-            borderRadius: 12,
-            padding: '12px 16px',
-            marginBottom: 16,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 12,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="att-sim-bar">
+            <div className="att-sim-info">
               <span style={{ fontSize: 16 }}>⚡</span>
               <div>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>1-Click Member Pass Test Simulator</span>
-                <span style={{ display: 'block', fontSize: 11.5, color: '#64748b' }}>
+                <span className="att-sim-title">1-Click Member Pass Test Simulator</span>
+                <span className="att-sim-desc">
                   Simulate instant QR admission without external scanner hardware
                 </span>
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="att-sim-controls">
               <select
-                className="form-control"
+                className="att-sim-select"
                 value={selectedSimMember}
                 onChange={(e) => setSelectedSimMember(e.target.value)}
-                style={{ minWidth: 240, fontSize: 13, padding: '8px 12px', background: '#ffffff', borderColor: '#fed7aa', fontWeight: 600 }}
               >
                 <option value="">-- Choose registered member --</option>
                 {membersQuickList.map((m) => (
@@ -709,59 +722,34 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
 
               <button
                 type="button"
-                className="btn btn-sm"
+                className="att-sim-btn"
                 disabled={!selectedSimMember}
                 onClick={() => {
-                  if (scanMode === 'check_out') {
-                    handleProcessCheckOut(null, null, selectedSimMember);
-                  } else {
-                    handleProcessCheckIn({ token: selectedSimMember });
-                  }
-                }}
-                style={{
-                  background: '#E67C00',
-                  color: '#ffffff',
-                  fontWeight: 700,
-                  fontSize: 12.5,
-                  padding: '8px 16px',
-                  borderRadius: 8,
-                  border: 'none',
-                  cursor: !selectedSimMember ? 'not-allowed' : 'pointer',
-                  opacity: !selectedSimMember ? 0.6 : 1,
+                  handleProcessCheckIn({ token: selectedSimMember });
                 }}
               >
-                {scanMode === 'check_out' ? 'Simulate Check-Out' : 'Simulate Scan Pass'}
+                Simulate Scan Pass
               </button>
             </div>
           </div>
 
           {/* Manual Input & Barcode Gun Field */}
-          <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-            <div style={{ position: 'relative', flex: 1 }}>
+          <div className="att-input-row">
+            <div className="att-input-wrap">
               <input
                 ref={scanInputRef}
                 type="text"
-                className="form-control"
+                className="att-scan-input"
                 placeholder="Scan QR pass with laser scanner, swipe card, or type TG-0001..."
                 value={scanInput}
                 onChange={(e) => handleInputChange(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    if (scanMode === 'check_out') {
-                      handleProcessCheckOut();
-                    } else {
-                      handleProcessCheckIn();
-                    }
+                    handleProcessCheckIn();
                   }
                 }}
                 style={{
-                  fontSize: 14.5,
-                  padding: '12px 18px',
-                  background: '#ffffff',
-                  border: '1.5px solid #cbd5e1',
-                  borderRadius: 12,
-                  color: '#0f172a',
                   fontFamily: scanInput.startsWith('TG-') ? 'monospace' : 'inherit',
                   letterSpacing: '0.02em',
                 }}
@@ -780,25 +768,9 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
 
             <button
               type="button"
-              className="btn btn-primary"
-              onClick={() => {
-                if (scanMode === 'check_out') {
-                  handleProcessCheckOut();
-                } else {
-                  handleProcessCheckIn();
-                }
-              }}
+              className="att-submit-btn btn-in"
+              onClick={() => handleProcessCheckIn()}
               disabled={isProcessingScan || !scanInput.trim()}
-              style={{
-                padding: '0 24px',
-                fontSize: 14.5,
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                background: scanMode === 'check_out' ? '#0f172a' : '#E67C00',
-                borderColor: scanMode === 'check_out' ? '#0f172a' : '#E67C00',
-              }}
             >
               {isProcessingScan ? (
                 <>
@@ -807,8 +779,8 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                 </>
               ) : (
                 <>
-                  <span>{scanMode === 'check_out' ? '👋' : '✓'}</span>
-                  <span>{scanMode === 'check_out' ? 'Check Out' : 'Check In'}</span>
+                  <span>✓</span>
+                  <span>Check In</span>
                 </>
               )}
             </button>
@@ -871,17 +843,19 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
 
           {/* Member Preview Card (when typing or searching) */}
           {lookupPreview && (
-            <div style={{
-              background: '#090c12',
-              border: `1px solid ${lookupPreview.is_eligible ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
-              borderRadius: 12,
-              padding: 18,
-              display: 'flex',
-              flexWrap: 'wrap',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: 16,
-            }}>
+            <div
+              className="att-lookup-preview-card"
+              style={{
+                border: `1px solid ${lookupPreview.is_eligible ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
+                borderRadius: 12,
+                padding: 18,
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 16,
+              }}
+            >
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <div style={{
                   width: 48,
@@ -898,7 +872,7 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                   {lookupPreview.member.name.charAt(0)}
                 </div>
                 <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>
+                  <div className="att-lookup-name" style={{ fontSize: 16, fontWeight: 700 }}>
                     {lookupPreview.member.name}
                   </div>
                   <div style={{ fontSize: 12, color: '#ff8a00', fontFamily: 'monospace', fontWeight: 600 }}>
@@ -944,55 +918,42 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
               </div>
 
               {/* Action buttons */}
-              <div style={{ display: 'flex', gap: 10 }}>
-                {lookupPreview.is_currently_inside ? (
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => handleProcessCheckOut(lookupPreview.member.id, lookupPreview.open_visit_id)}
-                    style={{ fontWeight: 700, padding: '8px 14px' }}
-                  >
-                    Check Out Member
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    onClick={() => handleProcessCheckIn({ member_id: lookupPreview.member.id })}
-                    disabled={!lookupPreview.is_eligible}
-                    style={{ fontWeight: 700, padding: '8px 16px' }}
-                  >
-                    Grant Admittance
-                  </button>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                {lookupPreview.is_currently_inside && (
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a' }}>
+                    ✓ Admitted Today
+                  </span>
                 )}
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => handleProcessCheckIn({ member_id: lookupPreview.member.id })}
+                  disabled={!lookupPreview.is_eligible}
+                  style={{ fontWeight: 700, padding: '8px 16px' }}
+                >
+                  Grant Admittance
+                </button>
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* Daily Attendance Feed & Records Table */}
-      <div className="dashboard-card" style={{ padding: 24 }}>
+      {/* Daily Attendance Feed & Records Table Card */}
+      <div className="att-records-card">
         {/* Header and Filter Tabs */}
-        <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 16,
-          marginBottom: 20,
-        }}>
+        <div className="att-records-header">
           <div>
-            <h3 style={{ margin: 0, color: '#fff', fontSize: 18, fontWeight: 700 }}>
+            <h3 className="att-records-title">
               Live Attendance Register & Visit History
             </h3>
-            <p style={{ margin: '4px 0 0 0', color: '#a1a1aa', fontSize: 13 }}>
+            <p className="att-records-desc">
               Audited front-desk log of check-in methods, workout durations, and security scans.
             </p>
           </div>
 
           {/* Quick Filters */}
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="att-filter-pills-row">
             {[
               { id: 'all', label: 'All Today' },
               { id: 'inside', label: `Inside Gym (${summary.currently_inside})` },
@@ -1001,12 +962,11 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
               <button
                 key={f.id}
                 type="button"
-                className={`btn btn-sm ${activeFilter === f.id ? 'btn-primary' : 'btn-secondary'}`}
+                className={`att-filter-pill ${activeFilter === f.id ? 'active' : ''}`}
                 onClick={() => {
                   setActiveFilter(f.id);
                   setPage(1);
                 }}
-                style={{ fontWeight: 600 }}
               >
                 {f.label}
               </button>
@@ -1015,17 +975,16 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
         </div>
 
         {/* Search Bar */}
-        <div style={{ marginBottom: 16 }}>
+        <div>
           <input
             type="text"
-            className="form-control"
+            className="att-search-input"
             placeholder="Search attendance by member name, phone, or TG-XXXX code..."
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
               setPage(1);
             }}
-            style={{ width: '100%', maxWidth: 420 }}
           />
         </div>
 
@@ -1036,14 +995,14 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
             <p>Loading attendance registers...</p>
           </div>
         ) : records.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 48, color: '#a1a1aa', background: '#0a0d13', borderRadius: 8 }}>
+          <div className="att-empty-state">
             <div style={{ fontSize: 36, marginBottom: 8 }}>📋</div>
-            <p style={{ fontWeight: 600, color: '#f5f5f5' }}>No attendance records found for this filter</p>
+            <p className="att-empty-title">No attendance records found for this filter</p>
             <p style={{ fontSize: 13 }}>Scan members at the reception station to register visits.</p>
           </div>
         ) : (
           <div className="table-responsive">
-            <table className="gymcore-table" style={{ width: '100%' }}>
+            <table className="att-table">
               <thead>
                 <tr>
                   <th>Member</th>
@@ -1053,7 +1012,7 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                   <th>Method</th>
                   <th>Status</th>
                   <th>Reception Staff</th>
-                  {isStaff && <th style={{ textAlign: 'right' }}>Actions</th>}
+                  {isOwnerOrAdmin && <th style={{ textAlign: 'right' }}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -1065,10 +1024,10 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                     <tr key={r.id}>
                       {/* Member Info */}
                       <td>
-                        <div style={{ fontWeight: 600, color: '#f5f5f5' }}>
+                        <div className="att-cell-name">
                           {r.member?.name || `Member #${r.member_id}`}
                         </div>
-                        <div style={{ fontSize: 11, color: '#ff8a00', fontFamily: 'monospace' }}>
+                        <div className="att-cell-code">
                           {r.member?.member_code || ''}
                         </div>
                       </td>
@@ -1082,7 +1041,7 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                             borderRadius: 4,
                             fontSize: 11,
                             fontWeight: 600,
-                            background: 'rgba(255, 138, 0, 0.1)',
+                            background: 'rgba(255, 138, 0, 0.12)',
                             color: '#ff8a00',
                           }}>
                             {r.subscription.plan_name}
@@ -1094,10 +1053,10 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
 
                       {/* Check-In */}
                       <td>
-                        <div style={{ fontWeight: 600, color: '#f5f5f5', fontSize: 13 }}>
+                        <div className="att-cell-time">
                           {r.check_in_time ? new Date(r.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
                         </div>
-                        <div style={{ fontSize: 11, color: '#a1a1aa' }}>
+                        <div className="att-cell-subtime">
                           {r.check_in_time ? new Date(r.check_in_time).toLocaleDateString() : ''}
                         </div>
                       </td>
@@ -1118,13 +1077,30 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                           }}>
                             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e' }}></span>
                             In Gym Now
+                            <button
+                              type="button"
+                              onClick={() => handleProcessCheckOut(null, r.id)}
+                              style={{
+                                marginLeft: 4,
+                                background: 'transparent',
+                                border: '1px solid rgba(34, 197, 94, 0.4)',
+                                color: '#22c55e',
+                                borderRadius: 4,
+                                padding: '1px 5px',
+                                fontSize: 10,
+                                cursor: 'pointer',
+                              }}
+                              title="Check out member"
+                            >
+                              Exit
+                            </button>
                           </span>
                         ) : r.check_out_time ? (
                           <div>
-                            <div style={{ fontSize: 12, color: '#f5f5f5' }}>
+                            <div className="att-cell-time">
                               {new Date(r.check_out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </div>
-                            <div style={{ fontSize: 11, color: '#a1a1aa' }}>
+                            <div className="att-cell-subtime">
                               {r.duration_minutes} mins
                             </div>
                           </div>
@@ -1142,7 +1118,7 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                           fontSize: 10,
                           fontWeight: 700,
                           textTransform: 'uppercase',
-                          background: 'rgba(255, 255, 255, 0.05)',
+                          background: 'rgba(255, 255, 255, 0.08)',
                           color: '#d4d4d8',
                         }}>
                           {r.method?.replace('_', ' ')}
@@ -1171,42 +1147,28 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                       </td>
 
                       {/* Reception Staff */}
-                      <td style={{ fontSize: 12, color: '#a1a1aa' }}>
+                      <td style={{ fontSize: 12, color: '#94a3b8' }}>
                         {r.verified_by?.name || 'Reception Staff'}
                       </td>
 
                       {/* Actions */}
-                      {isStaff && (
+                      {isOwnerOrAdmin && (
                         <td style={{ textAlign: 'right' }}>
-                          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                            {isInside && (
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => handleProcessCheckOut(r.member_id, r.id)}
-                                style={{ padding: '3px 8px', fontSize: 11 }}
-                              >
-                                Check Out
-                              </button>
-                            )}
-                            {isOwnerOrAdmin && (
-                              <button
-                                type="button"
-                                className="btn btn-sm"
-                                onClick={() => handleOpenCorrection(r)}
-                                title="Correct Attendance History (Audited)"
-                                style={{
-                                  padding: '3px 8px',
-                                  fontSize: 11,
-                                  background: 'rgba(255, 138, 0, 0.12)',
-                                  color: '#ff8a00',
-                                  border: '1px solid rgba(255, 138, 0, 0.25)',
-                                }}
-                              >
-                                Correct
-                              </button>
-                            )}
-                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            onClick={() => handleOpenCorrection(r)}
+                            title="Correct Attendance History (Audited)"
+                            style={{
+                              padding: '3px 8px',
+                              fontSize: 11,
+                              background: 'rgba(255, 138, 0, 0.12)',
+                              color: '#ff8a00',
+                              border: '1px solid rgba(255, 138, 0, 0.25)',
+                            }}
+                          >
+                            Correct
+                          </button>
                         </td>
                       )}
                     </tr>
