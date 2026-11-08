@@ -69,6 +69,26 @@ class ChapaService
     }
 
     /**
+     * Validate that an amount represents valid non-negative integer minor units (cents).
+     * Accepts a valid non-negative integer or integer-formatted numeric string (e.g. 150000 or "150000").
+     * Rejects missing, null, negative, decimal, or non-numeric values.
+     */
+    public static function isValidMinorUnitsAmount(mixed $amount): bool
+    {
+        if (is_int($amount)) {
+            return $amount >= 0;
+        }
+
+        if (is_string($amount)) {
+            $trimmed = trim($amount);
+
+            return $trimmed !== '' && preg_match('/^\d+$/', $trimmed) === 1;
+        }
+
+        return false;
+    }
+
+    /**
      * Initialize a Hosted Checkout session using Chapa API v2.
      *
      * Endpoint: POST /v2/payments/hosted
@@ -282,33 +302,54 @@ class ChapaService
                 throw new ChapaException($errorMessage, $response->status(), $responseBody);
             }
 
-            // Successfully received verification response
+            // Successfully received verification response from Chapa API v2
             $data = $responseBody['data'] ?? $responseBody;
-            $rawStatus = strtolower((string) ($data['status'] ?? $responseBody['status'] ?? ''));
 
+            // 1. Status: Read gateway status from `data.status`, treating uppercase `SUCCESS` as successful
+            $rawStatus = strtoupper(trim((string) ($data['status'] ?? $responseBody['status'] ?? '')));
             $normalizedStatus = match ($rawStatus) {
-                'success', 'successful', 'paid', 'completed' => 'success',
-                'failed', 'failure' => 'failed',
-                'cancelled', 'canceled' => 'cancelled',
+                'SUCCESS', 'SUCCESSFUL', 'PAID', 'COMPLETED' => 'success',
+                'FAILED', 'FAILURE' => 'failed',
+                'CANCELLED', 'CANCELED' => 'cancelled',
                 default => 'pending',
             };
 
-            // Raw amount can be integer minor units or float/string
-            $rawAmount = $data['amount'] ?? 0;
-            // If raw amount is returned as minor units (e.g. 10000 cents for 100 ETB) or standard units
-            // Chapa v2 documents amount in minor units (integer cents).
-            $amountInCents = is_int($rawAmount) ? $rawAmount : (int) round(((float) $rawAmount) * 100);
-            $amountInMajor = is_int($rawAmount) && $rawAmount >= 100
-                ? self::convertFromMinorUnits($rawAmount)
-                : (float) $rawAmount;
+            // 2. Amount: Chapa's documented `data.amount` is already in integer minor units (cents).
+            // Accept a valid non-negative integer or integer-formatted numeric string as minor units, preserving its exact value.
+            // Do not multiply a numeric string such as "150000" by 100.
+            // Reject missing, negative, decimal, or otherwise invalid amounts.
+            if (! array_key_exists('amount', $data) || ! self::isValidMinorUnitsAmount($data['amount'])) {
+                Log::warning('Chapa v2 verification returned invalid or missing amount', [
+                    'reference' => $cleanRef,
+                    'raw_amount' => $data['amount'] ?? null,
+                ]);
+
+                throw new ChapaException('Chapa verification response contains an invalid or missing amount.', 422, $responseBody);
+            }
+
+            $amountInCents = (int) $data['amount'];
+            $amountInMajor = self::convertFromMinorUnits($amountInCents);
+
+            // 3. References:
+            // - Chapa gateway reference read strictly from `data.chapa_reference`
+            // - GymCore merchant reference read strictly from `data.merchant_reference` (do not fall back to `data.tx_ref`)
+            $chapaReference = isset($data['chapa_reference']) && is_string($data['chapa_reference'])
+                ? trim($data['chapa_reference'])
+                : $cleanRef;
+
+            $merchantReference = isset($data['merchant_reference']) && is_string($data['merchant_reference'])
+                ? trim($data['merchant_reference'])
+                : '';
 
             $currency = strtoupper((string) ($data['currency'] ?? 'ETB'));
-            $merchantRef = (string) ($data['merchant_reference'] ?? $data['tx_ref'] ?? $cleanRef);
 
             Log::info('Chapa v2 payment verification completed', [
-                'reference' => $cleanRef,
+                'chapa_reference' => $chapaReference,
+                'merchant_reference' => $merchantReference,
                 'normalized_status' => $normalizedStatus,
+                'raw_status' => $rawStatus,
                 'amount_in_cents' => $amountInCents,
+                'amount_in_major' => $amountInMajor,
                 'currency' => $currency,
             ]);
 
@@ -316,8 +357,11 @@ class ChapaService
                 'success' => true,
                 'is_paid' => $normalizedStatus === 'success',
                 'status' => $normalizedStatus,
+                'raw_status' => $rawStatus,
                 'reference' => $cleanRef,
-                'merchant_reference' => $merchantRef,
+                'chapa_reference' => $chapaReference,
+                'gateway_reference' => $chapaReference,
+                'merchant_reference' => $merchantReference,
                 'amount_in_cents' => $amountInCents,
                 'amount' => $amountInMajor,
                 'currency' => $currency,
