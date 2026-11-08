@@ -246,6 +246,10 @@ export const apiClient = {
     return this.post(`/members/${id}/regenerate-qr`);
   },
 
+  sendMemberCardEmail(id) {
+    return this.post(`/members/${id}/send-card-email`);
+  },
+
   // Audit Logs (Owner only)
   getAuditLogs(params = {}) {
     const query = new URLSearchParams();
@@ -348,6 +352,10 @@ export const apiClient = {
 
   refundPayment(id, payload) {
     return this.post(`/payments/${id}/refund`, payload);
+  },
+
+  sendPaymentReceiptEmail(id) {
+    return this.post(`/payments/${id}/send-receipt-email`);
   },
 
   getPaymentSummary() {
