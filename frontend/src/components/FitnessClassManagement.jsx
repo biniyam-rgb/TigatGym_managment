@@ -2,6 +2,60 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/useAuth';
 import apiClient from '../services/api';
 
+const Icons = {
+  CheckCircle: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  ),
+  AlertTriangle: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  ),
+  Dumbbell: ({ size = 38 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m6.5 6.5 11 11" />
+      <path d="m21 21-1-1a2 2 0 0 0-2.83 0l-1.17 1.17a2 2 0 0 1-2.83 0L8.83 16.83a2 2 0 0 1 0-2.83l1.17-1.17a2 2 0 0 0 0-2.83L9 9" />
+      <path d="m3 3 1 1a2 2 0 0 0 2.83 0l1.17-1.17a2 2 0 0 1 2.83 0l4.34 4.34a2 2 0 0 1 0 2.83l-1.17 1.17a2 2 0 0 0 0 2.83L15 15" />
+    </svg>
+  ),
+  MapPin: ({ size = 13 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  ),
+  UserPlus: ({ size = 15 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="11" cy="7" r="4" />
+      <line x1="19" y1="8" x2="19" y2="14" />
+      <line x1="22" y1="11" x2="16" y2="11" />
+    </svg>
+  ),
+  Check: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  ),
+  Plus: ({ size = 15 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  ),
+  X: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  ),
+};
+
 export default function FitnessClassManagement() {
   const { user, hasRole } = useAuth();
   const canSchedule = hasRole('owner') || hasRole('admin');
@@ -217,7 +271,8 @@ export default function FitnessClassManagement() {
                 setIsScheduleOpen(true);
               }}
             >
-              + Schedule Fitness Class
+              <Icons.Plus size={15} />
+              <span>Schedule Fitness Class</span>
             </button>
           )}
         </div>
@@ -225,16 +280,22 @@ export default function FitnessClassManagement() {
 
       {/* Notifications */}
       {successMessage && (
-        <div className="alert alert-success" style={{ marginBottom: 16 }}>
-          <span>✓ {successMessage}</span>
-          <button type="button" className="close-btn" onClick={() => setSuccessMessage(null)}>×</button>
+        <div className="alert alert-success" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icons.CheckCircle size={16} />
+          <span style={{ flex: 1 }}>{successMessage}</span>
+          <button type="button" className="close-btn" onClick={() => setSuccessMessage(null)}>
+            <Icons.X size={15} />
+          </button>
         </div>
       )}
 
       {error && (
-        <div className="alert alert-danger" style={{ marginBottom: 16 }}>
-          <span>⚠️ {error}</span>
-          <button type="button" className="close-btn" onClick={() => setError(null)}>×</button>
+        <div className="alert alert-danger" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icons.AlertTriangle size={16} />
+          <span style={{ flex: 1 }}>{error}</span>
+          <button type="button" className="close-btn" onClick={() => setError(null)}>
+            <Icons.X size={15} />
+          </button>
         </div>
       )}
 
@@ -246,17 +307,20 @@ export default function FitnessClassManagement() {
         </div>
       ) : classes.length === 0 ? (
         <div className="empty-state-box">
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🧘‍♂️</div>
+          <div className="empty-state-icon-wrap" style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, color: '#ff8a00' }}>
+            <Icons.Dumbbell size={42} />
+          </div>
           <h4>No Scheduled Classes Found</h4>
           <p>There are no fitness classes scheduled matching the selected filters.</p>
           {canSchedule && (
             <button
               type="button"
               className="btn btn-primary btn-sm"
-              style={{ marginTop: 12 }}
+              style={{ marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}
               onClick={() => setIsScheduleOpen(true)}
             >
-              + Schedule First Class
+              <Icons.Plus size={14} />
+              <span>Schedule First Class</span>
             </button>
           )}
         </div>
@@ -271,7 +335,10 @@ export default function FitnessClassManagement() {
               <div key={c.id} className="class-card">
                 <div className="class-card-top">
                   <div className="class-badge-row">
-                    <span className="room-badge">📍 {c.room || 'Studio A'}</span>
+                    <span className="room-badge">
+                      <Icons.MapPin size={12} />
+                      <span>{c.room || 'Studio A'}</span>
+                    </span>
                     <span className={`status-pill status-${c.status}`}>
                       {c.status}
                     </span>
@@ -333,11 +400,12 @@ export default function FitnessClassManagement() {
                     <button
                       type="button"
                       className="btn btn-secondary btn-sm btn-block"
-                      style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                      style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                       onClick={() => handleCancelBooking(c)}
                       disabled={isSubmitting}
                     >
-                      ✓ Reserved (Click to Cancel)
+                      <Icons.Check size={14} />
+                      <span>Reserved (Click to Cancel)</span>
                     </button>
                   ) : (
                     <div style={{ display: 'flex', gap: 8, width: '100%' }}>
@@ -361,7 +429,7 @@ export default function FitnessClassManagement() {
                           }}
                           disabled={isFull}
                         >
-                          👤 +
+                          <Icons.UserPlus size={14} />
                         </button>
                       )}
                     </div>
