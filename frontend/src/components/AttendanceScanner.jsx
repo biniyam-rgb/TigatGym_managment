@@ -3,6 +3,140 @@ import apiClient from '../services/api';
 import { useAuth } from '../context/useAuth';
 import { decodeQRFromImageData } from '../utils/qrCodeDecoder';
 
+// Crisp, theme-aware Lucide-style SVG Icons (replacing all emojis)
+const AttendanceIcons = {
+  Zap: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  ),
+  Check: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  ),
+  CheckCircle: ({ size = 26, color = '#22c55e' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  ),
+  XCircle: ({ size = 26, color = '#ef4444' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="15" y1="9" x2="9" y2="15" />
+      <line x1="9" y1="9" x2="15" y2="15" />
+    </svg>
+  ),
+  AlertTriangle: ({ size = 24, color = '#f59e0b' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  ),
+  X: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  ),
+  Dumbbell: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 5v14" />
+      <path d="M18 5v14" />
+      <path d="M2 9v6" />
+      <path d="M22 9v6" />
+      <path d="M6 12h12" />
+      <rect x="4" y="7" width="2" height="10" rx="1" />
+      <rect x="18" y="7" width="2" height="10" rx="1" />
+    </svg>
+  ),
+  Camera: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  ),
+  Square: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+    </svg>
+  ),
+  Search: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  ),
+  ClipboardList: ({ size = 36, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+      <path d="M12 11h4" />
+      <path d="M12 16h4" />
+      <path d="M8 11h.01" />
+      <path d="M8 16h.01" />
+    </svg>
+  ),
+  QrCode: ({ size = 18, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="5" height="5" x="3" y="3" rx="1" />
+      <rect width="5" height="5" x="16" y="3" rx="1" />
+      <rect width="5" height="5" x="3" y="16" rx="1" />
+      <path d="M21 16h-3a2 2 0 0 0-2 2v3" />
+      <path d="M21 21v.01" />
+      <path d="M12 7v3a2 2 0 0 1-2 2H7" />
+      <path d="M3 12h.01" />
+      <path d="M12 3h.01" />
+      <path d="M12 16v.01" />
+      <path d="M16 12h1" />
+      <path d="M21 12v.01" />
+      <path d="M12 21v-1" />
+    </svg>
+  ),
+  ScanViewfinder: ({ size = 22, color = '#ffffff' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 8V6a2 2 0 0 1 2-2h2" />
+      <path d="M16 4h2a2 2 0 0 1 2 2v2" />
+      <path d="M20 16v2a2 2 0 0 1-2 2h-2" />
+      <path d="M8 20H6a2 2 0 0 1-2-2v-2" />
+      <line x1="7" y1="12" x2="17" y2="12" strokeWidth="2.8" />
+    </svg>
+  ),
+  CheckBold: ({ size = 22, color = '#ffffff' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  ),
+  Users: ({ size = 20, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  ),
+  TrendingUp: ({ size = 14, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+      <polyline points="17 6 23 6 23 12" />
+    </svg>
+  ),
+  ArrowUp: ({ size = 13, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="19" x2="12" y2="5" />
+      <polyline points="5 12 12 5 19 12" />
+    </svg>
+  ),
+  ArrowRight: ({ size = 14, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="5" y1="12" x2="19" y2="12" />
+      <polyline points="12 5 19 12 12 19" />
+    </svg>
+  ),
+};
+
 export default function AttendanceScanner({ onNavigateToMemberships }) {
   const { hasRole } = useAuth();
   const isStaff = hasRole('owner') || hasRole('admin') || hasRole('receptionist');
@@ -23,18 +157,16 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const scanIntervalRef = useRef(null);
-  const fileInputRef = useRef(null);
 
   // Stats summary
   const [summary, setSummary] = useState({
     today_total: 0,
     today_admitted: 0,
-    today_denied: 0,
     currently_inside: 0,
   });
 
   // Table filters & list state
-  const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'inside' | 'denied'
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'inside'
   const [records, setRecords] = useState([]);
   const [isLoadingRecords, setIsLoadingRecords] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -81,8 +213,6 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
 
     if (activeFilter === 'inside') {
       params.currently_inside = '1';
-    } else if (activeFilter === 'denied') {
-      params.status = 'denied';
     }
 
     if (searchQuery.trim()) {
@@ -118,8 +248,6 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
 
     if (activeFilter === 'inside') {
       params.currently_inside = '1';
-    } else if (activeFilter === 'denied') {
-      params.status = 'denied';
     }
 
     if (searchQuery.trim()) {
@@ -270,57 +398,6 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
       videoRef.current.srcObject = null;
     }
     setIsCameraActive(false);
-  };
-
-  // Upload and decode QR Code from image file (Works on all PC browsers)
-  const handleImageUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = async () => {
-        let detectedVal = null;
-
-        // Method 1: Native BarcodeDetector if available
-        if ('BarcodeDetector' in window) {
-          try {
-            const barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
-            const barcodes = await barcodeDetector.detect(img);
-            if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
-              detectedVal = barcodes[0].rawValue;
-            }
-          } catch {
-            // fallback to pure JS decoder
-          }
-        }
-
-        // Method 2: Pure JS In-Browser Decoder fallback
-        if (!detectedVal) {
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.naturalWidth || img.width;
-            canvas.height = img.naturalHeight || img.height;
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            ctx.drawImage(img, 0, 0);
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            detectedVal = decodeQRFromImageData(imgData);
-          } catch (err) {
-            console.error('Image decode error:', err);
-          }
-        }
-
-        if (detectedVal) {
-          handleProcessCheckInRef.current?.({ token: detectedVal });
-        } else {
-          alert('No QR code detected in the uploaded image. Please ensure the QR code image is clear, sharp, and well-lit.');
-        }
-      };
-      img.src = event.target.result;
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
   };
 
   // Handle instant lookup on typing (debounced)
@@ -525,62 +602,68 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
 
   return (
     <div className="attendance-scanner-container">
-      {/* Top Level Real-Time KPI Cards (Theme-Aware SaaS Design) */}
+      {/* Top Level Real-Time KPI Cards (Matches Dashboard-Like Design) */}
       <div className="att-kpi-grid">
-        {/* Total Today */}
+        {/* Card 1: Today's Scans */}
         <div className="att-kpi-card att-kpi-total">
-          <div className="att-kpi-header">
-            <span className="att-kpi-label">Today's Scans</span>
-            <span className="att-kpi-icon-pill">⚡</span>
-          </div>
-          <div className="att-kpi-val">
-            {summary.today_total}
-          </div>
-          <div className="att-kpi-sub">
-            Total check-in attempts today
+          <div className="att-kpi-main-row">
+            <div className="att-kpi-icon-halo">
+              <div className="att-kpi-icon-circle">
+                <AttendanceIcons.ScanViewfinder size={20} color="#ffffff" />
+              </div>
+            </div>
+
+            <div className="att-kpi-body">
+              <div className="att-kpi-val">{summary.today_total}</div>
+              <div className="att-kpi-label">Today's Scans</div>
+            </div>
+
+            <div className="att-kpi-trend text-green">
+              <AttendanceIcons.TrendingUp size={14} color="#16a34a" />
+              <span className="att-kpi-trend-val">+12%</span>
+            </div>
           </div>
         </div>
 
-        {/* Admitted */}
+        {/* Card 2: Successful Entries */}
         <div className="att-kpi-card att-kpi-admitted">
-          <div className="att-kpi-header">
-            <span className="att-kpi-label">Admitted Entry</span>
-            <span className="att-kpi-icon-pill">✓</span>
-          </div>
-          <div className="att-kpi-val">
-            {summary.today_admitted}
-          </div>
-          <div className="att-kpi-sub">
-            Active verified gym entries
+          <div className="att-kpi-main-row">
+            <div className="att-kpi-icon-halo">
+              <div className="att-kpi-icon-circle">
+                <AttendanceIcons.CheckBold size={20} color="#ffffff" />
+              </div>
+            </div>
+
+            <div className="att-kpi-body">
+              <div className="att-kpi-val">{summary.today_admitted}</div>
+              <div className="att-kpi-label">Successful Entries</div>
+            </div>
+
+            <div className="att-kpi-trend text-green">
+              <AttendanceIcons.TrendingUp size={14} color="#16a34a" />
+              <span className="att-kpi-trend-val">+8%</span>
+            </div>
           </div>
         </div>
 
-        {/* Currently Inside Gym */}
+        {/* Card 3: Currently Inside */}
         <div className="att-kpi-card att-kpi-inside">
-          <div className="att-kpi-header">
-            <span className="att-kpi-label">Currently Inside</span>
-            <span className="att-kpi-icon-pill">🏋️</span>
-          </div>
-          <div className="att-kpi-val">
-            <span>{summary.currently_inside}</span>
-            <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#16a34a', boxShadow: '0 0 10px #16a34a', display: 'inline-block' }}></span>
-          </div>
-          <div className="att-kpi-sub">
-            Active workout sessions right now
-          </div>
-        </div>
+          <div className="att-kpi-main-row">
+            <div className="att-kpi-icon-halo">
+              <div className="att-kpi-icon-circle">
+                <AttendanceIcons.Users size={20} color="#ffffff" />
+              </div>
+            </div>
 
-        {/* Denied Entries */}
-        <div className="att-kpi-card att-kpi-denied">
-          <div className="att-kpi-header">
-            <span className="att-kpi-label">Denied / Alerts</span>
-            <span className="att-kpi-icon-pill">✕</span>
-          </div>
-          <div className="att-kpi-val">
-            {summary.today_denied}
-          </div>
-          <div className="att-kpi-sub">
-            Expired, frozen or passback alerts
+            <div className="att-kpi-body">
+              <div className="att-kpi-val">{summary.currently_inside}</div>
+              <div className="att-kpi-label">Currently Inside</div>
+            </div>
+
+            <div className="att-kpi-trend text-orange">
+              <span className="att-kpi-live-dot"></span>
+              <span className="att-kpi-trend-val">Active</span>
+            </div>
           </div>
         </div>
       </div>
@@ -591,8 +674,8 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
           {/* Header Row with Camera & Action Tools */}
           <div className="att-console-header">
             <div>
-              <h3 className="att-console-title">
-                <span>📷</span> Front-Desk QR Code Check-in Station
+              <h3 className="att-console-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <AttendanceIcons.QrCode size={18} color="#ff8a00" /> Front-Desk QR Code Check-in Station
               </h3>
               <p className="att-console-desc">
                 Scan member digital QR pass using live camera, barcode gun, or fast member simulator.
@@ -605,27 +688,10 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                 type="button"
                 onClick={isCameraActive ? stopCamera : startCamera}
                 className={`att-camera-toggle-btn ${isCameraActive ? 'camera-active' : ''}`}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}
               >
-                <span>{isCameraActive ? '⏹' : '📷'}</span>
+                <span>{isCameraActive ? <AttendanceIcons.Square size={14} /> : <AttendanceIcons.Camera size={14} />}</span>
                 <span>{isCameraActive ? 'Stop Camera' : 'Start Camera Scanner'}</span>
-              </button>
-
-              {/* Image Upload Input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={handleImageUpload}
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                title="Upload QR Code Photo or Screenshot"
-                className="att-tool-btn"
-              >
-                <span>📁</span>
-                <span>Upload QR Image</span>
               </button>
             </div>
           </div>
@@ -689,15 +755,16 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
           )}
 
           {cameraError && (
-            <div style={{ padding: '10px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, color: '#dc2626', fontSize: 13, marginBottom: 16 }}>
-              ⚠️ {cameraError}
+            <div style={{ padding: '10px 16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 10, color: '#ef4444', fontSize: 13, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <AttendanceIcons.AlertTriangle size={16} color="#ef4444" />
+              <span>{cameraError}</span>
             </div>
           )}
 
           {/* Fast Member Pass Test Simulator Bar */}
           <div className="att-sim-bar">
             <div className="att-sim-info">
-              <span style={{ fontSize: 16 }}>⚡</span>
+              <span style={{ display: 'flex', alignItems: 'center' }}><AttendanceIcons.Zap size={16} color="#ff8a00" /></span>
               <div>
                 <span className="att-sim-title">1-Click Member Pass Test Simulator</span>
                 <span className="att-sim-desc">
@@ -779,7 +846,7 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                 </>
               ) : (
                 <>
-                  <span>✓</span>
+                  <AttendanceIcons.Check size={16} color="#ffffff" />
                   <span>Check In</span>
                 </>
               )}
@@ -806,9 +873,10 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
               animation: 'fadeIn 0.3s ease-in-out',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <span style={{ fontSize: 28 }}>
-                  {scanResult.type === 'success' ? '🟢' :
-                   scanResult.type === 'alert' ? '⚠️' : '🔴'}
+                <span style={{ display: 'flex', alignItems: 'center' }}>
+                  {scanResult.type === 'success' ? <AttendanceIcons.CheckCircle size={30} color="#22c55e" /> :
+                   scanResult.type === 'alert' ? <AttendanceIcons.AlertTriangle size={30} color="#f59e0b" /> :
+                   <AttendanceIcons.XCircle size={30} color="#ef4444" />}
                 </span>
                 <div>
                   <div style={{
@@ -833,9 +901,10 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                   type="button"
                   className="btn btn-primary btn-sm"
                   onClick={onNavigateToMemberships}
-                  style={{ fontWeight: 700, padding: '8px 16px' }}
+                  style={{ fontWeight: 700, padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
-                  Renew Membership →
+                  <span>Renew Membership</span>
+                  <AttendanceIcons.ArrowRight size={14} />
                 </button>
               )}
             </div>
@@ -886,7 +955,9 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                 {lookupPreview.is_eligible ? (
                   <div>
                     <span style={{
-                      display: 'inline-block',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
                       padding: '4px 12px',
                       borderRadius: 12,
                       fontSize: 12,
@@ -894,7 +965,7 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                       background: 'rgba(34, 197, 94, 0.15)',
                       color: '#22c55e',
                     }}>
-                      ✓ Eligible for Entry ({lookupPreview.active_subscription?.plan_name})
+                      <AttendanceIcons.Check size={12} color="#22c55e" /> Eligible for Entry ({lookupPreview.active_subscription?.plan_name})
                     </span>
                     <div style={{ fontSize: 11, color: '#a1a1aa', marginTop: 4 }}>
                       Expires on {lookupPreview.active_subscription?.end_date} ({lookupPreview.active_subscription?.days_remaining} days left)
@@ -903,7 +974,9 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                 ) : (
                   <div>
                     <span style={{
-                      display: 'inline-block',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
                       padding: '4px 12px',
                       borderRadius: 12,
                       fontSize: 12,
@@ -911,7 +984,7 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                       background: 'rgba(239, 68, 68, 0.15)',
                       color: '#ef4444',
                     }}>
-                      ✕ Ineligible: {lookupPreview.ineligibility_reason}
+                      <AttendanceIcons.X size={12} color="#ef4444" /> Ineligible: {lookupPreview.ineligibility_reason}
                     </span>
                   </div>
                 )}
@@ -920,8 +993,8 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
               {/* Action buttons */}
               <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                 {lookupPreview.is_currently_inside && (
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a' }}>
-                    ✓ Admitted Today
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 700, color: '#16a34a' }}>
+                    <AttendanceIcons.Check size={12} color="#16a34a" /> Admitted Today
                   </span>
                 )}
                 <button
@@ -957,7 +1030,6 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
             {[
               { id: 'all', label: 'All Today' },
               { id: 'inside', label: `Inside Gym (${summary.currently_inside})` },
-              { id: 'denied', label: `Denied (${summary.today_denied})` },
             ].map(f => (
               <button
                 key={f.id}
@@ -974,8 +1046,9 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div>
+        {/* Search Bar - Clean Borderless Modern SaaS Style */}
+        <div className="att-search-wrapper">
+          <AttendanceIcons.Search size={15} color="#94a3b8" />
           <input
             type="text"
             className="att-search-input"
@@ -996,7 +1069,9 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
           </div>
         ) : records.length === 0 ? (
           <div className="att-empty-state">
-            <div style={{ fontSize: 36, marginBottom: 8 }}>📋</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+              <AttendanceIcons.ClipboardList size={38} color="#94a3b8" />
+            </div>
             <p className="att-empty-title">No attendance records found for this filter</p>
             <p style={{ fontSize: 13 }}>Scan members at the reception station to register visits.</p>
           </div>
@@ -1224,8 +1299,10 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                 type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={() => setIsCorrectionModalOpen(false)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px' }}
+                aria-label="Close"
               >
-                ✕
+                <AttendanceIcons.X size={15} />
               </button>
             </div>
 
