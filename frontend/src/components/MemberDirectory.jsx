@@ -4,7 +4,7 @@ import { useAuth } from '../context/useAuth';
 import QRCodeDisplay from './QRCodeDisplay';
 import BrandLogo from './BrandLogo';
 import PermanentMemberCard from './PermanentMemberCard';
-import { BLOOD_TYPES, calculateAge, validateMemberForm, validateSingleField } from '../utils/memberValidators';
+import { calculateAge, validateMemberForm, validateSingleField } from '../utils/memberValidators';
 
 // Crisp Lucide-style SVG Icons (replacing emojis)
 const Icons = {
@@ -1251,8 +1251,8 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     </div>
                   </div>
 
-                  {/* Email & Gender & Blood Type */}
-                  <div className="reg-form-row-3">
+                  {/* Email & Gender */}
+                  <div className="reg-form-row-2">
                     <div className="reg-form-group">
                       <label>Email Address</label>
                       <input
@@ -1277,22 +1277,6 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                         <option value="female">Female</option>
                         <option value="other">Other</option>
                       </select>
-                    </div>
-
-                    <div className="reg-form-group">
-                      <label>Blood Type</label>
-                      <select
-                        className={`reg-control ${formErrors.blood_type ? 'input-error' : ''}`}
-                        value={formData.blood_type}
-                        onChange={(e) => handleFieldChange('blood_type', e.target.value)}
-                        onBlur={() => handleFieldBlur('blood_type')}
-                      >
-                        <option value="">-- Blood Group --</option>
-                        {BLOOD_TYPES.map((bt) => (
-                          <option key={bt.value} value={bt.value}>{bt.value}</option>
-                        ))}
-                      </select>
-                      {formErrors.blood_type && <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.blood_type}</span>}
                     </div>
                   </div>
 
@@ -2379,49 +2363,28 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     </div>
                   </div>
 
-                  <div className="reg-form-row-2">
-                    <div className="reg-form-group">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                        <label>Date of Birth</label>
-                        {formData.date_of_birth && !formErrors.date_of_birth && (
-                          <span style={{ fontSize: 10, fontWeight: 700, color: '#10b981' }}>
-                            {calculateAge(formData.date_of_birth)} yrs
-                          </span>
-                        )}
-                      </div>
-                      <input
-                        type="date"
-                        className={`reg-control ${formErrors.date_of_birth ? 'input-error' : ''}`}
-                        max={maxDobString}
-                        min="1920-01-01"
-                        value={formData.date_of_birth}
-                        onChange={(e) => handleFieldChange('date_of_birth', e.target.value)}
-                        onClick={(e) => openDatePicker(e.currentTarget)}
-                        style={{ cursor: 'pointer' }}
-                      />
-                      {formErrors.date_of_birth && (
-                        <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.date_of_birth}</span>
+                  <div className="reg-form-group">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <label>Date of Birth</label>
+                      {formData.date_of_birth && !formErrors.date_of_birth && (
+                        <span style={{ fontSize: 10, fontWeight: 700, color: '#10b981' }}>
+                          {calculateAge(formData.date_of_birth)} yrs
+                        </span>
                       )}
                     </div>
-
-                    <div className="reg-form-group">
-                      <label>Blood Type</label>
-                      <select
-                        className={`reg-control ${formErrors.blood_type ? 'input-error' : ''}`}
-                        value={formData.blood_type}
-                        onChange={(e) => handleFieldChange('blood_type', e.target.value)}
-                      >
-                        <option value="">-- Blood Group --</option>
-                        {BLOOD_TYPES.map((bt) => (
-                          <option key={bt.value} value={bt.value}>
-                            {bt.value}
-                          </option>
-                        ))}
-                      </select>
-                      {formErrors.blood_type && (
-                        <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.blood_type}</span>
-                      )}
-                    </div>
+                    <input
+                      type="date"
+                      className={`reg-control ${formErrors.date_of_birth ? 'input-error' : ''}`}
+                      max={maxDobString}
+                      min="1920-01-01"
+                      value={formData.date_of_birth}
+                      onChange={(e) => handleFieldChange('date_of_birth', e.target.value)}
+                      onClick={(e) => openDatePicker(e.currentTarget)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    {formErrors.date_of_birth && (
+                      <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.date_of_birth}</span>
+                    )}
                   </div>
 
                   <div className="reg-form-group">
@@ -2553,8 +2516,8 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
               />
             </div>
 
-            {/* Emergency & Medical Detail Strip */}
-            {(selectedMember.phone || selectedMember.blood_type || selectedMember.emergency_contact_phone) && (
+            {/* Emergency Detail Strip */}
+            {(selectedMember.phone || selectedMember.emergency_contact_phone) && (
               <div
                 style={{
                   background: 'rgba(255, 122, 0, 0.06)',
@@ -2573,9 +2536,6 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
               >
                 {selectedMember.phone && (
                   <span>Phone: <strong style={{ color: 'var(--gym-text-primary, #ffffff)' }}>{selectedMember.phone}</strong></span>
-                )}
-                {selectedMember.blood_type && (
-                  <span>Blood: <strong style={{ color: '#dc2626' }}>{selectedMember.blood_type}</strong></span>
                 )}
                 {selectedMember.emergency_contact_name && (
                   <span>Contact: <strong style={{ color: 'var(--gym-text-primary, #ffffff)' }}>{selectedMember.emergency_contact_name} ({selectedMember.emergency_contact_phone})</strong></span>
