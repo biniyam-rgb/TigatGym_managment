@@ -11048,12 +11048,13 @@ body.theme-dark .btn-clean-schedule:hover,
   justify-content: space-between;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
   cursor: default;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .clean-kpi-card:hover {
+  transform: translateY(-2px);
   border-color: #cbd5e1;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
 }
 
 body.theme-dark .clean-kpi-card,
@@ -11068,8 +11069,42 @@ body.theme-dark .clean-kpi-card,
 body.theme-dark .clean-kpi-card:hover,
 [data-theme="dark"] .clean-kpi-card:hover,
 .theme-dark .clean-kpi-card:hover {
+  transform: translateY(-2px);
   border-color: rgba(255, 138, 0, 0.4) !important;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45) !important;
+}
+
+.clean-kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  width: 100%;
+}
+
+.clean-kpi-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 122, 0, 0.1);
+  color: #ff7a00;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.clean-kpi-card:hover .clean-kpi-icon {
+  transform: scale(1.08);
+  background: rgba(255, 122, 0, 0.2);
+  box-shadow: 0 0 10px rgba(255, 122, 0, 0.25);
+}
+
+body.theme-dark .clean-kpi-icon,
+[data-theme="dark"] .clean-kpi-icon {
+  background: rgba(255, 138, 0, 0.15) !important;
+  color: #ff8a00 !important;
 }
 
 .kpi-label {

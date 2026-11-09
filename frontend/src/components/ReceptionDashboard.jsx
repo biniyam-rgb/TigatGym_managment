@@ -34,6 +34,18 @@ const Icons = {
       <line x1="12" y1="17" x2="12.01" y2="17" />
     </svg>
   ),
+  CheckCircle: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  ),
+  CreditCard: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="20" height="14" x="2" y="5" rx="2" />
+      <line x1="2" x2="22" y1="10" y2="10" />
+    </svg>
+  ),
 };
 
 const RECEPTION_CACHE_KEY = 'gymcore_reception_cache';
@@ -242,28 +254,48 @@ export default function ReceptionDashboard({ onNavigate }) {
       <section className="clean-kpi-grid">
         {/* Card 1: Total Active Members */}
         <div className="clean-kpi-card">
-          <span className="kpi-label">Total Active Members</span>
+          <div className="clean-kpi-top">
+            <span className="kpi-label">Total Active Members</span>
+            <div className="clean-kpi-icon" title="Total Active Members">
+              <Icons.Users size={16} />
+            </div>
+          </div>
           <div className="kpi-value">{stats.active_members}</div>
           <span className="kpi-trend trend-positive">+5.2% this month</span>
         </div>
 
         {/* Card 2: Checked-In Today */}
         <div className="clean-kpi-card">
-          <span className="kpi-label">Checked-In Today</span>
+          <div className="clean-kpi-top">
+            <span className="kpi-label">Checked-In Today</span>
+            <div className="clean-kpi-icon" title="Checked-In Today">
+              <Icons.CheckCircle size={16} />
+            </div>
+          </div>
           <div className="kpi-value">{stats.today_check_ins}</div>
           <span className="kpi-trend trend-positive">+10% vs yesterday</span>
         </div>
 
         {/* Card 3: Upcoming Classes */}
         <div className="clean-kpi-card">
-          <span className="kpi-label">Upcoming Classes</span>
+          <div className="clean-kpi-top">
+            <span className="kpi-label">Upcoming Classes</span>
+            <div className="clean-kpi-icon" title="Upcoming Classes">
+              <Icons.Calendar size={16} />
+            </div>
+          </div>
           <div className="kpi-value">{stats.upcoming_classes}</div>
           <span className="kpi-trend trend-negative">-2 from yesterday</span>
         </div>
 
         {/* Card 4: Revenue This Month */}
         <div className="clean-kpi-card">
-          <span className="kpi-label">Revenue This Month</span>
+          <div className="clean-kpi-top">
+            <span className="kpi-label">Revenue This Month</span>
+            <div className="clean-kpi-icon" title="Revenue This Month">
+              <Icons.CreditCard size={16} />
+            </div>
+          </div>
           <div className="kpi-value">{stats.revenue_this_month}</div>
           <span className="kpi-trend trend-positive">+8.1% vs last month</span>
         </div>

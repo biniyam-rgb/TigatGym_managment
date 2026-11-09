@@ -95,7 +95,7 @@ const AttendanceIcons = {
       <path d="M12 21v-1" />
     </svg>
   ),
-  ScanViewfinder: ({ size = 22, color = '#ffffff' }) => (
+  ScanViewfinder: ({ size = 16, color = 'currentColor' }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 8V6a2 2 0 0 1 2-2h2" />
       <path d="M16 4h2a2 2 0 0 1 2 2v2" />
@@ -104,7 +104,7 @@ const AttendanceIcons = {
       <line x1="7" y1="12" x2="17" y2="12" strokeWidth="2.8" />
     </svg>
   ),
-  CheckBold: ({ size = 22, color = '#ffffff' }) => (
+  CheckBold: ({ size = 16, color = 'currentColor' }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="20 6 9 17 4 12" />
     </svg>
@@ -602,69 +602,51 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
 
   return (
     <div className="attendance-scanner-container">
-      {/* Top Level Real-Time KPI Cards (Matches Dashboard-Like Design) */}
-      <div className="att-kpi-grid">
+      {/* Top Level Real-Time KPI Cards (Unified Clean TigatGym Design) */}
+      <div className="clean-kpi-grid att-kpi-grid" style={{ marginBottom: 20 }}>
         {/* Card 1: Today's Scans */}
-        <div className="att-kpi-card att-kpi-total">
-          <div className="att-kpi-main-row">
-            <div className="att-kpi-icon-halo">
-              <div className="att-kpi-icon-circle">
-                <AttendanceIcons.ScanViewfinder size={20} color="#ffffff" />
-              </div>
-            </div>
-
-            <div className="att-kpi-body">
-              <div className="att-kpi-val">{summary.today_total}</div>
-              <div className="att-kpi-label">Today's Scans</div>
-            </div>
-
-            <div className="att-kpi-trend text-green">
-              <AttendanceIcons.TrendingUp size={14} color="#16a34a" />
-              <span className="att-kpi-trend-val">+12%</span>
+        <div className="clean-kpi-card">
+          <div className="clean-kpi-top">
+            <span className="kpi-label">Today's Scans</span>
+            <div className="clean-kpi-icon" title="Today's Scans">
+              <AttendanceIcons.ScanViewfinder size={16} />
             </div>
           </div>
+          <div className="kpi-value">{summary.today_total}</div>
+          <span className="kpi-trend trend-positive" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <AttendanceIcons.TrendingUp size={13} color="#16a34a" /> +12% this week
+          </span>
         </div>
 
         {/* Card 2: Successful Entries */}
-        <div className="att-kpi-card att-kpi-admitted">
-          <div className="att-kpi-main-row">
-            <div className="att-kpi-icon-halo">
-              <div className="att-kpi-icon-circle">
-                <AttendanceIcons.CheckBold size={20} color="#ffffff" />
-              </div>
-            </div>
-
-            <div className="att-kpi-body">
-              <div className="att-kpi-val">{summary.today_admitted}</div>
-              <div className="att-kpi-label">Successful Entries</div>
-            </div>
-
-            <div className="att-kpi-trend text-green">
-              <AttendanceIcons.TrendingUp size={14} color="#16a34a" />
-              <span className="att-kpi-trend-val">+8%</span>
+        <div className="clean-kpi-card">
+          <div className="clean-kpi-top">
+            <span className="kpi-label">Successful Entries</span>
+            <div className="clean-kpi-icon" title="Successful Entries">
+              <AttendanceIcons.CheckBold size={16} />
             </div>
           </div>
+          <div className="kpi-value">{summary.today_admitted}</div>
+          <span className="kpi-trend trend-positive" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <AttendanceIcons.TrendingUp size={13} color="#16a34a" /> +8% vs yesterday
+          </span>
         </div>
 
         {/* Card 3: Currently Inside */}
-        <div className="att-kpi-card att-kpi-inside">
-          <div className="att-kpi-main-row">
-            <div className="att-kpi-icon-halo">
-              <div className="att-kpi-icon-circle">
-                <AttendanceIcons.Users size={20} color="#ffffff" />
-              </div>
-            </div>
-
-            <div className="att-kpi-body">
-              <div className="att-kpi-val">{summary.currently_inside}</div>
-              <div className="att-kpi-label">Currently Inside</div>
-            </div>
-
-            <div className="att-kpi-trend text-orange">
-              <span className="att-kpi-live-dot"></span>
-              <span className="att-kpi-trend-val">Active</span>
+        <div className="clean-kpi-card">
+          <div className="clean-kpi-top">
+            <span className="kpi-label">Currently Inside</span>
+            <div className="clean-kpi-icon" title="Currently Inside">
+              <AttendanceIcons.Users size={16} />
             </div>
           </div>
+          <div className="kpi-value" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <span>{summary.currently_inside}</span>
+            <span className="att-kpi-live-dot" title="Live Active Workout Sessions" style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#ff8a00' }}></span>
+          </div>
+          <span className="kpi-trend" style={{ color: '#ff8a00', fontWeight: 600 }}>
+            Active workout sessions
+          </span>
         </div>
       </div>
 

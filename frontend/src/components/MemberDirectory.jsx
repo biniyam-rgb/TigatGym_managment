@@ -8,6 +8,20 @@ import { calculateAge, validateMemberForm, validateSingleField } from '../utils/
 
 // Crisp Lucide-style SVG Icons (replacing emojis)
 const Icons = {
+  Users: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  ),
+  Clock: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  ),
   UserPlus: ({ size = 15 }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -767,30 +781,54 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
         )}
       </section>
 
-      {/* 4 Top Stat KPI Cards matching clean Tigat Gym SaaS aesthetics */}
-      <div className="gymflow-metrics-row">
+      {/* 4 Top Stat KPI Cards (Unified Clean TigatGym Design) */}
+      <div className="clean-kpi-grid" style={{ marginBottom: 20 }}>
         {/* Card 1: Total Members */}
-        <div className="gymflow-kpi-card kpi-white">
-          <div className="kpi-label">TOTAL MEMBERS</div>
-          <div className="kpi-value font-mono">{totalMembers || members.length || 0}</div>
+        <div className="clean-kpi-card">
+          <div className="clean-kpi-top">
+            <span className="kpi-label">Total Members</span>
+            <div className="clean-kpi-icon" title="Total Members">
+              <Icons.Users size={16} />
+            </div>
+          </div>
+          <div className="kpi-value">{totalMembers || members.length || 0}</div>
+          <span className="kpi-trend trend-positive">+4.5% this month</span>
         </div>
 
         {/* Card 2: Expiring Soon */}
-        <div className="gymflow-kpi-card kpi-white">
-          <div className="kpi-label">EXPIRING SOON</div>
-          <div className="kpi-value kpi-red font-mono">0</div>
+        <div className="clean-kpi-card">
+          <div className="clean-kpi-top">
+            <span className="kpi-label">Expiring Soon</span>
+            <div className="clean-kpi-icon" title="Expiring Soon">
+              <Icons.Clock size={16} />
+            </div>
+          </div>
+          <div className="kpi-value">0</div>
+          <span className="kpi-trend" style={{ color: '#64748b' }}>Next 7 days</span>
         </div>
 
         {/* Card 3: At-Risk */}
-        <div className="gymflow-kpi-card kpi-white">
-          <div className="kpi-label">AT-RISK</div>
-          <div className="kpi-value kpi-orange font-mono">2</div>
+        <div className="clean-kpi-card">
+          <div className="clean-kpi-top">
+            <span className="kpi-label">At-Risk Members</span>
+            <div className="clean-kpi-icon" title="At-Risk Members">
+              <Icons.AlertTriangle size={16} />
+            </div>
+          </div>
+          <div className="kpi-value">2</div>
+          <span className="kpi-trend trend-negative">Overdue 14+ days</span>
         </div>
 
         {/* Card 4: Total Dues */}
-        <div className="gymflow-kpi-card kpi-white">
-          <div className="kpi-label">TOTAL DUES</div>
-          <div className="kpi-value kpi-red font-mono">0 ETB</div>
+        <div className="clean-kpi-card">
+          <div className="clean-kpi-top">
+            <span className="kpi-label">Total Dues</span>
+            <div className="clean-kpi-icon" title="Total Dues">
+              <Icons.CreditCard size={16} />
+            </div>
+          </div>
+          <div className="kpi-value">0 ETB</div>
+          <span className="kpi-trend trend-positive">All accounts settled</span>
         </div>
       </div>
 

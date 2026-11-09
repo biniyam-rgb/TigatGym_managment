@@ -2,6 +2,33 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/useAuth';
 import apiClient from '../services/api';
 
+const EquipmentIcons = {
+  Dumbbell: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 5v14" />
+      <path d="M18 5v14" />
+      <path d="M2 9v6" />
+      <path d="M22 9v6" />
+      <path d="M6 12h12" />
+      <rect x="4" y="7" width="2" height="10" rx="1" />
+      <rect x="18" y="7" width="2" height="10" rx="1" />
+    </svg>
+  ),
+  CheckCircle: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  ),
+  AlertTriangle: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  ),
+};
+
 export default function EquipmentManagement() {
   const { hasRole } = useAuth();
   const canManage = hasRole('owner') || hasRole('admin');
@@ -156,22 +183,39 @@ export default function EquipmentManagement() {
 
   return (
     <div className="module-container">
-      {/* Top Asset Summary Metric Cards */}
-      <div className="dashboard-metrics-grid" style={{ marginBottom: 20 }}>
-        <div className="metric-card">
-          <span className="metric-title">Total Equipment Assets</span>
-          <span className="metric-value">{totalAssets}</span>
-          <span className="metric-subtext">Registered gym inventory</span>
+      {/* Top Asset Summary Metric Cards (Unified Clean TigatGym Design) */}
+      <div className="clean-kpi-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 20 }}>
+        <div className="clean-kpi-card">
+          <div className="clean-kpi-top">
+            <span className="kpi-label">Total Equipment Assets</span>
+            <div className="clean-kpi-icon" title="Total Equipment Assets">
+              <EquipmentIcons.Dumbbell size={16} />
+            </div>
+          </div>
+          <div className="kpi-value">{totalAssets}</div>
+          <span className="kpi-trend" style={{ color: '#64748b' }}>Registered gym inventory</span>
         </div>
-        <div className="metric-card">
-          <span className="metric-title">Operational & Available</span>
-          <span className="metric-value text-success">{operationalCount}</span>
-          <span className="metric-subtext">Active on gym floor</span>
+
+        <div className="clean-kpi-card">
+          <div className="clean-kpi-top">
+            <span className="kpi-label">Operational & Available</span>
+            <div className="clean-kpi-icon" title="Operational & Available">
+              <EquipmentIcons.CheckCircle size={16} />
+            </div>
+          </div>
+          <div className="kpi-value" style={{ color: '#16a34a' }}>{operationalCount}</div>
+          <span className="kpi-trend trend-positive">Active on gym floor</span>
         </div>
-        <div className="metric-card">
-          <span className="metric-title">Maintenance Attention</span>
-          <span className="metric-value text-orange">{attentionCount}</span>
-          <span className="metric-subtext">Needs inspection or repair</span>
+
+        <div className="clean-kpi-card">
+          <div className="clean-kpi-top">
+            <span className="kpi-label">Maintenance Attention</span>
+            <div className="clean-kpi-icon" title="Maintenance Attention">
+              <EquipmentIcons.AlertTriangle size={16} />
+            </div>
+          </div>
+          <div className="kpi-value" style={{ color: attentionCount > 0 ? '#ff8a00' : '#64748b' }}>{attentionCount}</div>
+          <span className="kpi-trend trend-negative">Needs inspection or repair</span>
         </div>
       </div>
 

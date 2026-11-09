@@ -4,6 +4,52 @@ import { useAuth } from '../context/useAuth';
 import BrandLogo from './BrandLogo';
 import QRCodeDisplay from './QRCodeDisplay';
 
+const Icons = {
+  CreditCard: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="20" height="14" x="2" y="5" rx="2" />
+      <line x1="2" x2="22" y1="10" y2="10" />
+    </svg>
+  ),
+  Calendar: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+      <line x1="16" x2="16" y1="2" y2="6" />
+      <line x1="8" x2="8" y1="2" y2="6" />
+      <line x1="3" x2="21" y1="10" y2="10" />
+    </svg>
+  ),
+  TrendingUp: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+      <polyline points="17 6 23 6 23 12" />
+    </svg>
+  ),
+  TrendingDown: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
+      <polyline points="17 18 23 18 23 12" />
+    </svg>
+  ),
+  Scale: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+      <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+      <path d="M7 21h10" />
+      <path d="M12 3v18" />
+      <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
+    </svg>
+  ),
+  Receipt: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+      <path d="M16 8H8" />
+      <path d="M16 12H8" />
+      <path d="M13 16H8" />
+    </svg>
+  ),
+};
+
 export default function PaymentLedger({ initialOpenRecordPayment = false }) {
   const { user, hasRole } = useAuth();
   const isStaff = hasRole('owner') || hasRole('admin') || hasRole('receptionist');
@@ -736,157 +782,89 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
       )}
 
       {/* Top Level Financial KPIs */}
-      <div className="financial-kpi-grid" style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: 16,
-        marginBottom: 24,
-      }}>
+      {/* 5 Unified Clean KPI Metric Cards */}
+      <div className="clean-kpi-grid" style={{ marginBottom: 24, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
         {/* Total Collected Revenue */}
-        <div className="dashboard-card" style={{ padding: 20, position: 'relative', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Total Revenue (ETB)
-            </span>
-            <span style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: 'rgba(34, 197, 94, 0.15)',
-              color: '#22c55e',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              💰
-            </span>
+        <div className="clean-kpi-card">
+          <div className="clean-kpi-top">
+            <span className="kpi-label">Total Revenue (ETB)</span>
+            <div className="clean-kpi-icon" title="Total Revenue">
+              <Icons.CreditCard size={16} />
+            </div>
           </div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#f5f5f5', letterSpacing: '-0.02em' }}>
+          <div className="kpi-value">
             {paymentSummary ? formatETB(paymentSummary.total_revenue) : '...'}
           </div>
-          <div style={{ fontSize: 12, color: '#22c55e', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span className="kpi-trend trend-positive" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             <span>●</span> {paymentSummary?.completed_count || 0} completed receipts
-          </div>
+          </span>
         </div>
 
         {/* Today's Collections */}
-        <div className="dashboard-card" style={{ padding: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Today's Collections
-            </span>
-            <span style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: 'rgba(255, 138, 0, 0.15)',
-              color: '#ff8a00',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              📅
-            </span>
+        <div className="clean-kpi-card">
+          <div className="clean-kpi-top">
+            <span className="kpi-label">Today's Collections</span>
+            <div className="clean-kpi-icon" title="Today's Collections">
+              <Icons.Calendar size={16} />
+            </div>
           </div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#ff8a00', letterSpacing: '-0.02em' }}>
+          <div className="kpi-value">
             {paymentSummary ? formatETB(paymentSummary.today_revenue) : '...'}
           </div>
-          <div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>
+          <span className="kpi-trend" style={{ color: '#64748b' }}>
             Daily desk turnover (ETB)
-          </div>
+          </span>
         </div>
 
-        {/* This Month's Revenue */}
-        <div className="dashboard-card" style={{ padding: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Monthly Revenue
-            </span>
-            <span style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: 'rgba(59, 130, 246, 0.15)',
-              color: '#3b82f6',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              📈
-            </span>
+        {/* Monthly Revenue */}
+        <div className="clean-kpi-card">
+          <div className="clean-kpi-top">
+            <span className="kpi-label">Monthly Revenue</span>
+            <div className="clean-kpi-icon" title="Monthly Revenue">
+              <Icons.TrendingUp size={16} />
+            </div>
           </div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#f5f5f5', letterSpacing: '-0.02em' }}>
+          <div className="kpi-value">
             {paymentSummary ? formatETB(paymentSummary.month_revenue) : '...'}
           </div>
-          <div style={{ fontSize: 12, color: '#3b82f6', marginTop: 4 }}>
+          <span className="kpi-trend trend-positive">
             Current billing cycle collections
-          </div>
+          </span>
         </div>
 
         {/* Operating Expenses (Staff only) */}
         {isStaff && (
-          <div className="dashboard-card" style={{ padding: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Operating Expenses
-              </span>
-              <span style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                background: 'rgba(239, 68, 68, 0.15)',
-                color: '#ef4444',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                📉
-              </span>
+          <div className="clean-kpi-card">
+            <div className="clean-kpi-top">
+              <span className="kpi-label">Operating Expenses</span>
+              <div className="clean-kpi-icon" title="Operating Expenses">
+                <Icons.TrendingDown size={16} />
+              </div>
             </div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: '#ef4444', letterSpacing: '-0.02em' }}>
+            <div className="kpi-value" style={{ color: '#ef4444' }}>
               {expenseSummary ? formatETB(expenseSummary.total_expenses) : '0.00 ETB'}
             </div>
-            <div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>
+            <span className="kpi-trend trend-negative">
               Rent, utilities, gear & staff
-            </div>
+            </span>
           </div>
         )}
 
         {/* Net Operating Balance */}
         {isStaff && (
-          <div className="dashboard-card" style={{
-            padding: 20,
-            background: 'linear-gradient(135deg, #151a22 0%, #1e2633 100%)',
-            border: '1px solid rgba(255, 138, 0, 0.3)',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#ffb347', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Net Cash Balance
-              </span>
-              <span style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                background: 'rgba(255, 138, 0, 0.2)',
-                color: '#ff8a00',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                ⚖️
-              </span>
+          <div className="clean-kpi-card">
+            <div className="clean-kpi-top">
+              <span className="kpi-label">Net Cash Balance</span>
+              <div className="clean-kpi-icon" title="Net Cash Balance">
+                <Icons.Scale size={16} />
+              </div>
             </div>
-            <div style={{
-              fontSize: 24,
-              fontWeight: 800,
-              color: netOperatingBalance >= 0 ? '#22c55e' : '#ef4444',
-              letterSpacing: '-0.02em',
-            }}>
+            <div className="kpi-value" style={{ color: netOperatingBalance >= 0 ? '#16a34a' : '#ef4444' }}>
               {formatETB(netOperatingBalance)}
             </div>
-            <div style={{ fontSize: 12, color: '#a1a1aa', marginTop: 4 }}>
+            <span className="kpi-trend" style={{ color: '#64748b' }}>
               Total Revenue minus Total Expenses
-            </div>
+            </span>
           </div>
         )}
       </div>
