@@ -161,7 +161,6 @@ export function validateMemberForm(data, isRegister = true) {
     'phone',
     'email',
     'date_of_birth',
-    'blood_type',
     'emergency_contact_phone',
   ];
 
