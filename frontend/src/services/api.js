@@ -143,6 +143,36 @@ export const apiClient = {
     return this.request(endpoint, { method: 'DELETE', headers });
   },
 
+  async downloadBlob(endpoint, fallbackFilename = 'document.pdf') {
+    const token = this.getToken();
+    const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    const response = await fetch(url, {
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+    });
+    if (!response.ok) {
+      const errJson = await response.json().catch(() => null);
+      throw new ApiError(errJson?.message || `Failed to download file (HTTP ${response.status})`, response.status, errJson);
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get('Content-Disposition');
+    let filename = fallbackFilename;
+    if (disposition && disposition.includes('filename=')) {
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      if (match && match[1]) filename = match[1];
+    }
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(blobUrl);
+    return true;
+  },
+
   // Health check
   checkStatus() {
     return this.get('/status');
@@ -368,6 +398,36 @@ export const apiClient = {
 
   verifyChapa(payload) {
     return this.post('/payments/chapa/verify', payload);
+  },
+
+  // Document Deliveries (Card & Receipt PDFs)
+  getDocumentDeliveries(params = {}) {
+    const query = new URLSearchParams();
+    if (params.status) query.append('status', params.status);
+    if (params.search) query.append('search', params.search);
+    if (params.payment_id) query.append('payment_id', params.payment_id);
+    if (params.user_id) query.append('user_id', params.user_id);
+    if (params.page) query.append('page', params.page);
+    if (params.per_page) query.append('per_page', params.per_page);
+
+    const queryString = query.toString();
+    return this.get(`/document-deliveries${queryString ? `?${queryString}` : ''}`);
+  },
+
+  getDocumentDelivery(id) {
+    return this.get(`/document-deliveries/${id}`);
+  },
+
+  resendDocumentDelivery(id, payload = {}) {
+    return this.post(`/document-deliveries/${id}/resend`, payload);
+  },
+
+  async downloadDeliveryCard(id, fallbackFilename = 'TigatGym-Membership-Card.pdf') {
+    return this.downloadBlob(`/document-deliveries/${id}/download/card`, fallbackFilename);
+  },
+
+  async downloadDeliveryReceipt(id, fallbackFilename = 'TigatGym-Payment-Receipt.pdf') {
+    return this.downloadBlob(`/document-deliveries/${id}/download/receipt`, fallbackFilename);
   },
 
   // Expenses & Outflows
