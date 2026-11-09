@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Mail\MemberCardMail;
+use App\Mail\MembershipDocumentsMail;
 use App\Mail\PaymentReceiptMail;
 use App\Models\MembershipPlan;
 use App\Models\MemberProfile;
@@ -94,9 +95,9 @@ class MemberAndReceiptEmailTest extends TestCase
 
         $response->assertStatus(201);
 
-        Mail::assertSent(PaymentReceiptMail::class, function (PaymentReceiptMail $mail) {
+        Mail::assertSent(MembershipDocumentsMail::class, function (MembershipDocumentsMail $mail) {
             return $mail->hasTo('member.test@example.com')
-                && $mail->payment->amount == 1500;
+                && (float) $mail->payment->amount == 1500;
         });
     }
 
