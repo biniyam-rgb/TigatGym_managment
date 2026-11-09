@@ -639,6 +639,75 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
     }
   };
 
+  const handleResendDocuments = async (payment) => {
+    const targetPayment = payment || selectedPayment;
+    const delivery = targetPayment?.document_delivery;
+    if (!delivery?.id) {
+      showNotification('error', 'No document delivery record found for this payment.');
+      return;
+    }
+
+    const currentEmail = delivery.recipient_email || targetPayment.member?.email || '';
+    const updatedEmail = window.prompt(
+      'Resend Membership Card & Receipt PDFs?\nEnter recipient email address:',
+      currentEmail && !currentEmail.endsWith('@members.tigatgym.com') ? currentEmail : ''
+    );
+
+    if (updatedEmail === null) return;
+
+    if (!updatedEmail || !updatedEmail.includes('@')) {
+      showNotification('error', 'Please enter a valid email address.');
+      return;
+    }
+
+    try {
+      showNotification('info', 'Queueing membership documents for delivery...');
+      const res = await apiClient.resendDocumentDelivery(delivery.id, { recipient_email: updatedEmail });
+      showNotification('success', res.message || 'Membership documents queued for delivery!');
+      fetchPayments();
+      if (selectedPayment && selectedPayment.id === targetPayment.id) {
+        setSelectedPayment(prev => ({
+          ...prev,
+          document_delivery: res.data || { ...prev.document_delivery, status: 'pending', recipient_email: updatedEmail },
+        }));
+      }
+    } catch (err) {
+      showNotification('error', err.message || 'Failed to resend documents.');
+    }
+  };
+
+  const handleDownloadCard = async (payment) => {
+    const targetPayment = payment || selectedPayment;
+    const deliveryId = targetPayment?.document_delivery?.id;
+    if (!deliveryId) {
+      showNotification('error', 'Document delivery record not found for card download.');
+      return;
+    }
+    try {
+      showNotification('info', 'Downloading Membership Card PDF...');
+      await apiClient.downloadDeliveryCard(deliveryId);
+      showNotification('success', 'Membership Card PDF downloaded successfully.');
+    } catch (err) {
+      showNotification('error', err.message || 'Failed to download Membership Card PDF.');
+    }
+  };
+
+  const handleDownloadReceipt = async (payment) => {
+    const targetPayment = payment || selectedPayment;
+    const deliveryId = targetPayment?.document_delivery?.id;
+    if (!deliveryId) {
+      showNotification('error', 'Document delivery record not found for receipt download.');
+      return;
+    }
+    try {
+      showNotification('info', 'Downloading Payment Receipt PDF...');
+      await apiClient.downloadDeliveryReceipt(deliveryId);
+      showNotification('success', 'Payment Receipt PDF downloaded successfully.');
+    } catch (err) {
+      showNotification('error', err.message || 'Failed to download Receipt PDF.');
+    }
+  };
+
   // Compute Net Operating Balance (Revenue - Expenses)
   const netOperatingBalance = useMemo(() => {
     const rev = paymentSummary?.total_revenue || 0;
@@ -984,6 +1053,7 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                     <th>Payment Method</th>
                     <th>Amount (ETB)</th>
                     <th>Status</th>
+                    <th>Delivery</th>
                     <th>Date & Staff</th>
                     <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
@@ -1095,6 +1165,45 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                           </span>
                         </td>
 
+                        {/* Document Delivery */}
+                        <td>
+                          {p.document_delivery ? (
+                            <div>
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '3px 8px',
+                                borderRadius: 12,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                background: p.document_delivery.status === 'sent' ? 'rgba(34, 197, 94, 0.15)' :
+                                            p.document_delivery.status === 'failed' ? 'rgba(239, 68, 68, 0.15)' :
+                                            p.document_delivery.status === 'skipped_no_email' ? 'rgba(148, 163, 184, 0.15)' :
+                                            'rgba(245, 158, 11, 0.15)',
+                                color: p.document_delivery.status === 'sent' ? '#22c55e' :
+                                       p.document_delivery.status === 'failed' ? '#ef4444' :
+                                       p.document_delivery.status === 'skipped_no_email' ? '#94a3b8' :
+                                       '#f59e0b',
+                                textTransform: 'uppercase',
+                              }}
+                              title={p.document_delivery.error_message || (p.document_delivery.sent_at ? `Sent to ${p.document_delivery.recipient_email} at ${new Date(p.document_delivery.sent_at).toLocaleString()}` : '')}>
+                                {p.document_delivery.status === 'sent' ? '✓ Sent' :
+                                 p.document_delivery.status === 'failed' ? '⚠ Failed' :
+                                 p.document_delivery.status === 'skipped_no_email' ? '✉ No Email' :
+                                 '⏳ Pending'}
+                              </span>
+                              {p.document_delivery.recipient_email && p.document_delivery.status !== 'skipped_no_email' && (
+                                <div style={{ fontSize: 10, color: '#a1a1aa', marginTop: 2, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.document_delivery.recipient_email}>
+                                  {p.document_delivery.recipient_email}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: 11, color: '#64748b' }}>—</span>
+                          )}
+                        </td>
+
                         {/* Date & Recorded By */}
                         <td>
                           <div style={{ fontSize: 12, color: '#f5f5f5' }}>
@@ -1107,7 +1216,7 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
 
                         {/* Actions */}
                         <td style={{ textAlign: 'right' }}>
-                          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                             {/* View / Print Receipt */}
                             <button
                               type="button"
@@ -1118,6 +1227,32 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                             >
                               Receipt
                             </button>
+
+                            {/* Download Card PDF */}
+                            {p.document_delivery && (
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => handleDownloadCard(p)}
+                                title="Download Membership Card PDF"
+                                style={{ padding: '4px 8px', fontSize: 12, color: '#ff8a00' }}
+                              >
+                                📇 Card
+                              </button>
+                            )}
+
+                            {/* Resend Documents (Staff only) */}
+                            {isStaff && p.document_delivery && (
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => handleResendDocuments(p)}
+                                title="Resend Card & Receipt PDFs via Email"
+                                style={{ padding: '4px 8px', fontSize: 12 }}
+                              >
+                                ✉️ Resend
+                              </button>
+                            )}
 
                             {/* Refund (Owner/Admin only) */}
                             {isOwnerOrAdmin && isCompleted && (
@@ -2073,6 +2208,82 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                 </div>
               </div>
             </div>
+
+            {/* Document Delivery Status Banner in Receipt Modal */}
+            {selectedPayment?.document_delivery && (
+              <div style={{
+                background: '#0d1117',
+                border: '1px solid #1f293d',
+                borderRadius: 8,
+                padding: '12px 14px',
+                marginTop: 16,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 12,
+              }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#ff8a00', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Automated Document Delivery (Card & Receipt PDFs)
+                  </div>
+                  <div style={{ fontSize: 12, color: '#e2e8f0', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{
+                      fontWeight: 700,
+                      color: selectedPayment.document_delivery.status === 'sent' ? '#22c55e' :
+                             selectedPayment.document_delivery.status === 'failed' ? '#ef4444' :
+                             selectedPayment.document_delivery.status === 'skipped_no_email' ? '#94a3b8' : '#f59e0b',
+                    }}>
+                      ● {selectedPayment.document_delivery.status?.toUpperCase()}
+                    </span>
+                    {selectedPayment.document_delivery.recipient_email && (
+                      <span style={{ color: '#94a3b8' }}>
+                        to <strong>{selectedPayment.document_delivery.recipient_email}</strong>
+                      </span>
+                    )}
+                    {selectedPayment.document_delivery.sent_at && (
+                      <span style={{ color: '#64748b', fontSize: 11 }}>
+                        ({new Date(selectedPayment.document_delivery.sent_at).toLocaleString()})
+                      </span>
+                    )}
+                  </div>
+                  {selectedPayment.document_delivery.error_message && (
+                    <div style={{ fontSize: 11, color: '#ef4444', marginTop: 2 }}>
+                      {selectedPayment.document_delivery.error_message}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => handleDownloadCard(selectedPayment)}
+                    style={{ fontSize: 12, padding: '5px 10px', color: '#ff8a00', fontWeight: 600 }}
+                  >
+                    📇 Download Card PDF
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => handleDownloadReceipt(selectedPayment)}
+                    style={{ fontSize: 12, padding: '5px 10px', fontWeight: 600 }}
+                  >
+                    📄 Download Receipt PDF
+                  </button>
+                  {isStaff && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => handleResendDocuments(selectedPayment)}
+                      style={{ fontSize: 12, padding: '5px 10px', fontWeight: 600 }}
+                    >
+                      ✉️ Resend Documents
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Print, Email & Close Buttons */}
             <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
