@@ -24,6 +24,7 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Support\Facades\Gate::policy(\App\Models\MembershipPlan::class, \App\Policies\MembershipPlanPolicy::class);
         \Illuminate\Support\Facades\Gate::policy(\App\Models\Subscription::class, \App\Policies\SubscriptionPolicy::class);
         \Illuminate\Support\Facades\Gate::policy(\App\Models\Payment::class, \App\Policies\PaymentPolicy::class);
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\MembershipDocumentDelivery::class, \App\Policies\MembershipDocumentDeliveryPolicy::class);
         \Illuminate\Support\Facades\Gate::policy(\App\Models\Expense::class, \App\Policies\ExpensePolicy::class);
         \Illuminate\Support\Facades\Gate::policy(\App\Models\AttendanceRecord::class, \App\Policies\AttendancePolicy::class);
 
@@ -31,10 +32,16 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Support\Facades\Route::model('subscription', \App\Models\Subscription::class);
         \Illuminate\Support\Facades\Route::model('membership_plan', \App\Models\MembershipPlan::class);
         \Illuminate\Support\Facades\Route::model('payment', \App\Models\Payment::class);
+        \Illuminate\Support\Facades\Route::model('delivery', \App\Models\MembershipDocumentDelivery::class);
         \Illuminate\Support\Facades\Route::model('expense', \App\Models\Expense::class);
         \Illuminate\Support\Facades\Route::model('attendance', \App\Models\AttendanceRecord::class);
         \Illuminate\Support\Facades\Route::model('fitnessClass', \App\Models\FitnessClass::class);
         \Illuminate\Support\Facades\Route::model('equipment', \App\Models\Equipment::class);
+
+        \Illuminate\Support\Facades\Event::listen(
+            \App\Events\MembershipActivated::class,
+            \App\Listeners\SendMembershipDocuments::class
+        );
 
         \Illuminate\Support\Facades\RateLimiter::for('login', function (\Illuminate\Http\Request $request) {
             $email = (string) $request->input('email');

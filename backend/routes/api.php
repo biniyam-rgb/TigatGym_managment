@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\EquipmentController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\FitnessClassController;
 use App\Http\Controllers\Api\MemberController;
+use App\Http\Controllers\Api\MembershipDocumentDeliveryController;
 use App\Http\Controllers\Api\MembershipPlanController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ReceptionDashboardController;
@@ -83,6 +84,13 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::apiResource('payments', PaymentController::class)->except(['update', 'destroy']);
     Route::post('/payments/{payment}/refund', [PaymentController::class, 'refund']);
     Route::post('/payments/{payment}/send-receipt-email', [PaymentController::class, 'sendReceiptEmail']);
+
+    // Automated Membership Documents (Card & Receipt PDFs)
+    Route::get('/document-deliveries', [MembershipDocumentDeliveryController::class, 'index']);
+    Route::get('/document-deliveries/{delivery}', [MembershipDocumentDeliveryController::class, 'show']);
+    Route::post('/document-deliveries/{delivery}/resend', [MembershipDocumentDeliveryController::class, 'resend']);
+    Route::get('/document-deliveries/{delivery}/download/card', [MembershipDocumentDeliveryController::class, 'downloadCard']);
+    Route::get('/document-deliveries/{delivery}/download/receipt', [MembershipDocumentDeliveryController::class, 'downloadReceipt']);
 
     // Operating Expenses
     Route::get('/expenses/summary', [ExpenseController::class, 'summary']);
