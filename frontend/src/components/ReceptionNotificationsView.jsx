@@ -1,6 +1,42 @@
 import { useState, useEffect } from 'react';
 import apiClient from '../services/api';
 
+// Crisp Lucide-style SVG Icons
+const Icons = {
+  AlertTriangle: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  ),
+  Clock: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  ),
+  Info: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="16" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12.01" y2="8" />
+    </svg>
+  ),
+  CheckCircle: ({ size = 32, color = '#22c55e' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  ),
+  X: ({ size = 14, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  ),
+};
+
 export default function ReceptionNotificationsView({ onNavigate }) {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -168,8 +204,8 @@ export default function ReceptionNotificationsView({ onNavigate }) {
         {isLoading ? (
           <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Loading notifications...</div>
         ) : filteredList.length === 0 ? (
-          <div style={{ padding: 48, textAlign: 'center', background: '#ffffff', borderRadius: 16, border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 32 }}>✓</span>
+          <div className="reception-notif-empty-card" style={{ padding: 48, textAlign: 'center', borderRadius: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+            <Icons.CheckCircle size={36} color="#16a34a" />
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>All Caught Up!</h3>
             <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>No pending alerts or notifications in this filter.</p>
           </div>
@@ -177,14 +213,13 @@ export default function ReceptionNotificationsView({ onNavigate }) {
           filteredList.map((item) => (
             <div
               key={item.id}
+              className="reception-notif-item-card"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '16px 20px',
-                background: '#ffffff',
                 borderRadius: 14,
-                border: '1px solid #e2e8f0',
                 borderLeft: item.type === 'expired' ? '4px solid #ef4444' : item.type === 'expiring' ? '4px solid #E67C00' : '4px solid #3b82f6',
                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
                 gap: 16,
@@ -201,18 +236,18 @@ export default function ReceptionNotificationsView({ onNavigate }) {
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
-                    background: item.type === 'expired' ? 'rgba(239, 68, 68, 0.1)' : item.type === 'expiring' ? 'rgba(230, 124, 0, 0.12)' : 'rgba(59, 130, 246, 0.1)',
+                    background: item.type === 'expired' ? 'rgba(239, 68, 68, 0.12)' : item.type === 'expiring' ? 'rgba(230, 124, 0, 0.15)' : 'rgba(59, 130, 246, 0.15)',
                     color: item.type === 'expired' ? '#ef4444' : item.type === 'expiring' ? '#E67C00' : '#3b82f6',
                   }}
                 >
-                  {item.type === 'expired' ? '⚠️' : item.type === 'expiring' ? '⏰' : 'ℹ️'}
+                  {item.type === 'expired' ? <Icons.AlertTriangle size={17} color="#ef4444" /> : item.type === 'expiring' ? <Icons.Clock size={17} color="#E67C00" /> : <Icons.Info size={17} color="#3b82f6" />}
                 </div>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <h4 style={{ margin: 0, fontSize: 14.5, fontWeight: 700, color: '#0f172a' }}>{item.title}</h4>
+                    <h4 className="reception-notif-item-title" style={{ margin: 0, fontSize: 14.5, fontWeight: 700 }}>{item.title}</h4>
                     <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>{item.date}</span>
                   </div>
-                  <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>{item.message}</p>
+                  <p className="reception-notif-item-desc" style={{ margin: '4px 0 0', fontSize: 13 }}>{item.message}</p>
                 </div>
               </div>
 
@@ -245,10 +280,12 @@ export default function ReceptionNotificationsView({ onNavigate }) {
                     color: '#94a3b8',
                     cursor: 'pointer',
                     padding: 6,
-                    fontSize: 14,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}
                 >
-                  ✕
+                  <Icons.X size={14} />
                 </button>
               </div>
             </div>
