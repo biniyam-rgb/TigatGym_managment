@@ -62,6 +62,19 @@ class PaymentResource extends JsonResource
                 }
                 return null;
             }),
+            'document_delivery' => $this->whenLoaded('documentDelivery', function () {
+                return [
+                    'id' => $this->documentDelivery->id,
+                    'status' => $this->documentDelivery->status,
+                    'recipient_email' => $this->documentDelivery->recipient_email,
+                    'sent_at' => $this->documentDelivery->sent_at?->toIso8601String(),
+                    'last_attempt_at' => $this->documentDelivery->last_attempt_at?->toIso8601String(),
+                    'attempts' => $this->documentDelivery->attempts,
+                    'card_filename' => $this->documentDelivery->card_filename,
+                    'receipt_filename' => $this->documentDelivery->receipt_filename,
+                    'error_message' => $this->documentDelivery->error_message,
+                ];
+            }),
             'transactions' => $this->whenLoaded('transactions', function () {
                 return $this->transactions->map(function ($tx) {
                     return [

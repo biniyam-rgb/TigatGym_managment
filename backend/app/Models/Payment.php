@@ -62,6 +62,11 @@ class Payment extends Model
         return $this->hasMany(PaymentTransaction::class);
     }
 
+    public function documentDelivery(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(MembershipDocumentDelivery::class);
+    }
+
     public function isCompleted(): bool
     {
         return $this->status === 'completed';

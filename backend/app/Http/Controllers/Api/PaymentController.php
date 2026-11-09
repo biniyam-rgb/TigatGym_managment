@@ -40,7 +40,7 @@ class PaymentController extends Controller
         $this->authorize('viewAny', Payment::class);
 
         $currentUser = $request->user();
-        $query = Payment::with(['user.memberProfile', 'recordedBy', 'payable.plan', 'transactions']);
+        $query = Payment::with(['user.memberProfile', 'recordedBy', 'payable.plan', 'transactions', 'documentDelivery']);
 
         // Scoping: Members only see their own payments
         if ($currentUser->hasRole('member') && ! $currentUser->hasAnyRole('owner', 'admin', 'receptionist')) {
@@ -299,7 +299,7 @@ class PaymentController extends Controller
             return $p;
         });
 
-        $payment->load(['user.memberProfile', 'recordedBy', 'payable.plan', 'transactions']);
+        $payment->load(['user.memberProfile', 'recordedBy', 'payable.plan', 'transactions', 'documentDelivery']);
 
         // Automatically trigger membership document generation & email delivery
         if ($payment->status === 'completed') {
@@ -324,7 +324,7 @@ class PaymentController extends Controller
     {
         $this->authorize('view', $payment);
 
-        $payment->load(['user.memberProfile', 'recordedBy', 'payable.plan', 'transactions']);
+        $payment->load(['user.memberProfile', 'recordedBy', 'payable.plan', 'transactions', 'documentDelivery']);
 
         return response()->json([
             'status' => 'success',
@@ -372,7 +372,7 @@ class PaymentController extends Controller
             );
         });
 
-        $payment->load(['user.memberProfile', 'recordedBy', 'payable.plan', 'transactions']);
+        $payment->load(['user.memberProfile', 'recordedBy', 'payable.plan', 'transactions', 'documentDelivery']);
 
         return response()->json([
             'status' => 'success',
@@ -934,10 +934,14 @@ class PaymentController extends Controller
                     'gateway_response' => $verification['raw'],
                 ]);
 
-                $payment->update([
+                $paymentUpdates = [
                     'status' => 'completed',
                     'paid_at' => $now,
-                ]);
+                ];
+                if (empty($payment->receipt_number)) {
+                    $paymentUpdates['receipt_number'] = Payment::generateNextReceiptNumber();
+                }
+                $payment->update($paymentUpdates);
 
                 // Phase 3: Activate subscription for confirmed successful payment
                 $activatedSub = $this->activateSubscriptionForPayment($payment, $transaction);
@@ -1216,7 +1220,8 @@ class PaymentController extends Controller
         // 6. Handle verified payment status
         if ($verification['status'] === 'success' && $verification['is_paid']) {
             $now = now();
-            DB::transaction(function () use ($transaction, $payment, $verification, $now) {
+            $activatedSub = null;
+            DB::transaction(function () use ($transaction, $payment, $verification, $now, &$activatedSub) {
                 $transaction->update([
                     'gateway_reference' => $verification['chapa_reference'] ?: $transaction->gateway_reference,
                     'status' => 'successful',
@@ -1224,10 +1229,14 @@ class PaymentController extends Controller
                     'gateway_response' => $verification['raw'],
                 ]);
 
-                $payment->update([
+                $paymentUpdates = [
                     'status' => 'completed',
                     'paid_at' => $now,
-                ]);
+                ];
+                if (empty($payment->receipt_number)) {
+                    $paymentUpdates['receipt_number'] = Payment::generateNextReceiptNumber();
+                }
+                $payment->update($paymentUpdates);
 
                 // Phase 3: Activate subscription upon successful verification
                 $activatedSub = $this->activateSubscriptionForPayment($payment, $transaction);
@@ -1435,10 +1444,14 @@ class PaymentController extends Controller
                     'gateway_response' => $verification['raw'],
                 ]);
 
-                $payment->update([
+                $paymentUpdates = [
                     'status' => 'completed',
                     'paid_at' => $now,
-                ]);
+                ];
+                if (empty($payment->receipt_number)) {
+                    $paymentUpdates['receipt_number'] = Payment::generateNextReceiptNumber();
+                }
+                $payment->update($paymentUpdates);
 
                 $activatedSub = $this->activateSubscriptionForPayment($payment, $transaction);
             });
