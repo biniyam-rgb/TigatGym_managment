@@ -257,7 +257,7 @@ class AttendanceController extends Controller
         $validated = $request->validate([
             'qr_token' => ['nullable', 'string', 'max:255'],
             'member_code' => ['nullable', 'string', 'max:30'],
-            'member_id' => ['nullable', 'integer', 'exists:users,id'],
+            'member_id' => ['nullable', 'integer'],
             'method' => ['nullable', 'string', 'in:qr_code,manual_reception,member_code,rfid'],
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
@@ -292,9 +292,17 @@ class AttendanceController extends Controller
             }
         }
 
-        // 3. Resolve member from direct User ID
+        // 3. Resolve member from direct User ID or Member Profile ID
         if (! $member && ! empty($validated['member_id'])) {
-            $member = User::find($validated['member_id']);
+            $candidate = User::find($validated['member_id']);
+            if ($candidate && $candidate->hasRole('member')) {
+                $member = $candidate;
+            } else {
+                $profile = MemberProfile::find($validated['member_id']);
+                if ($profile && $profile->user && $profile->user->hasRole('member')) {
+                    $member = $profile->user;
+                }
+            }
             $method = $validated['method'] ?? 'manual_reception';
         }
 
@@ -466,7 +474,7 @@ class AttendanceController extends Controller
 
         $validated = $request->validate([
             'attendance_id' => ['nullable', 'integer', 'exists:attendance_records,id'],
-            'member_id' => ['nullable', 'integer', 'exists:users,id'],
+            'member_id' => ['nullable', 'integer'],
             'qr_token' => ['nullable', 'string'],
         ]);
 
@@ -475,7 +483,15 @@ class AttendanceController extends Controller
         if (! empty($validated['attendance_id'])) {
             $query->where('id', $validated['attendance_id']);
         } elseif (! empty($validated['member_id'])) {
-            $query->where('member_id', $validated['member_id'])
+            $memberUserId = $validated['member_id'];
+            $cand = User::find($memberUserId);
+            if (! $cand || ! $cand->hasRole('member')) {
+                $prof = MemberProfile::find($memberUserId);
+                if ($prof && $prof->user_id) {
+                    $memberUserId = $prof->user_id;
+                }
+            }
+            $query->where('member_id', $memberUserId)
                 ->where('check_in_time', '>=', Carbon::now()->subHours(24));
         } elseif (! empty($validated['qr_token'])) {
             $token = trim($validated['qr_token']);
