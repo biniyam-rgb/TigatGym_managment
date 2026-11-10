@@ -2147,7 +2147,7 @@ body.theme-light .modal-header .close-btn:hover,
    ========================================================================== */
 
 /* ==========================================================================
-   SPLIT-SCREEN MODERN LOGIN LAYOUT (TIGAT GYM & GYMCORE)
+   SPLIT-SCREEN MODERN LOGIN LAYOUT (EXACT 1:1 REPLICATION OF USER IMAGE)
    ========================================================================== */
 
 /* Strictly Static Full-Screen Viewport — Zero Scrolling */
@@ -2155,10 +2155,9 @@ html:has(.gymcore-split-page),
 body:has(.gymcore-split-page) {
   overflow: hidden !important;
   height: 100vh !important;
-  max-height: 100vh !important;
+  width: 100vw !important;
   margin: 0 !important;
   padding: 0 !important;
-  background: #000000 !important;
 }
 
 .gymcore-split-page {
@@ -2167,7 +2166,7 @@ body:has(.gymcore-split-page) {
   width: 100vw;
   height: 100vh;
   display: flex;
-  background: #060709;
+  background: #000000;
   color: #ffffff;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   overflow: hidden;
@@ -2175,21 +2174,21 @@ body:has(.gymcore-split-page) {
   z-index: 1000;
 }
 
-/* Authentic Gym Background Photography */
+/* Authentic Gym Photography Background */
 .gymcore-split-bg-photo {
   position: absolute;
   inset: 0;
   background: url('/gym-bg.jpg') center center / cover no-repeat;
-  filter: brightness(0.5) contrast(1.18);
-  opacity: 0.95;
+  filter: brightness(0.78) contrast(1.18) saturate(1.15);
+  opacity: 1;
   z-index: 0;
   pointer-events: none;
 }
 
-/* Left Brand Hero Column */
+/* Left Brand Hero Column — Atmospheric Dark Vignette Allowing Gym Photo to Shine */
 .gymcore-split-left {
-  flex: 1.05;
-  background: linear-gradient(135deg, rgba(8, 9, 13, 0.68) 0%, rgba(20, 13, 7, 0.48) 45%, rgba(6, 7, 10, 0.78) 100%);
+  flex: 1.15;
+  background: linear-gradient(135deg, rgba(8, 10, 14, 0.48) 0%, rgba(18, 13, 8, 0.28) 45%, rgba(6, 7, 10, 0.58) 100%) !important;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -2197,38 +2196,31 @@ body:has(.gymcore-split-page) {
   padding: 56px 64px;
   box-sizing: border-box;
   overflow: hidden;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.45);
   z-index: 2;
 }
 
-/* Radial Orange Ambient Glow on Left Column */
+/* Radial Orange Ambient Glow on Left Column (Right-Center Positioned) */
 .gymcore-split-left-glow {
   position: absolute;
   right: -80px;
-  top: 45%;
+  top: 50%;
   transform: translateY(-50%);
-  width: 520px;
-  height: 520px;
-  background: radial-gradient(circle, rgba(255, 122, 0, 0.22) 0%, rgba(255, 90, 0, 0.08) 45%, transparent 70%);
-  filter: blur(55px);
+  width: 580px;
+  height: 580px;
+  background: radial-gradient(circle, rgba(255, 122, 0, 0.24) 0%, rgba(255, 90, 0, 0.07) 45%, transparent 70%);
+  filter: blur(50px);
   pointer-events: none;
   z-index: 1;
 }
 
-/* Concentric Rings Watermark */
+/* Concentric Rings Watermark centered on radial glow */
 .gymcore-split-watermark {
-  position: absolute;
-  right: -110px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 620px;
-  height: 620px;
-  pointer-events: none;
-  z-index: 2;
-  opacity: 0.75;
+  display: none !important;
 }
 
-/* Top Left Brand Header */
+/* Top Left Brand Header — Clean Badge + TIGAT GYM */
 .gymcore-split-brand-header {
   position: relative;
   z-index: 10;
@@ -2238,37 +2230,36 @@ body:has(.gymcore-split-page) {
 }
 
 .gymcore-split-brand-badge {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   background: #ff7a00;
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: none !important;
 }
 
 .gymcore-split-brand-text {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 900;
-  letter-spacing: 2.2px;
+  letter-spacing: 2px;
   text-transform: uppercase;
   display: flex;
   align-items: center;
-  gap: 7px;
-  text-shadow: none !important;
+  gap: 8px;
+  font-family: 'Oswald', 'Montserrat', 'Inter', sans-serif;
 }
 
 .gymcore-split-brand-text .brand-white {
-  color: #ffffff;
+  color: #ffffff !important;
 }
 
 .gymcore-split-brand-text .brand-orange {
-  color: #ff7a00;
+  color: #ff7a00 !important;
 }
 
-/* Hero Center Motivation Content */
+/* Hero Center Motivation Content — Exact typography directly on dark background */
 .gymcore-split-hero {
   position: relative;
   z-index: 10;
@@ -2277,39 +2268,40 @@ body:has(.gymcore-split-page) {
 }
 
 .gymcore-split-accent-bar {
-  width: 54px;
+  width: 52px;
   height: 4.5px;
   background: #ff7a00;
   border-radius: 2px;
-  margin-bottom: 26px;
-  box-shadow: 0 2px 10px rgba(255, 122, 0, 0.6);
+  margin-bottom: 24px;
 }
 
 .gymcore-split-headline {
-  font-size: clamp(32px, 3.8vw, 48px);
+  font-size: clamp(34px, 4vw, 48px);
   font-weight: 900;
   line-height: 1.12;
   letter-spacing: -0.5px;
   text-transform: uppercase;
-  color: #ffffff;
+  color: #ffffff !important;
   margin: 0;
   font-family: 'Oswald', 'Montserrat', 'Inter', sans-serif;
-  text-shadow: 0 3px 20px rgba(0, 0, 0, 0.95), 0 1px 4px rgba(0, 0, 0, 0.95);
+  text-shadow: 0 4px 24px #000000, 0 2px 8px #000000, 0 0 30px #000000;
 }
 
 .gymcore-split-description {
-  margin-top: 24px;
-  font-size: 14px;
+  margin-top: 18px;
+  font-size: 14.5px;
+  font-weight: 400;
   line-height: 1.6;
-  color: #f1f5f9;
+  color: #e2e8f0 !important;
   max-width: 420px;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.95);
+  font-family: 'Inter', sans-serif;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
 }
 
-/* Right Form Column - Solid Dark Obsidian for Crisp Focused Sign-In */
+/* Right Form Column — Pure Pitch Black (#000000) */
 .gymcore-split-right {
-  flex: 0.95;
-  background: #08080a;
+  flex: 0.85;
+  background: #000000 !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2317,12 +2309,11 @@ body:has(.gymcore-split-page) {
   box-sizing: border-box;
   position: relative;
   z-index: 2;
-  border-left: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .gymcore-split-card {
   width: 100%;
-  max-width: 320px;
+  max-width: 360px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -2330,60 +2321,57 @@ body:has(.gymcore-split-page) {
 
 /* GymCore Header on Right Column */
 .gymcore-split-app-header {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .gymcore-split-app-name {
-  font-size: 26px;
+  font-size: 30px;
   font-weight: 900;
-  color: #ff7a00;
   letter-spacing: 0.5px;
-  font-family: 'Oswald', 'Inter', sans-serif;
+  font-family: 'Oswald', 'Montserrat', 'Inter', sans-serif;
   line-height: 1;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.95);
 }
 
 .gymcore-split-app-sub {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
-  color: #ff7a00;
+  color: #ff7a00 !important;
   text-transform: uppercase;
   letter-spacing: 1.2px;
-  margin-top: 5px;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.95);
+  margin-top: 6px;
 }
 
 .gymcore-split-welcome {
-  font-size: clamp(22px, 2.3vw, 28px);
+  font-size: clamp(26px, 2.8vw, 32px);
   font-weight: 900;
-  color: #ffffff;
+  color: #ffffff !important;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 0 0 6px 0;
+  letter-spacing: 0.6px;
+  margin: 16px 0 6px 0;
   font-family: 'Oswald', 'Montserrat', 'Inter', sans-serif;
-  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.95);
 }
 
 .gymcore-split-subtitle {
-  font-size: 13px;
-  color: #f1f5f9;
+  font-size: 13.5px;
+  font-weight: 400;
+  color: #94a3b8 !important;
   margin: 0 0 24px 0;
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.95);
 }
 
 /* Error message banner */
 .gymcore-split-error {
-  background: rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.2);
   border: 1px solid rgba(239, 68, 68, 0.6);
-  color: #ffffff;
+  color: #ffffff !important;
   padding: 10px 14px;
-  border-radius: 8px;
+  border-radius: 6px;
   font-size: 12.5px;
+  font-weight: 600;
   margin-bottom: 18px;
   display: flex;
   align-items: center;
   gap: 8px;
-  backdrop-filter: blur(8px);
 }
 
 /* Form inputs */
@@ -2400,283 +2388,222 @@ body:has(.gymcore-split-page) {
 }
 
 .gymcore-field-label {
-  font-size: 12.5px;
-  font-weight: 800;
-  color: #ffffff;
-  letter-spacing: 0.2px;
-  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.95);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #ffffff !important;
+  letter-spacing: 0.3px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
 }
 
-/* Sleek Dark Input Boxes with Crisp Orange Border matching user reference */
 .gymcore-input-box {
   position: relative;
   display: flex;
   align-items: center;
-  background: #11141d !important;
-  border: 1.5px solid #ff7a00 !important;
-  border-radius: 8px;
-  height: 48px;
-  padding: 0 16px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  box-sizing: border-box;
-}
-
-.gymcore-input-box:hover {
-  border-color: #ff8a00 !important;
-  background: #151924 !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 122, 0, 0.25) !important;
+  background: #0d0f14;
+  border: 1px solid #1f2532;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  overflow: hidden;
 }
 
 .gymcore-input-box:focus-within {
-  border-color: #ff7a00 !important;
-  background: #171c28 !important;
-  box-shadow: 0 0 0 3px rgba(255, 122, 0, 0.32), 0 6px 24px rgba(0, 0, 0, 0.55) !important;
+  border-color: #ff7a00;
+  box-shadow: 0 0 0 2px rgba(255, 122, 0, 0.2);
 }
 
 .gymcore-input-icon {
-  color: #ff7a00 !important;
+  position: absolute;
+  left: 14px;
   display: flex;
   align-items: center;
-  margin-right: 14px;
-  flex-shrink: 0;
+  justify-content: center;
+  color: #64748b;
+  pointer-events: none;
 }
 
-.gymcore-input-box:focus-within .gymcore-input-icon {
-  color: #ff8a00 !important;
-}
-
-.gymcore-native-input {
-  flex: 1;
-  background: transparent !important;
-  border: none !important;
-  outline: none !important;
-  color: #ffffff !important;
-  font-size: 14.5px !important;
-  font-weight: 500 !important;
-  padding: 0 !important;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-}
-
-.gymcore-native-input::placeholder {
-  color: #64748b !important;
-  font-weight: 400 !important;
-}
-
-.gymcore-pwd-toggle {
-  background: none;
+.gymcore-split-input {
+  width: 100%;
+  background: transparent;
   border: none;
-  color: #ff7a00;
+  outline: none;
+  color: #ffffff !important;
+  font-size: 14px;
+  padding: 12px 14px 12px 42px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.gymcore-split-input::placeholder {
+  color: #475569;
+}
+
+/* Fix browser autofill styling */
+.gymcore-split-input:-webkit-autofill,
+.gymcore-split-input:-webkit-autofill:hover,
+.gymcore-split-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffffff !important;
+  -webkit-box-shadow: 0 0 0px 1000px #0d0f14 inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.gymcore-pass-toggle {
+  background: transparent;
+  border: none;
+  color: #64748b;
   cursor: pointer;
-  padding: 4px;
+  padding: 0 14px;
   display: flex;
   align-items: center;
-  transition: all 0.15s ease;
+  justify-content: center;
+  transition: color 0.15s ease;
 }
 
-.gymcore-pwd-toggle:hover {
-  color: #ff9100;
-  transform: scale(1.05);
+.gymcore-pass-toggle:hover {
+  color: #cbd5e1;
 }
 
-/* Remember me & Forgot options */
-.gymcore-form-options {
+/* Remember me row */
+.gymcore-options-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12.5px;
-  margin-top: 2px;
+  margin-top: -2px;
 }
 
-.gymcore-checkbox-label {
+.gymcore-remember-label {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #ffffff;
   cursor: pointer;
+  font-size: 13px;
+  color: #94a3b8 !important;
   user-select: none;
-  font-weight: 600;
-  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.95);
 }
 
-.gymcore-checkbox-label input[type="checkbox"] {
+.gymcore-remember-label input[type='checkbox'] {
+  accent-color: #ff7a00;
   width: 15px;
   height: 15px;
-  accent-color: #ff7a00;
-  border-radius: 4px;
   cursor: pointer;
+  border-radius: 3px;
 }
 
-.gymcore-forgot-link {
-  background: none;
-  border: none;
-  color: #f1f5f9;
-  font-size: 12.5px;
-  cursor: pointer;
-  padding: 0;
-  transition: color 0.15s ease;
-  font-weight: 600;
-  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.95);
-}
-
-.gymcore-forgot-link:hover {
-  color: #ff7a00;
-  text-decoration: underline;
-}
-
-/* SIGN IN Button */
-.gymcore-signin-btn {
-  background: #ff7a00;
-  color: #000000;
-  font-size: 14px;
-  font-weight: 900;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  height: 45px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
+/* Sign In Button — Vibrant Solid Orange with Bold Black Text matching user image */
+.gymcore-btn-submit {
   width: 100%;
+  background: #ff7a00 !important;
+  color: #000000 !important;
+  font-weight: 900;
+  font-size: 14px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  padding: 13px 20px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
   margin-top: 6px;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 4px 20px rgba(255, 122, 0, 0.45);
+  box-shadow: 0 4px 14px rgba(255, 122, 0, 0.35);
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.gymcore-signin-btn:hover {
-  background: #ff8a00;
-  box-shadow: 0 6px 26px rgba(255, 122, 0, 0.65);
-  transform: translateY(-1px);
+.gymcore-btn-submit:hover:not(:disabled) {
+  background: #ff8c1a !important;
+  box-shadow: 0 6px 20px rgba(255, 122, 0, 0.5);
 }
 
-.gymcore-signin-btn:active {
+.gymcore-btn-submit:active:not(:disabled) {
   transform: translateY(0);
 }
 
-.gymcore-signin-btn:disabled {
-  opacity: 0.65;
+.gymcore-btn-submit:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
-/* Quick Demo Role Dock - Symmetrical & Well-Organized Grid */
-.gymcore-demo-dock {
-  margin-top: 18px;
-  padding: 12px 14px;
-  background: #0d1017;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.gymcore-demo-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+/* Quick Demo Autofill Dock */
+.gymcore-split-demo-dock {
+  margin-top: 26px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .gymcore-demo-title {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 800;
-  color: #e2e8f0;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-}
-
-.gymcore-demo-badge {
-  font-size: 9.5px;
-  font-weight: 700;
-  color: #ff7a00;
-  background: rgba(255, 122, 0, 0.12);
-  padding: 2px 7px;
-  border-radius: 4px;
-  letter-spacing: 0.3px;
+  letter-spacing: 1px;
+  color: #64748b;
+  margin-bottom: 10px;
 }
 
 .gymcore-demo-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 6px;
-  width: 100%;
 }
 
+.gymcore-demo-grid .col-span-2 {
+  grid-column: span 2;
+}
+
+.gymcore-demo-grid .col-span-3 {
+  grid-column: span 3;
+}
+
+.gymcore-demo-pill,
 .gymcore-demo-btn {
-  background: #131722;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #0d0f14;
+  border: 1px solid #1f2532;
   color: #cbd5e1;
-  height: 35px;
-  padding: 0 4px;
+  padding: 7px 8px;
   border-radius: 6px;
   font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  user-select: none;
+  transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
-.gymcore-demo-btn.col-span-2 {
-  grid-column: span 2;
-}
-
-.gymcore-demo-btn.col-span-3 {
-  grid-column: span 3;
-}
-
-.gymcore-demo-btn .demo-btn-icon {
-  color: #ff7a00;
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
+.gymcore-demo-pill:hover,
 .gymcore-demo-btn:hover {
-  border-color: rgba(255, 122, 0, 0.6);
-  background: #1a2030;
+  background: #1c2333;
   color: #ffffff;
+  border-color: rgba(255, 122, 0, 0.5);
   transform: translateY(-1px);
 }
 
-.gymcore-demo-btn.btn-active {
+.gymcore-demo-pill.active,
+.gymcore-demo-btn.btn-active,
+.gymcore-demo-btn.active {
+  background: rgba(255, 122, 0, 0.15);
   border-color: #ff7a00;
-  background: rgba(255, 122, 0, 0.18);
   color: #ff7a00;
-  font-weight: 700;
-  box-shadow: 0 0 10px rgba(255, 122, 0, 0.2);
 }
 
-.gymcore-demo-btn.btn-active .demo-btn-icon {
-  color: #ff8a00;
-}
-
-/* Responsive: Collapse to stacked on smaller viewports */
-@media (max-width: 900px) {
+/* Responsive adjustments */
+@media (max-width: 960px) {
   .gymcore-split-page {
     flex-direction: column;
     overflow-y: auto;
   }
   .gymcore-split-left {
-    padding: 36px 24px;
-    flex: none;
-  }
-  .gymcore-split-hero {
-    margin: 24px 0;
+    min-height: 380px;
+    padding: 36px 32px;
   }
   .gymcore-split-right {
-    padding: 36px 24px;
-    flex: none;
+    padding: 36px 28px 48px 28px;
   }
 }
-
 
 /* ==========================================================================
    DESKTOP PC FIT & VIBRANT BRAND COLOR SUITE (OVERVIEW & MEMBERS GYMFLOW)
@@ -14337,3 +14264,491 @@ body.theme-dark .reception-security-desc,
 }
 
 
+
+
+/* =========================================================================
+   FUNCTIONAL & WELL-ORGANIZED MEMBER TABLE ACTION BUTTONS & DROPDOWN MENU
+   ========================================================================= */
+.gymflow-table-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  position: relative;
+}
+
+.btn-tbl-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+/* Check In Action Button */
+.btn-tbl-checkin {
+  background: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
+  border-color: rgba(22, 163, 74, 0.25);
+}
+
+.btn-tbl-checkin:hover:not(:disabled) {
+  background: #16a34a;
+  color: #ffffff;
+  border-color: #16a34a;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25);
+}
+
+.btn-tbl-checkin:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* View Pass Action Button */
+.btn-tbl-pass {
+  background: rgba(255, 122, 0, 0.1);
+  color: #ff7a00;
+  border-color: rgba(255, 122, 0, 0.25);
+}
+
+.btn-tbl-pass:hover {
+  background: #ff7a00;
+  color: #ffffff;
+  border-color: #ff7a00;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(255, 122, 0, 0.25);
+}
+
+/* 3-Dot More Action Button */
+.gymflow-dropdown-wrap {
+  position: relative;
+}
+
+.btn-tbl-more {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-tbl-more:hover,
+.btn-tbl-more.active {
+  background: #e2e8f0;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+/* Floating Contextual Dropdown Menu */
+.gymflow-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 195px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 5px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  animation: dropdownFadeIn 0.15s ease-out;
+}
+
+@keyframes dropdownFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.gymflow-dropdown-menu .dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #334155;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+  width: 100%;
+}
+
+.gymflow-dropdown-menu .dropdown-item:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.gymflow-dropdown-menu .dropdown-item.text-danger {
+  color: #ef4444;
+}
+
+.gymflow-dropdown-menu .dropdown-item.text-danger:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.gymflow-dropdown-menu .dropdown-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 4px 0;
+}
+
+/* Dark Theme Overrides for Table Actions */
+body.theme-dark .btn-tbl-checkin,
+[data-theme="dark"] .btn-tbl-checkin,
+.theme-dark .btn-tbl-checkin {
+  background: rgba(34, 197, 94, 0.12);
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+body.theme-dark .btn-tbl-checkin:hover:not(:disabled),
+[data-theme="dark"] .btn-tbl-checkin:hover:not(:disabled),
+.theme-dark .btn-tbl-checkin:hover:not(:disabled) {
+  background: #16a34a;
+  color: #ffffff;
+  border-color: #16a34a;
+}
+
+body.theme-dark .btn-tbl-pass,
+[data-theme="dark"] .btn-tbl-pass,
+.theme-dark .btn-tbl-pass {
+  background: rgba(255, 122, 0, 0.12);
+  color: #ff9800;
+  border-color: rgba(255, 122, 0, 0.25);
+}
+
+body.theme-dark .btn-tbl-pass:hover,
+[data-theme="dark"] .btn-tbl-pass:hover,
+.theme-dark .btn-tbl-pass:hover {
+  background: #ff7a00;
+  color: #ffffff;
+  border-color: #ff7a00;
+}
+
+body.theme-dark .btn-tbl-more,
+[data-theme="dark"] .btn-tbl-more,
+.theme-dark .btn-tbl-more {
+  background: #182234;
+  border-color: #27354f;
+  color: #94a3b8;
+}
+
+body.theme-dark .btn-tbl-more:hover,
+body.theme-dark .btn-tbl-more.active,
+[data-theme="dark"] .btn-tbl-more:hover,
+[data-theme="dark"] .btn-tbl-more.active,
+.theme-dark .btn-tbl-more:hover,
+.theme-dark .btn-tbl-more.active {
+  background: #223048;
+  color: #ffffff;
+  border-color: rgba(255, 122, 0, 0.4);
+}
+
+body.theme-dark .gymflow-dropdown-menu,
+[data-theme="dark"] .gymflow-dropdown-menu,
+.theme-dark .gymflow-dropdown-menu {
+  background: #182234;
+  border-color: #27354f;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+}
+
+body.theme-dark .gymflow-dropdown-menu .dropdown-item,
+[data-theme="dark"] .gymflow-dropdown-menu .dropdown-item,
+.theme-dark .gymflow-dropdown-menu .dropdown-item {
+  color: #cbd5e1;
+}
+
+body.theme-dark .gymflow-dropdown-menu .dropdown-item:hover,
+[data-theme="dark"] .gymflow-dropdown-menu .dropdown-item:hover,
+.theme-dark .gymflow-dropdown-menu .dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+body.theme-dark .gymflow-dropdown-menu .dropdown-divider,
+[data-theme="dark"] .gymflow-dropdown-menu .dropdown-divider,
+.theme-dark .gymflow-dropdown-menu .dropdown-divider {
+  background: #27354f;
+}
+
+/* =========================================================================
+   HIGH-CONTRAST PHONE & EMERGENCY CONTACT STRIP (LIGHT & DARK THEMES)
+   ========================================================================= */
+.member-pass-phone-strip {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  padding: 9px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+  box-sizing: border-box;
+}
+
+.phone-strip-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.phone-strip-item .strip-label {
+  color: #475569;
+  font-weight: 600;
+}
+
+.phone-strip-item .strip-val {
+  color: #0f172a;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
+body.theme-dark .member-pass-phone-strip,
+[data-theme="dark"] .member-pass-phone-strip,
+.theme-dark .member-pass-phone-strip {
+  background: rgba(255, 122, 0, 0.12) !important;
+  border-color: rgba(255, 122, 0, 0.3) !important;
+}
+
+body.theme-dark .phone-strip-item .strip-label,
+[data-theme="dark"] .phone-strip-item .strip-label,
+.theme-dark .phone-strip-item .strip-label {
+  color: #cbd5e1 !important;
+}
+
+body.theme-dark .phone-strip-item .strip-val,
+[data-theme="dark"] .phone-strip-item .strip-val,
+.theme-dark .phone-strip-item .strip-val {
+  color: #ffffff !important;
+}
+
+body.theme-dark .pvc-card-phone,
+[data-theme="dark"] .pvc-card-phone,
+.theme-dark .pvc-card-phone {
+  color: #ffffff !important;
+  background: rgba(255, 122, 0, 0.22) !important;
+  border-color: rgba(255, 122, 0, 0.45) !important;
+}
+
+
+/* ==========================================================================
+   LOGIN PAGE STRICT WHITE TEXT RULE (#0F172A PREVENTION IN LIGHT/DARK MODES)
+   ========================================================================== */
+body .gymcore-split-page,
+body.theme-light .gymcore-split-page,
+body.theme-dark .gymcore-split-page,
+[data-theme="light"] .gymcore-split-page,
+[data-theme="dark"] .gymcore-split-page {
+  color: #ffffff !important;
+  --gym-text-main: #ffffff !important;
+}
+
+/* Headings: STRONGER EVERY DAY & WELCOME BACK */
+body .gymcore-split-headline,
+body.theme-light .gymcore-split-headline,
+[data-theme="light"] .gymcore-split-headline,
+.gymcore-split-headline,
+body .gymcore-split-welcome,
+body.theme-light .gymcore-split-welcome,
+[data-theme="light"] .gymcore-split-welcome,
+.gymcore-split-welcome,
+body.theme-light .gymcore-split-page h1,
+body.theme-light .gymcore-split-page h2,
+[data-theme="light"] .gymcore-split-page h1,
+[data-theme="light"] .gymcore-split-page h2 {
+  color: #ffffff !important;
+  text-shadow: 0 4px 20px #000000, 0 2px 6px #000000 !important;
+}
+
+/* Labels: Email address & Password */
+body .gymcore-field-label,
+body.theme-light .gymcore-field-label,
+[data-theme="light"] .gymcore-field-label,
+.gymcore-field-label,
+body.theme-light .gymcore-split-page label,
+[data-theme="light"] .gymcore-split-page label,
+.gymcore-split-page label {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.3px !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9) !important;
+}
+
+/* Descriptions & Subtitles */
+body .gymcore-split-description,
+body.theme-light .gymcore-split-description,
+[data-theme="light"] .gymcore-split-description,
+.gymcore-split-description {
+  color: #e2e8f0 !important;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9) !important;
+}
+
+body .gymcore-split-subtitle,
+body.theme-light .gymcore-split-subtitle,
+[data-theme="light"] .gymcore-split-subtitle,
+.gymcore-split-subtitle {
+  color: #cbd5e1 !important;
+}
+
+/* Remember me option */
+body .gymcore-remember-label,
+body.theme-light .gymcore-remember-label,
+[data-theme="light"] .gymcore-remember-label,
+.gymcore-remember-label {
+  color: #cbd5e1 !important;
+}
+
+/* Input Fields inside Login Page */
+body .gymcore-split-input,
+body.theme-light .gymcore-split-input,
+[data-theme="light"] .gymcore-split-input,
+.gymcore-split-input {
+  color: #ffffff !important;
+  background: transparent !important;
+}
+
+body .gymcore-input-box,
+body.theme-light .gymcore-input-box,
+[data-theme="light"] .gymcore-input-box,
+.gymcore-input-box {
+  background: #0d0f14 !important;
+  border: 1px solid #1f2532 !important;
+}
+
+/* Reset Password Modal text if opened */
+body .gymcore-split-page .modal-card,
+body.theme-light .gymcore-split-page .modal-card,
+[data-theme="light"] .gymcore-split-page .modal-card {
+  background: #0d0f14 !important;
+  border: 1px solid #232b3c !important;
+  color: #ffffff !important;
+}
+
+body .gymcore-split-page .modal-card h3,
+body .gymcore-split-page .modal-card h4,
+body.theme-light .gymcore-split-page .modal-card h3,
+body.theme-light .gymcore-split-page .modal-card h4,
+[data-theme="light"] .gymcore-split-page .modal-card h3,
+[data-theme="light"] .gymcore-split-page .modal-card h4 {
+  color: #ffffff !important;
+}
+
+body .gymcore-split-page .modal-card p,
+body.theme-light .gymcore-split-page .modal-card p,
+[data-theme="light"] .gymcore-split-page .modal-card p {
+  color: #cbd5e1 !important;
+}
+
+
+/* ==========================================================================
+   STRICT WHITE TEXT ENFORCEMENT FOR HEADLINE & LOGIN (IMMUNE TO ALL STYLES)
+   ========================================================================== */
+.gymcore-split-page,
+.gymcore-split-page * {
+  --gym-text-main: #ffffff !important;
+}
+
+body:has(.gymcore-split-page),
+body.theme-light:has(.gymcore-split-page),
+[data-theme="light"]:has(.gymcore-split-page) {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+.gymcore-split-headline,
+div.gymcore-split-headline,
+h1.gymcore-split-headline,
+[class*="gymcore-split-headline"],
+body .gymcore-split-headline,
+body.theme-light .gymcore-split-headline,
+[data-theme="light"] .gymcore-split-headline {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 4px 24px #000000, 0 2px 8px #000000, 0 0 35px #000000 !important;
+}
+
+.gymcore-split-welcome,
+div.gymcore-split-welcome,
+h2.gymcore-split-welcome,
+[class*="gymcore-split-welcome"],
+body .gymcore-split-welcome,
+body.theme-light .gymcore-split-welcome,
+[data-theme="light"] .gymcore-split-welcome {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.95) !important;
+}
+
+.gymcore-field-label,
+label.gymcore-field-label,
+[class*="gymcore-field-label"],
+body .gymcore-field-label,
+body.theme-light .gymcore-field-label,
+[data-theme="light"] .gymcore-field-label {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9) !important;
+}
+
+.gymcore-split-description,
+p.gymcore-split-description,
+body .gymcore-split-description,
+body.theme-light .gymcore-split-description,
+[data-theme="light"] .gymcore-split-description {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9) !important;
+}
+
+.gymcore-split-subtitle,
+p.gymcore-split-subtitle,
+body .gymcore-split-subtitle,
+body.theme-light .gymcore-split-subtitle,
+[data-theme="light"] .gymcore-split-subtitle {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+}
+
+.gymcore-remember-label,
+label.gymcore-remember-label,
+body .gymcore-remember-label,
+body.theme-light .gymcore-remember-label,
+[data-theme="light"] .gymcore-remember-label {
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+}
+
+.gymcore-btn-submit,
+button.gymcore-btn-submit,
+body .gymcore-btn-submit,
+body.theme-light .gymcore-btn-submit,
+[data-theme="light"] .gymcore-btn-submit {
+  background: #ff7a00 !important;
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  font-weight: 900 !important;
+}
