@@ -145,6 +145,31 @@ class AttendanceManagementTest extends TestCase
             ]);
     }
 
+    public function test_receptionist_can_check_in_member_with_member_profile_id(): void
+    {
+        [$receptionist, $receptionistToken] = $this->createUserWithRole('receptionist');
+        [$member, $profile] = $this->createMemberWithProfile('Derartu Tulu');
+        $plan = $this->createPlan();
+        $this->createActiveSubscription($member, $plan);
+
+        // Pass the MemberProfile ID (as commonly returned by member resource APIs)
+        $response = $this->withHeader('Authorization', "Bearer {$receptionistToken}")
+            ->postJson('/api/attendance/check-in', [
+                'member_id' => $profile->id,
+                'method' => 'manual_reception',
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJson([
+                'status' => 'success',
+                'data' => [
+                    'member_id' => $member->id,
+                    'status' => 'admitted',
+                    'method' => 'manual_reception',
+                ],
+            ]);
+    }
+
     public function test_check_in_denied_when_member_has_no_active_subscription(): void
     {
         [$receptionist, $receptionistToken] = $this->createUserWithRole('receptionist');
