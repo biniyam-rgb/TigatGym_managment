@@ -64,6 +64,18 @@ class MemberController extends Controller
             $query->where('gender', $request->gender);
         }
 
+        // Support full export / non-paginated retrieval across all pages
+        if ($request->boolean('all') || $request->integer('per_page') >= 1000) {
+            $allMembers = $query->latest('id')->get();
+            return response()->json([
+                'data' => MemberResource::collection($allMembers),
+                'current_page' => 1,
+                'last_page' => 1,
+                'per_page' => $allMembers->count(),
+                'total' => $allMembers->count(),
+            ], Response::HTTP_OK);
+        }
+
         $members = $query->latest('id')->paginate($request->integer('per_page', 15));
 
         return response()->json([
@@ -214,6 +226,10 @@ class MemberController extends Controller
 
         $currentUser = $request->user();
         $isStaff = $currentUser->hasAnyRole('owner', 'admin', 'receptionist');
+
+        if ($request->has('blood_type') && is_string($request->blood_type)) {
+            $request->merge(['blood_type' => strtoupper(trim($request->blood_type))]);
+        }
 
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'min:2', 'max:255'],
