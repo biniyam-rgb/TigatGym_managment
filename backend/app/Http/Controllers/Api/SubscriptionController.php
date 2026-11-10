@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\SubscriptionResource;
+use App\Models\MemberProfile;
 use App\Models\MembershipPlan;
 use App\Models\Subscription;
 use App\Models\TrainerAssignment;
@@ -90,7 +91,7 @@ class SubscriptionController extends Controller
         $this->authorize('create', Subscription::class);
 
         $validated = $request->validate([
-            'member_id' => ['required', 'integer', 'exists:users,id'],
+            'member_id' => ['required', 'integer'],
             'membership_plan_id' => ['required', 'integer', 'exists:membership_plans,id'],
             'start_date' => ['nullable', 'date'],
             'discount' => ['nullable', 'numeric', 'min:0'],
@@ -98,13 +99,22 @@ class SubscriptionController extends Controller
             'is_auto_renew' => ['nullable', 'boolean'],
         ]);
 
-        $member = User::findOrFail($validated['member_id']);
-        if (! $member->hasRole('member')) {
+        $member = User::find($validated['member_id']);
+        if (! $member || ! $member->hasRole('member')) {
+            $profile = MemberProfile::find($validated['member_id']);
+            if ($profile && $profile->user && $profile->user->hasRole('member')) {
+                $member = $profile->user;
+            }
+        }
+
+        if (! $member || ! $member->hasRole('member')) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Subscriptions can only be assigned to gym members.',
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
+
+        $validated['member_id'] = $member->id;
 
         $plan = MembershipPlan::findOrFail($validated['membership_plan_id']);
         $startDate = $request->filled('start_date') ? Carbon::parse($validated['start_date']) : Carbon::today();
