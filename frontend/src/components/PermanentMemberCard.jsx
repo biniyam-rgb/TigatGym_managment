@@ -42,6 +42,11 @@ function calculateOneYearExpiry(dateVal) {
 
 // Crisp Lucide-style SVG Icons
 const CardIcons = {
+  Phone: ({ size = 13 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+    </svg>
+  ),
   User: ({ size = 14 }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
       <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
@@ -133,47 +138,7 @@ export default function PermanentMemberCard({
 
   return (
     <div className="permanent-card-wrapper" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-      {/* Side Toggle Tabs */}
-      {showActions && (
-        <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            type="button"
-            className="btn btn-sm"
-            onClick={() => setCardSide('back')}
-            style={{
-              background: cardSide === 'back' ? '#ff7a00' : '#f1f5f9',
-              color: cardSide === 'back' ? '#ffffff' : '#475569',
-              fontWeight: 700,
-              fontSize: 11.5,
-              padding: '5px 14px',
-              borderRadius: 8,
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            Member ID & QR Card
-          </button>
-          <button
-            type="button"
-            className="btn btn-sm"
-            onClick={() => setCardSide('front')}
-            style={{
-              background: cardSide === 'front' ? '#ff7a00' : '#f1f5f9',
-              color: cardSide === 'front' ? '#ffffff' : '#475569',
-              fontWeight: 700,
-              fontSize: 11.5,
-              padding: '5px 14px',
-              borderRadius: 8,
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            Card Front Cover
-          </button>
-        </div>
-      )}
+
 
       {/* Official Physical Card Container (Standard CR80 Landscape Ratio) */}
       <div
@@ -282,19 +247,51 @@ export default function PermanentMemberCard({
                 {memberName}
               </div>
 
-              {/* Status Badge */}
+              {/* Status Badge & Member Phone */}
               <div
                 style={{
-                  fontSize: 10.5,
-                  fontWeight: 800,
-                  color: '#ea580c',
-                  letterSpacing: '1.4px',
-                  textTransform: 'uppercase',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
                   marginTop: 2,
-                  marginBottom: 14,
+                  marginBottom: 12,
+                  flexWrap: 'wrap',
                 }}
               >
-                {membershipTitle}
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 800,
+                    color: '#ea580c',
+                    letterSpacing: '1.2px',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {membershipTitle}
+                </span>
+
+                {member.phone && (
+                  <span
+                    className="pvc-card-phone"
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 800,
+                      color: '#0f172a',
+                      background: 'rgba(234, 88, 12, 0.1)',
+                      border: '1px solid rgba(234, 88, 12, 0.25)',
+                      padding: '2px 8px',
+                      borderRadius: 6,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      letterSpacing: '0.4px',
+                    }}
+                    title="Member Phone Number"
+                  >
+                    <CardIcons.Phone size={11} />
+                    <span>{member.phone}</span>
+                  </span>
+                )}
               </div>
 
               {/* Row 1: Membership ID */}
@@ -576,10 +573,13 @@ export default function PermanentMemberCard({
                 fontWeight: 700,
                 padding: '8px 14px',
               }}
+              title="Toggle between Front Cover and Member ID & QR"
             >
               <CardIcons.Rotate size={14} />
-              <span>Flip Card Side</span>
+              <span>{cardSide === 'back' ? 'Flip to Front Cover' : 'Flip to Member ID & QR'}</span>
             </button>
+
+
           </div>
 
           {emailStatus && (
