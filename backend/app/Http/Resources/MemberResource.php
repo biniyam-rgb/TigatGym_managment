@@ -57,7 +57,7 @@ class MemberResource extends JsonResource
             // Sensitive medical/health notes are protected by least privilege
             'health_conditions' => $canViewSensitive ? $this->health_conditions : null,
             // QR code token for scanning/display
-            'qr_code_token' => ($canViewSensitive || $isStaff) ? $this->qr_code_token : null,
+            'qr_code_token' => $this->qr_code_token,
             'joined_at' => $this->joined_at?->format('Y-m-d'),
             'card_expires_at' => $this->joined_at ? $this->joined_at->copy()->addYear()->format('Y-m-d') : null,
             'created_at' => $this->created_at?->toIso8601String(),
