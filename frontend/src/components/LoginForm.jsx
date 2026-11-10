@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/useAuth';
 
 // Crisp SVG Icons (Crisp White Dumbbell Emblem)
 const DumbbellBadgeIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
     <path d="M6 5v14M18 5v14M3 8v8M21 8v8M6 12h12" />
   </svg>
 );
@@ -84,7 +84,7 @@ const ZapIcon = () => (
 );
 
 const MailCheckIcon = () => (
-  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#bfc3cc" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="4" width="20" height="16" rx="2" />
     <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
   </svg>
@@ -101,6 +101,18 @@ export default function LoginForm({ onSuccess }) {
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
+
+  // Guarantee black backdrop & pure white text on body during Login screen
+  useEffect(() => {
+    const prevBg = document.body.style.backgroundColor;
+    const prevColor = document.body.style.color;
+    document.body.style.backgroundColor = '#000000';
+    document.body.style.color = '#ffffff';
+    return () => {
+      document.body.style.backgroundColor = prevBg;
+      document.body.style.color = prevColor;
+    };
+  }, []);
 
   // Quick Demo fill accounts - Organized into 3 top (staff/gym) + 2 bottom (management)
   const demoAccounts = [
@@ -146,20 +158,7 @@ export default function LoginForm({ onSuccess }) {
       <div className="gymcore-split-left">
         <div className="gymcore-split-left-glow" aria-hidden="true" />
 
-        {/* Concentric Watermark Motif */}
-        <svg
-          className="gymcore-split-watermark"
-          viewBox="0 0 600 600"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
-          <circle cx="340" cy="300" r="90" stroke="rgba(255, 122, 0, 0.16)" strokeWidth="2.5" />
-          <circle cx="340" cy="300" r="160" stroke="rgba(255, 122, 0, 0.12)" strokeWidth="2" />
-          <circle cx="340" cy="300" r="230" stroke="rgba(255, 122, 0, 0.08)" strokeWidth="2" strokeDasharray="6 6" />
-          <circle cx="340" cy="300" r="300" stroke="rgba(255, 122, 0, 0.05)" strokeWidth="1.5" />
-          <circle cx="340" cy="300" r="370" stroke="rgba(255, 122, 0, 0.03)" strokeWidth="1.5" strokeDasharray="10 10" />
-        </svg>
+        
 
         {/* Top-Left Brand Logo & Name */}
         <div className="gymcore-split-brand-header">
@@ -175,13 +174,13 @@ export default function LoginForm({ onSuccess }) {
         {/* Hero Motivational Headline & Description */}
         <div className="gymcore-split-hero">
           <div className="gymcore-split-accent-bar" />
-          <h1 className="gymcore-split-headline">
+          <div className="gymcore-split-headline" style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff', textShadow: '0 4px 24px #000000, 0 2px 8px #000000, 0 0 30px #000000' }}>
             STRONGER EVERY<br />
             DAY.<br />
             BETTER EVERY<br />
             SESSION.
-          </h1>
-          <p className="gymcore-split-description">
+          </div>
+          <p className="gymcore-split-description" style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}>
             Welcome to TIGAT GYM. Your fitness journey, membership, and training experience are powered by GymCore.
           </p>
         </div>
@@ -195,12 +194,12 @@ export default function LoginForm({ onSuccess }) {
         <div className="gymcore-split-card">
           {/* GymCore App Heading */}
           <div className="gymcore-split-app-header">
-            <div className="gymcore-split-app-name">GymCore</div>
+            <div className="gymcore-split-app-name"><span style={{ color: "#ffffff" }}>Gym</span><span style={{ color: "#ff7a00" }}>Core</span></div>
             <div className="gymcore-split-app-sub">TIGAT GYM Management</div>
           </div>
 
-          <h2 className="gymcore-split-welcome">WELCOME BACK</h2>
-          <p className="gymcore-split-subtitle">Sign in to access your GymCore account.</p>
+          <div className="gymcore-split-welcome" style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff', textShadow: '0 2px 12px rgba(0, 0, 0, 0.95)' }}>WELCOME BACK</div>
+          <p className="gymcore-split-subtitle" style={{ color: '#cbd5e1', WebkitTextFillColor: '#cbd5e1' }}>Sign in to access your GymCore account.</p>
 
           {/* Error Message */}
           {errorMessage && (
@@ -214,7 +213,7 @@ export default function LoginForm({ onSuccess }) {
           <form onSubmit={handleSubmit} className="gymcore-split-form" autoComplete="off">
             {/* Email Address */}
             <div className="gymcore-field-group">
-              <label htmlFor="gymcore-email" className="gymcore-field-label">
+              <label htmlFor="gymcore-email" className="gymcore-field-label" style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}>
                 Email address
               </label>
               <div className="gymcore-input-box">
@@ -229,7 +228,8 @@ export default function LoginForm({ onSuccess }) {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="gymcore-native-input"
+                  className="gymcore-split-input"
+                  style={{ color: "#ffffff", backgroundColor: "#0d0f14" }}
                   placeholder="you@example.com"
                 />
               </div>
@@ -237,7 +237,7 @@ export default function LoginForm({ onSuccess }) {
 
             {/* Password */}
             <div className="gymcore-field-group">
-              <label htmlFor="gymcore-pwd" className="gymcore-field-label">
+              <label htmlFor="gymcore-pwd" className="gymcore-field-label" style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}>
                 Password
               </label>
               <div className="gymcore-input-box">
@@ -252,12 +252,13 @@ export default function LoginForm({ onSuccess }) {
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="gymcore-native-input"
+                  className="gymcore-split-input"
+                  style={{ color: "#ffffff", backgroundColor: "#0d0f14" }}
                   placeholder="Enter your password"
                 />
                 <button
                   type="button"
-                  className="gymcore-pwd-toggle"
+                  className="gymcore-pass-toggle"
                   onClick={() => setShowPassword(!showPassword)}
                   title={showPassword ? 'Hide password' : 'Show password'}
                   tabIndex={-1}
@@ -269,8 +270,8 @@ export default function LoginForm({ onSuccess }) {
             </div>
 
             {/* Remember Me & Forgot Password */}
-            <div className="gymcore-form-options">
-              <label className="gymcore-checkbox-label">
+            <div className="gymcore-options-row">
+              <label className="gymcore-remember-label" style={{ color: '#cbd5e1', WebkitTextFillColor: '#cbd5e1' }}>
                 <input
                   type="checkbox"
                   checked={rememberMe}
@@ -278,23 +279,13 @@ export default function LoginForm({ onSuccess }) {
                 />
                 <span>Remember me</span>
               </label>
-              <button
-                type="button"
-                className="gymcore-forgot-link"
-                onClick={() => {
-                  setForgotEmail(email);
-                  setForgotSent(false);
-                  setIsForgotModalOpen(true);
-                }}
-              >
-                Forgot password?
-              </button>
             </div>
 
             {/* Solid Orange Sign In Button */}
             <button
               type="submit"
-              className="gymcore-signin-btn"
+              className="gymcore-btn-submit"
+              style={{ color: "#000000", backgroundColor: "#ff7a00", WebkitTextFillColor: "#000000" }}
               disabled={isLoading}
             >
               {isLoading ? 'SIGNING IN...' : 'SIGN IN'}
@@ -302,13 +293,12 @@ export default function LoginForm({ onSuccess }) {
           </form>
 
           {/* Quick Demo Role Dock */}
-          <div className="gymcore-demo-dock">
+          <div className="gymcore-split-demo-dock">
             <div className="gymcore-demo-header">
               <span className="gymcore-demo-title">
                 <ZapIcon />
                 <span>Quick Demo Sign-In</span>
               </span>
-              <span className="gymcore-demo-badge">1-Click Auto Fill</span>
             </div>
             <div className="gymcore-demo-grid">
               {demoAccounts.map((acc) => {
@@ -350,8 +340,8 @@ export default function LoginForm({ onSuccess }) {
                 <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
                   <MailCheckIcon />
                 </div>
-                <h4 style={{ color: '#0f172a', marginBottom: 8 }}>Password Reset Requested</h4>
-                <p style={{ color: '#64748b', fontSize: 13, lineHeight: 1.5 }}>
+                <h4 style={{ color: '#ffffff', marginBottom: 8 }}>Password Reset Requested</h4>
+                <p style={{ color: '#cbd5e1', fontSize: 13, lineHeight: 1.5 }}>
                   A reset link has been dispatched to <strong>{forgotEmail}</strong> if an active account exists.
                 </p>
                 <button
@@ -366,7 +356,7 @@ export default function LoginForm({ onSuccess }) {
             ) : (
               <form onSubmit={handleForgotSubmit}>
                 <div className="modal-body">
-                  <p style={{ color: '#64748b', fontSize: 13, marginBottom: 16 }}>
+                  <p style={{ color: '#ffff', fontSize: 13, marginBottom: 16 }}>
                     Enter your registered email address to receive password reset instructions.
                   </p>
                   <div className="form-group">
