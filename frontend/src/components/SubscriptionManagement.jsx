@@ -1,6 +1,123 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import apiClient from '../services/api';
 import { useAuth } from '../context/useAuth';
+
+const Icons = {
+  Refresh: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+      <path d="M16 21h5v-5" />
+    </svg>
+  ),
+  Calendar: ({ size = 15 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  ),
+  Snowflake: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="2" x2="12" y2="22" />
+      <line x1="12" y1="8" x2="8" y2="6" />
+      <line x1="12" y1="8" x2="16" y2="6" />
+      <line x1="12" y1="16" x2="8" y2="18" />
+      <line x1="12" y1="16" x2="16" y2="18" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <line x1="8" y1="12" x2="6" y2="8" />
+      <line x1="8" y1="12" x2="6" y2="16" />
+      <line x1="16" y1="12" x2="18" y2="8" />
+      <line x1="16" y1="12" x2="18" y2="16" />
+    </svg>
+  ),
+  ArrowRight: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="5" y1="12" x2="19" y2="12" />
+      <polyline points="12 5 19 12 12 19" />
+    </svg>
+  ),
+  Pause: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="6" y="4" width="4" height="16" rx="1" />
+      <rect x="14" y="4" width="4" height="16" rx="1" />
+    </svg>
+  ),
+  Play: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="5 3 19 12 5 21 5 3" />
+    </svg>
+  ),
+  CheckCircle: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  ),
+  XCircle: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="15" y1="9" x2="9" y2="15" />
+      <line x1="9" y1="9" x2="15" y2="15" />
+    </svg>
+  ),
+  Plus: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  ),
+  Clock: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  ),
+  AlertTriangle: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  ),
+  Edit: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+      <path d="m15 5 4 4" />
+    </svg>
+  ),
+  Trash: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 6h18" />
+      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+      <line x1="10" x2="10" y1="11" y2="17" />
+      <line x1="14" x2="14" y1="11" y2="17" />
+    </svg>
+  ),
+  Search: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  ),
+  PassCard: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <line x1="2" y1="10" x2="22" y2="10" />
+    </svg>
+  ),
+  Package: ({ size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m7.5 4.27 9 5.15" />
+      <polyline points="21 8 21 16 12 21 3 16 3 8 12 3 21 8" />
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+      <line x1="12" y1="22.08" x2="12" y2="12" />
+    </svg>
+  ),
+};
 
 export default function SubscriptionManagement() {
   const { hasRole } = useAuth();
@@ -37,6 +154,7 @@ export default function SubscriptionManagement() {
   const [selectedSub, setSelectedSub] = useState(null);
   const [selectedPlanForEdit, setSelectedPlanForEdit] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [unfreezingId, setUnfreezingId] = useState(null);
   const [formErrors, setFormErrors] = useState({});
 
   // Assign Form
@@ -105,7 +223,7 @@ export default function SubscriptionManagement() {
     try {
       const params = {
         page: subsPage,
-        per_page: 15,
+        per_page: 10,
       };
       if (subsSearch) params.search = subsSearch;
       if (subsStatusFilter) params.status = subsStatusFilter;
@@ -143,7 +261,7 @@ export default function SubscriptionManagement() {
 
     const params = {
       page: subsPage,
-      per_page: 15,
+      per_page: 10,
     };
     if (subsSearch) params.search = subsSearch;
     if (subsStatusFilter) params.status = subsStatusFilter;
@@ -188,6 +306,65 @@ export default function SubscriptionManagement() {
     const discount = Number(assignForm.discount) || 0;
     return Math.max(0, price - discount);
   }, [selectedAssignPlan, assignForm.discount]);
+
+  // Freeze date calculation helper & presets
+  const freezeDateInputRef = useRef(null);
+
+  const freezeCalculation = useMemo(() => {
+    if (!freezeForm.frozen_until) {
+      return { days: 0, newEnd: selectedSub?.end_date || '—', formattedUntil: '—' };
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const until = new Date(freezeForm.frozen_until + 'T00:00:00');
+    const diffDays = Math.max(1, Math.round((until - today) / 86400000));
+
+    let newEndFormatted = '—';
+    if (selectedSub?.end_date) {
+      const origEnd = new Date(selectedSub.end_date + 'T00:00:00');
+      origEnd.setDate(origEnd.getDate() + diffDays);
+      newEndFormatted = origEnd.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    const formattedUntil = until.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+
+    return {
+      days: diffDays,
+      newEnd: newEndFormatted,
+      formattedUntil,
+    };
+  }, [freezeForm.frozen_until, selectedSub]);
+
+  const handleApplyFreezePreset = (days) => {
+    const target = new Date();
+    target.setDate(target.getDate() + days);
+    setFreezeForm(prev => ({
+      ...prev,
+      frozen_until: target.toISOString().split('T')[0],
+    }));
+  };
+
+  const handleApplyReasonChip = (reason) => {
+    setFreezeForm(prev => {
+      if (!prev.reason) return { ...prev, reason };
+      if (prev.reason.includes(reason)) return prev;
+      return { ...prev, reason: `${prev.reason}, ${reason}` };
+    });
+  };
+
+  const handleOpenFreezeDatePicker = () => {
+    if (freezeDateInputRef.current) {
+      if (typeof freezeDateInputRef.current.showPicker === 'function') {
+        try {
+          freezeDateInputRef.current.showPicker();
+        } catch {
+          freezeDateInputRef.current.focus();
+        }
+      } else {
+        freezeDateInputRef.current.focus();
+      }
+    }
+  };
 
   // --- Handlers ---
 
@@ -301,35 +478,39 @@ export default function SubscriptionManagement() {
     setFormErrors({});
 
     try {
-      const res = await apiClient.freezeSubscription(selectedSub.id, freezeForm);
-      showNotification('success', res.message || 'Subscription frozen successfully.');
+      await apiClient.freezeSubscription(selectedSub.id, freezeForm);
+      showNotification(
+        'success',
+        `❄️ Pass ${selectedSub.subscription_number} for ${selectedSub.member?.name || 'Member'} frozen until ${freezeForm.frozen_until}. Expiration extended!`
+      );
       setIsFreezeModalOpen(false);
       fetchSubscriptions();
     } catch (err) {
       if (err.errors) {
         setFormErrors(err.errors);
       } else {
-        showNotification('error', err.message || 'Failed to freeze subscription.');
+        showNotification('error', `⚠️ Failed to freeze pass: ${err.message || 'Unknown error'}`);
       }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // 4. Unfreeze Subscription
+  // 4. Instant 1-Click Unfreeze Subscription (No browser popup dialog, just like Check In)
   const handleUnfreeze = async (sub) => {
-    if (!window.confirm(`Unfreeze and reactivate pass for ${sub.member?.name || 'this member'}?`)) {
-      return;
-    }
-    setIsSubmitting(true);
+    if (!sub) return;
+    setUnfreezingId(sub.id);
     try {
-      const res = await apiClient.unfreezeSubscription(sub.id);
-      showNotification('success', res.message || 'Subscription reactivated.');
+      await apiClient.unfreezeSubscription(sub.id);
+      showNotification(
+        'success',
+        `✓ Pass ${sub.subscription_number} for ${sub.member?.name || 'Member'} (${sub.member?.member_code || 'ID'}) has been unfrozen and reactivated!`
+      );
       fetchSubscriptions();
     } catch (err) {
-      showNotification('error', err.message || 'Failed to unfreeze subscription.');
+      showNotification('error', `⚠️ Failed to unfreeze pass: ${err.message || 'Unknown error'}`);
     } finally {
-      setIsSubmitting(false);
+      setUnfreezingId(null);
     }
   };
 
@@ -471,7 +652,10 @@ export default function SubscriptionManagement() {
             boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
           }}
         >
-          <span>{notification.message}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {notification.type === 'success' ? <Icons.CheckCircle size={17} /> : <Icons.AlertTriangle size={17} />}
+            <span>{notification.message}</span>
+          </div>
           <button
             type="button"
             onClick={() => setNotification(null)}
@@ -491,31 +675,19 @@ export default function SubscriptionManagement() {
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: 16,
-          padding: '16px 20px',
+          padding: '14px 20px',
         }}
       >
         {/* Sub-Tabs: Subscriptions vs Plans */}
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="subs-tab-container">
           <button
             type="button"
             onClick={() => setActiveTab('subscriptions')}
-            className={`btn btn-sm ${activeTab === 'subscriptions' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+            className={`subs-tab-btn ${activeTab === 'subscriptions' ? 'active' : ''}`}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="2" y="5" width="20" height="14" rx="2" />
-              <line x1="2" y1="10" x2="22" y2="10" />
-            </svg>
-            Member Passes & Subscriptions
-            <span
-              style={{
-                padding: '2px 8px',
-                borderRadius: 12,
-                fontSize: 11,
-                background: activeTab === 'subscriptions' ? 'rgba(0,0,0,0.3)' : 'rgba(255,138,0,0.2)',
-                color: activeTab === 'subscriptions' ? '#fff' : '#ff8a00',
-              }}
-            >
+            <Icons.PassCard size={15} />
+            <span>Member Passes & Subscriptions</span>
+            <span className="subs-tab-count">
               {subsMeta.total || subscriptions.length}
             </span>
           </button>
@@ -523,22 +695,11 @@ export default function SubscriptionManagement() {
           <button
             type="button"
             onClick={() => setActiveTab('plans')}
-            className={`btn btn-sm ${activeTab === 'plans' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+            className={`subs-tab-btn ${activeTab === 'plans' ? 'active' : ''}`}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-            </svg>
-            Membership Packages Catalog
-            <span
-              style={{
-                padding: '2px 8px',
-                borderRadius: 12,
-                fontSize: 11,
-                background: activeTab === 'plans' ? 'rgba(0,0,0,0.3)' : 'rgba(255,138,0,0.2)',
-                color: activeTab === 'plans' ? '#fff' : '#ff8a00',
-              }}
-            >
+            <Icons.Package size={15} />
+            <span>Membership Packages Catalog</span>
+            <span className="subs-tab-count">
               {plans.length}
             </span>
           </button>
@@ -549,30 +710,21 @@ export default function SubscriptionManagement() {
           {isStaff && activeTab === 'subscriptions' && (
             <button
               type="button"
-              className="btn btn-primary btn-sm"
+              className="subs-btn-cta-primary"
               onClick={handleOpenAssignModal}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              Assign Subscription Pass
+              <Icons.Plus size={15} />
+              <span>Assign Membership</span>
             </button>
           )}
-
           {isOwnerOrAdmin && activeTab === 'plans' && (
             <button
               type="button"
-              className="btn btn-primary btn-sm"
+              className="subs-btn-cta-primary"
               onClick={handleOpenCreatePlanModal}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              Create New Package
+              <Icons.Plus size={15} />
+              <span>Create New Package</span>
             </button>
           )}
         </div>
@@ -593,28 +745,40 @@ export default function SubscriptionManagement() {
             }}
           >
             {/* Search Input */}
-            <div style={{ flex: '1 1 240px', position: 'relative' }}>
+            <div className="search-bar-wrapper" style={{ flex: '1 1 240px', position: 'relative' }}>
               <input
                 type="text"
-                className="form-input"
-                placeholder="Search SUB-#, member name, code, phone..."
+                className="form-input search-input-field"
+                placeholder="Search member ID, name, phone, package..."
                 value={subsSearch}
                 onChange={(e) => {
                   setSubsSearch(e.target.value);
                   setSubsPage(1);
                 }}
-                style={{ paddingLeft: 36, width: '100%' }}
+                style={{
+                  paddingLeft: 36,
+                  paddingRight: 14,
+                  width: '100%',
+                  height: 42,
+                  minHeight: 42,
+                  boxSizing: 'border-box',
+                  fontSize: 13.5,
+                  borderRadius: 8,
+                }}
               />
               <span
+                className="search-bar-icon"
                 style={{
                   position: 'absolute',
                   left: 12,
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  color: '#64748b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  pointerEvents: 'none',
                 }}
               >
-                🔍
+                <Icons.Search size={15} />
               </span>
             </div>
 
@@ -626,7 +790,14 @@ export default function SubscriptionManagement() {
                 setSubsStatusFilter(e.target.value);
                 setSubsPage(1);
               }}
-              style={{ flex: '0 1 160px' }}
+              style={{
+                flex: '0 1 160px',
+                height: 42,
+                minHeight: 42,
+                boxSizing: 'border-box',
+                fontSize: 13.5,
+                borderRadius: 8,
+              }}
             >
               <option value="">All Statuses</option>
               <option value="active">Active</option>
@@ -643,7 +814,14 @@ export default function SubscriptionManagement() {
                 setSubsPlanFilter(e.target.value);
                 setSubsPage(1);
               }}
-              style={{ flex: '0 1 180px' }}
+              style={{
+                flex: '0 1 180px',
+                height: 42,
+                minHeight: 42,
+                boxSizing: 'border-box',
+                fontSize: 13.5,
+                borderRadius: 8,
+              }}
             >
               <option value="">All Packages</option>
               {plans.map((p) => (
@@ -656,33 +834,65 @@ export default function SubscriptionManagement() {
             {(subsSearch || subsStatusFilter || subsPlanFilter) && (
               <button
                 type="button"
-                className="btn btn-secondary btn-sm"
+                className="subs-page-btn"
                 onClick={() => {
                   setSubsSearch('');
                   setSubsStatusFilter('');
                   setSubsPlanFilter('');
                   setSubsPage(1);
                 }}
+                style={{
+                  height: 42,
+                  minHeight: 42,
+                  padding: '0 14px',
+                  boxSizing: 'border-box',
+                  borderRadius: 8,
+                }}
               >
-                Clear
+                <Icons.XCircle size={14} />
+                <span>Clear</span>
               </button>
             )}
           </div>
 
           {/* Subscriptions Table */}
-          <div className="dashboard-card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="subs-table-wrapper">
             <div className="table-responsive">
-              <table className="table">
+              <table className="subs-dense-table">
                 <thead>
                   <tr>
-                    <th>Pass ID</th>
-                    <th>Member Details</th>
-                    <th>Membership Plan</th>
-                    <th>Coverage Period</th>
-                    <th>Status</th>
-                    <th>Days Left</th>
-                    <th>Price (ETB)</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
+                    <th style={{ width: '115px' }}>
+                      Member ID
+                      <span className="subs-th-sub">Gym ID & Pass #</span>
+                    </th>
+                    <th style={{ width: '150px' }}>
+                      Member Name
+                      <span className="subs-th-sub">Full Name</span>
+                    </th>
+                    <th style={{ width: '150px' }}>
+                      Membership Plan
+                      <span className="subs-th-sub">Package & Features</span>
+                    </th>
+                    <th style={{ width: '150px' }}>
+                      Coverage Period
+                      <span className="subs-th-sub">Start → End Date</span>
+                    </th>
+                    <th style={{ width: '95px' }}>
+                      Status
+                      <span className="subs-th-sub">Live State</span>
+                    </th>
+                    <th style={{ width: '95px' }}>
+                      Days Left
+                      <span className="subs-th-sub">Remaining</span>
+                    </th>
+                    <th style={{ width: '115px' }}>
+                      Price (ETB)
+                      <span className="subs-th-sub">Rate & Promo</span>
+                    </th>
+                    <th style={{ width: '140px', textAlign: 'right' }}>
+                      Actions
+                      <span className="subs-th-sub">Quick Manage</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -699,9 +909,9 @@ export default function SubscriptionManagement() {
                     <tr>
                       <td colSpan="8" style={{ textAlign: 'center', padding: '48px 0' }}>
                         <div style={{ fontSize: 36, marginBottom: 8 }}>📋</div>
-                        <div className="subs-empty-title" style={{ fontSize: 16, fontWeight: 600 }}>No subscriptions found</div>
+                        <div className="subs-empty-title" style={{ fontSize: 16, fontWeight: 700 }}>No subscriptions found</div>
                         <div style={{ color: '#64748b', fontSize: 13, marginTop: 4 }}>
-                          {subsSearch || subsStatusFilter
+                          {subsSearch || subsStatusFilter || subsPlanFilter
                             ? 'Try clearing filters to see more results.'
                             : 'Assign a member pass to begin tracking subscriptions.'}
                         </div>
@@ -711,79 +921,50 @@ export default function SubscriptionManagement() {
                     subscriptions.map((sub) => {
                       const isActive = sub.status === 'active';
                       const isFrozen = sub.status === 'frozen';
-                      const isExpired = sub.status === 'expired' || sub.is_expired;
-
-                      let statusBadgeBg = 'rgba(16, 185, 129, 0.15)';
-                      let statusColor = '#10b981';
-                      let statusBorder = 'rgba(16, 185, 129, 0.3)';
-
-                      if (isFrozen) {
-                        statusBadgeBg = 'rgba(56, 189, 248, 0.15)';
-                        statusColor = '#38bdf8';
-                        statusBorder = 'rgba(56, 189, 248, 0.3)';
-                      } else if (isExpired) {
-                        statusBadgeBg = 'rgba(245, 158, 11, 0.15)';
-                        statusColor = '#f59e0b';
-                        statusBorder = 'rgba(245, 158, 11, 0.3)';
-                      } else if (sub.status === 'cancelled') {
-                        statusBadgeBg = 'rgba(239, 68, 68, 0.15)';
-                        statusColor = '#f87171';
-                        statusBorder = 'rgba(239, 68, 68, 0.3)';
-                      }
+                      const isExpired = sub.status === 'expired';
 
                       return (
                         <tr key={sub.id}>
-                          {/* Pass ID */}
+                          {/* Member ID & Pass # */}
                           <td>
-                            <span
-                              style={{
-                                fontFamily: 'monospace',
-                                color: '#ff8a00',
-                                fontWeight: 600,
-                                fontSize: 13,
-                              }}
-                            >
-                              {sub.subscription_number}
-                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                              <span className="subs-pass-id-badge">
+                                {sub.member?.member_code || (sub.member?.id ? `TG-${String(sub.member.id).padStart(4, '0')}` : '—')}
+                              </span>
+                              {sub.subscription_number && (
+                                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.02em' }}>
+                                  {sub.subscription_number}
+                                </span>
+                              )}
+                            </div>
                           </td>
 
-                          {/* Member */}
+                          {/* Member Name (Only member's name) */}
                           <td>
-                            <div className="subs-member-name" style={{ fontWeight: 600, fontSize: 14 }}>
+                            <span className="subs-member-name-text" style={{ fontSize: 13.5, fontWeight: 700 }}>
                               {sub.member?.name || 'Unknown Member'}
-                            </div>
-                            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 3 }}>
-                              <span
-                                style={{
-                                  fontSize: 11,
-                                  color: '#ff8a00',
-                                  background: 'rgba(255,138,0,0.1)',
-                                  padding: '1px 6px',
-                                  borderRadius: 4,
-                                }}
-                              >
-                                {sub.member?.member_code || 'No Code'}
-                              </span>
-                              <span style={{ fontSize: 12, color: '#64748b' }}>
-                                {sub.member?.phone || ''}
-                              </span>
-                            </div>
+                            </span>
                           </td>
 
                           {/* Plan */}
                           <td>
-                            <div className="subs-plan-name" style={{ fontWeight: 600, fontSize: 13 }}>
+                            <div className="subs-plan-name" style={{ fontWeight: 700, fontSize: 13 }}>
                               {sub.plan?.name || 'Standard Package'}
                             </div>
-                            <div style={{ display: 'flex', gap: 6, marginTop: 4, fontSize: 11 }}>
+                            <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
                               {sub.plan?.has_trainer_access && (
-                                <span style={{ color: '#ff8a00', background: 'rgba(255,138,0,0.15)', padding: '1px 5px', borderRadius: 3 }}>
+                                <span className="subs-feature-chip subs-chip-pt">
                                   PT Included
                                 </span>
                               )}
                               {sub.plan?.has_class_access && (
-                                <span style={{ color: '#38bdf8', background: 'rgba(56,189,248,0.15)', padding: '1px 5px', borderRadius: 3 }}>
+                                <span className="subs-feature-chip subs-chip-class">
                                   Classes
+                                </span>
+                              )}
+                              {sub.plan?.duration_value && (
+                                <span className="subs-feature-chip subs-chip-duration">
+                                  {sub.plan.duration_value} {sub.plan.duration_type}{sub.plan.duration_value > 1 ? 's' : ''}
                                 </span>
                               )}
                             </div>
@@ -791,75 +972,77 @@ export default function SubscriptionManagement() {
 
                           {/* Validity */}
                           <td>
-                            <div className="subs-validity-text" style={{ fontSize: 13, fontWeight: 500 }}>
-                              {sub.start_date} <span style={{ color: '#64748b' }}>→</span> {sub.end_date}
+                            <div className="subs-validity-text" style={{ fontSize: 12.5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span>{sub.start_date}</span>
+                              <span style={{ color: '#ff7a00', opacity: 0.8 }}>→</span>
+                              <span>{sub.end_date}</span>
                             </div>
-                            {isFrozen && sub.frozen_until && (
-                              <div style={{ fontSize: 11, color: '#38bdf8', marginTop: 2 }}>
-                                Frozen until {sub.frozen_until}
+                            {isFrozen && sub.frozen_until ? (
+                              <div style={{ fontSize: 11, color: '#38bdf8', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <span>❄️ Frozen until {sub.frozen_until}</span>
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 1 }}>
+                                Valid coverage
                               </div>
                             )}
                           </td>
 
                           {/* Status */}
                           <td>
-                            <span
-                              className="badge"
-                              style={{
-                                background: statusBadgeBg,
-                                color: statusColor,
-                                border: `1px solid ${statusBorder}`,
-                                textTransform: 'capitalize',
-                              }}
-                            >
-                              {sub.status}
+                            <span className={`subs-status-pill status-${sub.status}`}>
+                              <span className="status-dot" />
+                              <span>{sub.status}</span>
                             </span>
                           </td>
 
                           {/* Days Left */}
                           <td>
                             {isActive ? (
-                              <span
-                                style={{
-                                  fontSize: 13,
-                                  fontWeight: 600,
-                                  color: sub.days_remaining <= 5 ? '#f87171' : sub.days_remaining <= 10 ? '#f59e0b' : '#10b981',
-                                }}
-                              >
-                                {sub.days_remaining} {sub.days_remaining === 1 ? 'day' : 'days'}
+                              <span className={`subs-days-pill ${sub.days_remaining <= 5 ? 'days-critical' : sub.days_remaining <= 10 ? 'days-warning' : 'days-ok'}`}>
+                                <Icons.Clock size={11} />
+                                <span>{sub.days_remaining} {sub.days_remaining === 1 ? 'day' : 'days'}</span>
                               </span>
                             ) : isFrozen ? (
-                              <span style={{ fontSize: 12, color: '#38bdf8' }}>On Hold</span>
+                              <span className="subs-days-pill days-frozen">
+                                <Icons.Pause size={11} />
+                                <span>On Hold</span>
+                              </span>
                             ) : (
-                              <span style={{ fontSize: 12, color: '#64748b' }}>—</span>
+                              <span className="subs-days-pill days-expired">
+                                <Icons.AlertTriangle size={11} />
+                                <span>Expired</span>
+                              </span>
                             )}
                           </td>
 
                           {/* Price */}
                           <td>
-                            <div className="subs-price-text" style={{ fontWeight: 700, fontSize: 13 }}>
-                              {Number(sub.total_amount).toLocaleString()} {sub.currency || 'ETB'}
+                            <div className="subs-price-text" style={{ fontWeight: 800, fontSize: 13.5 }}>
+                              {Number(sub.total_amount).toLocaleString()} <span style={{ fontSize: 11, fontWeight: 700, color: '#ff7a00' }}>{sub.currency || 'ETB'}</span>
                             </div>
-                            {Number(sub.discount) > 0 && (
-                              <div style={{ fontSize: 11, color: '#10b981' }}>
+                            {Number(sub.discount) > 0 ? (
+                              <div className="subs-discount-chip">
                                 -{Number(sub.discount).toLocaleString()} ETB promo
                               </div>
+                            ) : (
+                              <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 1 }}>Standard rate</div>
                             )}
                           </td>
 
                           {/* Actions */}
                           <td style={{ textAlign: 'right' }}>
-                            <div style={{ display: 'inline-flex', gap: 6 }}>
-                              {/* Renew Button */}
-                              {isStaff && (
+                            <div className="subs-table-actions">
+                              {/* Renew Button (for Active or Expired) */}
+                              {isStaff && (isActive || isExpired) && (
                                 <button
                                   type="button"
-                                  className="btn btn-secondary btn-sm"
+                                  className="subs-btn-action subs-btn-renew"
                                   onClick={() => handleOpenRenewModal(sub)}
                                   title="Renew Subscription"
-                                  style={{ padding: '4px 8px', fontSize: 12 }}
                                 >
-                                  Renew
+                                  <Icons.Refresh size={12} />
+                                  <span>Renew</span>
                                 </button>
                               )}
 
@@ -867,25 +1050,26 @@ export default function SubscriptionManagement() {
                               {isStaff && isActive && (
                                 <button
                                   type="button"
-                                  className="btn btn-secondary btn-sm"
+                                  className="subs-btn-action subs-btn-freeze"
                                   onClick={() => handleOpenFreezeModal(sub)}
                                   title="Freeze Pass"
-                                  style={{ padding: '4px 8px', fontSize: 12, color: '#38bdf8' }}
                                 >
-                                  Freeze
+                                  <Icons.Pause size={12} />
+                                  <span>Freeze</span>
                                 </button>
                               )}
 
-                              {/* Unfreeze Button (for Frozen) */}
+                              {/* Unfreeze Button (for Frozen) - 1-Click action */}
                               {isStaff && isFrozen && (
                                 <button
                                   type="button"
-                                  className="btn btn-secondary btn-sm"
+                                  className="subs-btn-action subs-btn-unfreeze"
                                   onClick={() => handleUnfreeze(sub)}
+                                  disabled={unfreezingId === sub.id}
                                   title="Reactivate Frozen Pass"
-                                  style={{ padding: '4px 8px', fontSize: 12, color: '#10b981' }}
                                 >
-                                  Unfreeze
+                                  <Icons.Play size={12} />
+                                  <span>{unfreezingId === sub.id ? 'Unfreezing...' : 'Unfreeze'}</span>
                                 </button>
                               )}
 
@@ -893,13 +1077,19 @@ export default function SubscriptionManagement() {
                               {isOwnerOrAdmin && (isActive || isFrozen) && (
                                 <button
                                   type="button"
-                                  className="btn btn-secondary btn-sm"
+                                  className="subs-btn-action subs-btn-cancel"
                                   onClick={() => handleOpenCancelModal(sub)}
                                   title="Terminate Pass"
-                                  style={{ padding: '4px 8px', fontSize: 12, color: '#f87171' }}
                                 >
-                                  Cancel
+                                  <Icons.XCircle size={12} />
+                                  <span>Cancel</span>
                                 </button>
+                              )}
+
+                              {!isActive && !isFrozen && (
+                                <span style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic', paddingRight: 6 }}>
+                                  —
+                                </span>
                               )}
                             </div>
                           </td>
@@ -911,40 +1101,39 @@ export default function SubscriptionManagement() {
               </table>
             </div>
 
-            {/* Pagination */}
-            {subsMeta.last_page > 1 && (
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '12px 20px',
-                  borderTop: '1px solid #1a1f2c',
-                  fontSize: 13,
-                  color: '#94a3b8',
-                }}
-              >
+            {/* Pagination: 10 members per page */}
+            {subsMeta.total > 0 && (
+              <div className="subs-pagination-bar">
                 <div>
-                  Page {subsMeta.current_page} of {subsMeta.last_page} ({subsMeta.total} records)
+                  Showing <strong>{(subsMeta.current_page - 1) * 10 + 1}</strong> to{' '}
+                  <strong>{Math.min(subsMeta.current_page * 10, subsMeta.total)}</strong> of{' '}
+                  <strong style={{ color: '#ff7a00' }}>{subsMeta.total}</strong> members
+                  {subsMeta.last_page > 1 && (
+                    <span style={{ marginLeft: 8, opacity: 0.8 }}>
+                      (Page {subsMeta.current_page} of {subsMeta.last_page})
+                    </span>
+                  )}
                 </div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    disabled={subsPage <= 1}
-                    onClick={() => setSubsPage((p) => Math.max(1, p - 1))}
-                  >
-                    ← Prev
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    disabled={subsPage >= subsMeta.last_page}
-                    onClick={() => setSubsPage((p) => Math.min(subsMeta.last_page, p + 1))}
-                  >
-                    Next →
-                  </button>
-                </div>
+                {subsMeta.last_page > 1 && (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      className="subs-page-btn"
+                      disabled={subsPage <= 1}
+                      onClick={() => setSubsPage((p) => Math.max(1, p - 1))}
+                    >
+                      ← Prev
+                    </button>
+                    <button
+                      type="button"
+                      className="subs-page-btn"
+                      disabled={subsPage >= subsMeta.last_page}
+                      onClick={() => setSubsPage((p) => Math.min(subsMeta.last_page, p + 1))}
+                    >
+                      Next →
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1088,19 +1277,19 @@ export default function SubscriptionManagement() {
                         <div style={{ display: 'flex', gap: 6 }}>
                           <button
                             type="button"
-                            className="btn btn-secondary btn-sm"
+                            className="subs-card-btn-edit"
                             onClick={() => handleOpenEditPlanModal(plan)}
-                            style={{ fontSize: 12, padding: '4px 10px' }}
                           >
-                            Edit
+                            <Icons.Edit size={13} />
+                            <span>Edit</span>
                           </button>
                           <button
                             type="button"
-                            className="btn btn-secondary btn-sm"
+                            className="subs-card-btn-archive"
                             onClick={() => handleDeletePlan(plan)}
-                            style={{ fontSize: 12, padding: '4px 10px', color: '#f87171' }}
                           >
-                            Archive
+                            <Icons.Trash size={13} />
+                            <span>Archive</span>
                           </button>
                         </div>
                       )}
@@ -1176,31 +1365,16 @@ export default function SubscriptionManagement() {
                   )}
                 </div>
 
-                {/* Date & Discount row */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <div>
-                    <label className="form-label">Start Date *</label>
-                    <input
-                      type="date"
-                      className="form-input"
-                      value={assignForm.start_date}
-                      onChange={(e) => setAssignForm({ ...assignForm, start_date: e.target.value })}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="form-label">Discount (ETB)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="any"
-                      className="form-input"
-                      placeholder="0.00"
-                      value={assignForm.discount}
-                      onChange={(e) => setAssignForm({ ...assignForm, discount: e.target.value })}
-                    />
-                  </div>
+                {/* Start Date */}
+                <div>
+                  <label className="form-label">Start Date *</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={assignForm.start_date}
+                    onChange={(e) => setAssignForm({ ...assignForm, start_date: e.target.value })}
+                    required
+                  />
                 </div>
 
                 {/* Price Breakdown Banner */}
@@ -1315,19 +1489,6 @@ export default function SubscriptionManagement() {
                   </select>
                 </div>
 
-                {/* Discount */}
-                <div>
-                  <label className="form-label">Discount (ETB)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="any"
-                    className="form-input"
-                    placeholder="0.00"
-                    value={renewForm.discount}
-                    onChange={(e) => setRenewForm({ ...renewForm, discount: e.target.value })}
-                  />
-                </div>
 
                 {/* Renewal Notes */}
                 <div>
@@ -1363,78 +1524,164 @@ export default function SubscriptionManagement() {
         </div>
       )}
 
-      {/* --- MODAL 3: Freeze Subscription --- */}
+      {/* --- MODAL 3: Compact Modern Freeze Subscription Pass --- */}
       {isFreezeModalOpen && selectedSub && (
         <div className="modal-backdrop">
-          <div className="modal-card" style={{ maxWidth: 460 }}>
-            <div className="modal-header">
-              <h3 style={{ fontSize: 18, fontWeight: 700 }}>Freeze Membership Pass</h3>
+          <div className="modal-card freeze-modal-card">
+            {/* Header */}
+            <div className="modal-header" style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div className="freeze-header-badge">
+                  <Icons.Snowflake size={16} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0 }}>Freeze Membership Pass</h3>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>
+                    Pass {selectedSub.subscription_number} • Temporary Suspension
+                  </div>
+                </div>
+              </div>
               <button
                 type="button"
                 className="modal-close-btn"
                 onClick={() => setIsFreezeModalOpen(false)}
+                title="Close"
               >
                 ✕
               </button>
             </div>
 
             <form onSubmit={handleFreezeSubmit}>
-              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <p style={{ color: '#64748b', fontSize: 13, lineHeight: 1.5, margin: 0 }}>
-                  Freezing temporarily suspends gym access for <strong className="subs-strong-text">{selectedSub.member?.name}</strong>.
-                  Their pass expiration date will automatically be extended by the freeze duration.
-                </p>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 9, padding: 0 }}>
+                {/* 1-Line Member & Plan Info Bar */}
+                <div className="freeze-member-bar">
+                  <span>Pass for: <strong>{selectedSub.member?.name || 'Member'}</strong> <span style={{ color: '#E67C00', fontWeight: 700 }}>({selectedSub.member?.member_code || `ID: ${selectedSub.member_id}`})</span></span>
+                  <span style={{ fontWeight: 600 }}>{selectedSub.plan?.name || 'Package'}</span>
+                </div>
 
+                {/* Date Selector with Inline Duration Presets */}
                 <div>
-                  <label className="form-label">Freeze Until (Future Date) *</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    min={freezeMinDate}
-                    value={freezeForm.frozen_until}
-                    onChange={(e) => setFreezeForm({ ...freezeForm, frozen_until: e.target.value })}
-                    required
-                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <label className="freeze-input-label">Freeze Until (Date) *</label>
+                    <div className="freeze-presets-row">
+                      {[
+                        { label: '7d', days: 7 },
+                        { label: '14d', days: 14 },
+                        { label: '21d', days: 21 },
+                        { label: '30d', days: 30 },
+                      ].map(preset => (
+                        <button
+                          key={preset.days}
+                          type="button"
+                          className={`freeze-preset-btn ${freezeCalculation.days === preset.days ? 'active' : ''}`}
+                          onClick={() => handleApplyFreezePreset(preset.days)}
+                        >
+                          +{preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="freeze-date-input-wrap" onClick={handleOpenFreezeDatePicker}>
+                    <span className="freeze-calendar-icon">
+                      <Icons.Calendar size={15} />
+                    </span>
+                    <input
+                      ref={freezeDateInputRef}
+                      type="date"
+                      className="freeze-date-input"
+                      min={freezeMinDate}
+                      value={freezeForm.frozen_until}
+                      onChange={(e) => setFreezeForm({ ...freezeForm, frozen_until: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="freeze-date-hint">
+                    <span>🗓️ Access pauses until <strong>{freezeCalculation.formattedUntil}</strong></span>
+                  </div>
+
                   {formErrors.frozen_until && (
-                    <div style={{ color: '#f87171', fontSize: 12, marginTop: 4 }}>
+                    <div style={{ color: '#ef4444', fontSize: 11, marginTop: 2, fontWeight: 600 }}>
                       {formErrors.frozen_until[0]}
                     </div>
                   )}
                 </div>
 
+                {/* 1-Line Extension Visualizer */}
+                <div className="freeze-extension-visualizer">
+                  <span>Expiry: <strong>{selectedSub.end_date || '—'}</strong></span>
+                  <span className="freeze-ext-pill">+{freezeCalculation.days}d Extends</span>
+                  <span>New: <strong style={{ color: '#16a34a' }}>{freezeCalculation.newEnd}</strong></span>
+                </div>
+
+                {/* Reason with Inline Chips */}
                 <div>
-                  <label className="form-label">Reason for Freezing *</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <label className="freeze-input-label">Reason *</label>
+                    <div className="freeze-reasons-wrap">
+                      {['Medical', 'Travel', 'Study', 'Personal'].map(chip => (
+                        <button
+                          key={chip}
+                          type="button"
+                          className="freeze-reason-chip"
+                          onClick={() => handleApplyReasonChip(chip)}
+                        >
+                          {chip}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <textarea
-                    className="form-input"
-                    rows="3"
+                    className="freeze-textarea"
+                    rows="2"
                     placeholder="Work travel abroad, medical recovery, personal request..."
                     value={freezeForm.reason}
                     onChange={(e) => setFreezeForm({ ...freezeForm, reason: e.target.value })}
                     required
                   ></textarea>
+
                   {formErrors.reason && (
-                    <div style={{ color: '#f87171', fontSize: 12, marginTop: 4 }}>
+                    <div style={{ color: '#ef4444', fontSize: 11, marginTop: 2, fontWeight: 600 }}>
                       {formErrors.reason[0]}
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="modal-footer">
+              {/* Compact Footer */}
+              <div className="modal-footer" style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(226, 232, 240, 0.8)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
                   onClick={() => setIsFreezeModalOpen(false)}
+                  disabled={isSubmitting}
+                  style={{ borderRadius: 6, padding: '6px 14px', fontSize: 12, fontWeight: 600 }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary btn-sm"
-                  style={{ background: '#38bdf8', borderColor: '#38bdf8', color: '#000' }}
+                  className="btn btn-sm"
+                  style={{
+                    background: '#E67C00',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontWeight: 700,
+                    borderRadius: 6,
+                    padding: '6px 16px',
+                    fontSize: 12,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(230, 124, 0, 0.3)',
+                  }}
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? 'Freezing...' : 'Freeze Pass'}
+                  <Icons.Pause size={12} />
+                  <span>{isSubmitting ? 'Freezing...' : `Freeze Pass (+${freezeCalculation.days}d)`}</span>
                 </button>
               </div>
             </form>
