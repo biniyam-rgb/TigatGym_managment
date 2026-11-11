@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import apiClient from '../services/api';
 import { useAuth } from '../context/useAuth';
 import QRCodeDisplay from './QRCodeDisplay';
@@ -129,6 +129,18 @@ const Icons = {
       <path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z" />
     </svg>
   ),
+  Edit3: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </svg>
+  ),
+  Search: ({ size = 15 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  ),
 };
 
 const CHAPA_PROVIDERS = [
@@ -150,7 +162,6 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
   const [totalMembers, setTotalMembers] = useState(0);
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'cards'
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedIds, setSelectedIds] = useState(new Set());
 
   // Notifications
   const [notification, setNotification] = useState(null);
@@ -323,7 +334,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
     setFormData((prev) => {
       const nextData = { ...prev, [field]: value };
       if (formErrors[field]) {
-        const err = validateSingleField(field, value, nextData, true);
+        const err = validateSingleField(field, value, nextData, !editingMember);
         setFormErrors((prevErrors) => {
           if (err) {
             return { ...prevErrors, [field]: err };
@@ -654,7 +665,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
         email: formData.email?.trim() || undefined,
         gender: formData.gender,
         date_of_birth: formData.date_of_birth || null,
-        blood_type: formData.blood_type || null,
+        blood_type: formData.blood_type ? formData.blood_type.toUpperCase().trim() : null,
         address: formData.address?.trim() || null,
         emergency_contact_name: formData.emergency_contact_name?.trim() || null,
         emergency_contact_phone: formData.emergency_contact_phone?.trim() || null,
@@ -666,15 +677,22 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
       const res = await apiClient.updateMember(editingMember.id, editPayload);
       setNotification({
         type: 'success',
-        message: res.message || 'Member updated successfully!',
+        message: res.message || `Member ${editingMember.name} updated successfully!`,
       });
+      if (res.member) {
+        setMembers((prev) => prev.map((item) => item.id === editingMember.id ? { ...item, ...res.member } : item));
+        if (selectedMember && selectedMember.id === editingMember.id) {
+          setSelectedMember(res.member);
+        }
+      }
       setEditingMember(null);
       fetchMembers();
     } catch (err) {
+      const msg = err.data?.message || err.message || 'Failed to update member';
       if (err.data?.errors) {
         setFormErrors(err.data.errors);
       }
-      setNotification({ type: 'danger', message: err.message || 'Failed to update member' });
+      setNotification({ type: 'danger', message: msg });
     } finally {
       setIsSubmitting(false);
     }
@@ -689,7 +707,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
       email: m.email && !m.email.includes('@members.tigatgym.com') ? m.email : '',
       gender: m.gender || 'male',
       date_of_birth: m.date_of_birth ? m.date_of_birth.slice(0, 10) : '',
-      blood_type: m.blood_type || '',
+      blood_type: m.blood_type ? m.blood_type.toUpperCase() : '',
       address: m.address || '',
       emergency_contact_name: m.emergency_contact_name || '',
       emergency_contact_phone: m.emergency_contact_phone || '',
@@ -706,12 +724,16 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
     try {
       const res = await apiClient.regenerateMemberQr(memberId);
       setNotification({ type: 'success', message: res.message || 'QR Token regenerated successfully.' });
+      if (res.member) {
+        setMembers((prev) => prev.map((item) => item.id === memberId ? { ...item, ...res.member } : item));
+      }
       if (selectedMember && selectedMember.id === memberId) {
-        setSelectedMember(res.member);
+        setSelectedMember(res.member || { ...selectedMember, qr_code_token: res.qr_code_token });
       }
       fetchMembers();
     } catch (err) {
-      setNotification({ type: 'danger', message: err.message || 'Failed to regenerate QR token.' });
+      const msg = err.data?.message || err.message || 'Failed to regenerate QR token.';
+      setNotification({ type: 'danger', message: msg });
     }
   };
 
@@ -728,33 +750,399 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
     }
   };
 
-  const toggleSelectMember = (id) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+  // Additional Table Features: Sorting, Instant Check-In, Context Menu & CSV/Excel Export
+  const [sortField, setSortField] = useState('name');
+  const [sortDir, setSortDir] = useState('asc'); // 'asc' | 'desc'
+  const [checkingInId, setCheckingInId] = useState(null);
+  const [openMenuMemberId, setOpenMenuMemberId] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
+  // Plan Renewal / Assignment Modal State
+  const [renewingMember, setRenewingMember] = useState(null);
+  const [renewForm, setRenewForm] = useState({
+    membership_plan_id: '',
+    start_date: '',
+    notes: '',
+  });
+  const [isRenewSubmitting, setIsRenewSubmitting] = useState(false);
+  const [renewErrors, setRenewErrors] = useState({});
+
+  const handleOpenRenewModal = async (m) => {
+    setRenewingMember(m);
+    setRenewErrors({});
+
+    let plans = membershipPlans;
+    if (!plans || plans.length === 0) {
+      try {
+        const fetched = await apiClient.getMembershipPlans({ active_only: 1 });
+        plans = fetched.data || (Array.isArray(fetched) ? fetched : []);
+        setMembershipPlans(plans);
+      } catch (err) {
+        console.error('Failed to load plans:', err);
+      }
+    }
+
+    let defaultPlanId = '';
+    if (m.active_subscription?.membership_plan_id) {
+      defaultPlanId = String(m.active_subscription.membership_plan_id);
+    } else if (m.active_subscription?.plan_name && plans && plans.length > 0) {
+      const match = plans.find((p) => p.name === m.active_subscription.plan_name);
+      if (match) defaultPlanId = String(match.id);
+    }
+    if (!defaultPlanId && plans && plans.length > 0) {
+      defaultPlanId = String(plans[0].id);
+    }
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    let startDate = todayStr;
+    if (m.active_subscription?.end_date) {
+      const currentEnd = new Date(m.active_subscription.end_date);
+      const today = new Date();
+      if (currentEnd > today) {
+        const nextDay = new Date(currentEnd);
+        nextDay.setDate(nextDay.getDate() + 1);
+        startDate = nextDay.toISOString().slice(0, 10);
+      }
+    }
+
+    setRenewForm({
+      membership_plan_id: defaultPlanId,
+      start_date: startDate,
+      notes: '',
     });
   };
 
-  const toggleSelectAll = () => {
-    if (selectedIds.size === members.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(members.map((m) => m.id)));
+  const handleRenewSubmit = async (e) => {
+    e.preventDefault();
+    if (!renewingMember) return;
+    if (!renewForm.membership_plan_id) {
+      setRenewErrors({ membership_plan_id: 'Please select a membership plan.' });
+      return;
+    }
+
+    setIsRenewSubmitting(true);
+    setRenewErrors({});
+
+    const selectedPlan = membershipPlans.find(p => String(p.id) === String(renewForm.membership_plan_id));
+
+    try {
+      const payload = {
+        member_id: renewingMember.user_id || renewingMember.id,
+        membership_plan_id: Number(renewForm.membership_plan_id),
+        start_date: renewForm.start_date || undefined,
+        discount: 0,
+        notes: renewForm.notes?.trim() || `Renewed via Member Directory: ${selectedPlan?.name || 'Membership Plan'}`,
+      };
+
+      const res = await apiClient.createSubscription(payload);
+      const newSubData = res.data || res;
+      setNotification({
+        type: 'success',
+        message: `🎉 Membership plan (${selectedPlan?.name || 'Active'}) successfully assigned to ${renewingMember.name}!`,
+      });
+
+      // Safely update state without overwriting memberProfile id with user id
+      setMembers((prev) => prev.map((item) => {
+        if (item.id === renewingMember.id) {
+          return {
+            ...item,
+            status: 'active',
+            active_subscription: {
+              id: newSubData?.id,
+              subscription_number: newSubData?.subscription_number,
+              membership_plan_id: selectedPlan?.id || newSubData?.membership_plan_id,
+              plan_name: selectedPlan?.name || newSubData?.plan?.name,
+              start_date: newSubData?.start_date,
+              end_date: newSubData?.end_date,
+              status: 'active',
+            },
+          };
+        }
+        return item;
+      }));
+
+      if (selectedMember && selectedMember.id === renewingMember.id) {
+        setSelectedMember((prev) => ({
+          ...prev,
+          status: 'active',
+          active_subscription: {
+            id: newSubData?.id,
+            subscription_number: newSubData?.subscription_number,
+            membership_plan_id: selectedPlan?.id || newSubData?.membership_plan_id,
+            plan_name: selectedPlan?.name || newSubData?.plan?.name,
+            start_date: newSubData?.start_date,
+            end_date: newSubData?.end_date,
+            status: 'active',
+          },
+        }));
+      }
+
+      setRenewingMember(null);
+      fetchMembers();
+    } catch (err) {
+      const msg = err.data?.message || err.message || 'Failed to renew plan';
+      if (err.data?.errors) {
+        setRenewErrors(err.data.errors);
+      }
+      setNotification({
+        type: 'danger',
+        message: `⚠️ Plan renewal failed: ${msg}`,
+      });
+    } finally {
+      setIsRenewSubmitting(false);
     }
   };
+
+  // Close floating dropdowns on click outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenMenuMemberId(null);
+      setShowExportMenu(false);
+    };
+    if (openMenuMemberId !== null || showExportMenu) {
+      document.addEventListener('click', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [openMenuMemberId, showExportMenu]);
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  // Instant 1-Click Check-In from Table
+  const handleQuickCheckIn = async (member) => {
+    if (!member) return;
+    setCheckingInId(member.id);
+    try {
+      await apiClient.checkIn({
+        member_id: member.user_id || member.id,
+        member_code: member.member_code,
+        qr_token: member.qr_code_token,
+        method: 'manual_reception',
+      });
+      setNotification({
+        type: 'success',
+        message: `✅ ${member.name} (${member.member_code}) checked in successfully for today's workout!`,
+      });
+      fetchMembers();
+    } catch (err) {
+      const msg = err.data?.message || err.message || 'Check-in failed';
+      setNotification({
+        type: 'danger',
+        message: `⚠️ Check-in failed for ${member.name}: ${msg}`,
+      });
+    } finally {
+      setCheckingInId(null);
+    }
+  };
+
+  // Universal Export Handler: Supports Native Microsoft Excel (.xlsx) & CSV (.csv) across all members/pages
+  const handleExportData = async (format = 'excel') => {
+    setIsExporting(true);
+    setShowExportMenu(false);
+    try {
+      // 1. Fetch all members with all: 1 and high per_page matching active filters
+      const res = await apiClient.getMembers({
+        search: search?.trim() || undefined,
+        status: statusFilter || undefined,
+        gender: genderFilter || undefined,
+        all: 1,
+        per_page: 10000,
+      });
+
+      let allMembersList = [];
+      if (Array.isArray(res?.data)) {
+        allMembersList = [...res.data];
+      } else if (Array.isArray(res)) {
+        allMembersList = [...res];
+      }
+
+      // 2. Fail-safe pagination fallback if the backend returned paginated pages
+      if (res?.last_page && res.last_page > 1 && res.current_page === 1) {
+        for (let p = 2; p <= res.last_page; p++) {
+          try {
+            const pageRes = await apiClient.getMembers({
+              search: search?.trim() || undefined,
+              status: statusFilter || undefined,
+              gender: genderFilter || undefined,
+              page: p,
+              per_page: res.per_page || 15,
+            });
+            if (Array.isArray(pageRes?.data)) {
+              allMembersList.push(...pageRes.data);
+            }
+          } catch (pageErr) {
+            console.warn(`Could not fetch export page ${p}:`, pageErr);
+          }
+        }
+      }
+
+      // Fallback to loaded members in state if API returned empty
+      if (allMembersList.length === 0 && members && members.length > 0) {
+        allMembersList = [...members];
+      }
+
+      if (allMembersList.length === 0) {
+        setNotification({ type: 'warning', message: 'No members available to export.' });
+        return;
+      }
+
+      const dateStamp = new Date().toISOString().split('T')[0];
+
+      if (format === 'excel') {
+        // Native Microsoft Excel (.xlsx) Workbook export
+        const XLSX = await import('xlsx');
+        const excelRows = allMembersList.map((m) => ({
+          'Member Code': m.member_code || '',
+          'Full Name': m.name || '',
+          'Phone': m.phone || '',
+          'Email': m.email || '',
+          'Gender': m.gender ? (m.gender.charAt(0).toUpperCase() + m.gender.slice(1)) : '',
+          'Status': m.status ? (m.status.charAt(0).toUpperCase() + m.status.slice(1)) : '',
+          'Active Plan': m.active_subscription?.plan_name || 'Standard',
+          'Expiry Date': m.active_subscription?.end_date || m.card_expires_at || '',
+          'Blood Type': m.blood_type || '',
+          'Emergency Contact': m.emergency_contact_name || '',
+          'Emergency Phone': m.emergency_contact_phone || '',
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(excelRows);
+
+        // Auto-configure column widths for pristine Excel presentation
+        worksheet['!cols'] = [
+          { wch: 15 }, // Member Code
+          { wch: 25 }, // Full Name
+          { wch: 18 }, // Phone
+          { wch: 30 }, // Email
+          { wch: 12 }, // Gender
+          { wch: 12 }, // Status
+          { wch: 20 }, // Active Plan
+          { wch: 15 }, // Expiry Date
+          { wch: 12 }, // Blood Type
+          { wch: 22 }, // Emergency Contact
+          { wch: 18 }, // Emergency Phone
+        ];
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Tigat Gym Members');
+        XLSX.writeFile(workbook, `tigat_gym_all_members_${dateStamp}.xlsx`);
+
+        setNotification({
+          type: 'success',
+          message: `Successfully exported all ${allMembersList.length} members to Microsoft Excel (.xlsx)!`,
+        });
+      } else {
+        // Excel-compatible CSV with UTF-8 BOM
+        const headers = [
+          'Member Code',
+          'Full Name',
+          'Phone',
+          'Email',
+          'Gender',
+          'Status',
+          'Plan',
+          'Expiry Date',
+          'Blood Type',
+          'Emergency Contact',
+          'Emergency Phone',
+        ];
+
+        const rows = allMembersList.map((m) => [
+          `"${m.member_code || ''}"`,
+          `"${(m.name || '').replace(/"/g, '""')}"`,
+          `"${m.phone || ''}"`,
+          `"${m.email || ''}"`,
+          `"${m.gender || ''}"`,
+          `"${m.status || ''}"`,
+          `"${m.active_subscription?.plan_name || 'Standard'}"`,
+          `"${m.active_subscription?.end_date || m.card_expires_at || ''}"`,
+          `"${m.blood_type || ''}"`,
+          `"${(m.emergency_contact_name || '').replace(/"/g, '""')}"`,
+          `"${m.emergency_contact_phone || ''}"`,
+        ]);
+
+        // Prepend UTF-8 BOM '\uFEFF' so Excel automatically opens CSV in proper UTF-8
+        const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `tigat_gym_all_members_${dateStamp}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        setNotification({
+          type: 'success',
+          message: `Successfully exported all ${allMembersList.length} members to CSV!`,
+        });
+      }
+    } catch (err) {
+      setNotification({
+        type: 'danger',
+        message: `Export failed: ${err.message || 'Unknown error occurred'}`,
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+
+  const sortedMembers = useMemo(() => {
+    const list = [...members];
+    list.sort((a, b) => {
+      let valA = '';
+      let valB = '';
+      if (sortField === 'name') {
+        valA = (a.name || '').toLowerCase();
+        valB = (b.name || '').toLowerCase();
+      } else if (sortField === 'status') {
+        valA = (a.status || '').toLowerCase();
+        valB = (b.status || '').toLowerCase();
+      } else if (sortField === 'expiry') {
+        valA = a.active_subscription?.end_date || a.card_expires_at || '';
+        valB = b.active_subscription?.end_date || b.card_expires_at || '';
+      }
+      if (valA < valB) return sortDir === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return list;
+  }, [members, sortField, sortDir]);
 
   const getExpiryMeta = (m) => {
     if (!m.active_subscription?.end_date) {
       return { text: 'NO ACTIVE PLAN', isExpired: true, date: '—', color: 'text-muted' };
     }
     const end = new Date(m.active_subscription.end_date);
-    const now = new Date();
-    const diffDays = Math.round((end - now) / 86400000);
     const formattedDate = end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
-    if (diffDays < 0) {
-      return { text: `EXPIRED ${Math.abs(diffDays)}D AGO`, isExpired: true, date: formattedDate, color: 'text-red' };
+
+    let diffDays;
+    if (typeof m.active_subscription.days_remaining === 'number') {
+      diffDays = m.active_subscription.days_remaining;
+    } else {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      diffDays = Math.ceil((endDay - today) / 86400000);
+    }
+
+    if (diffDays <= 0) {
+      return {
+        text: diffDays === 0 ? 'EXPIRES TODAY' : `EXPIRED ${Math.abs(diffDays)}D AGO`,
+        isExpired: diffDays < 0,
+        date: formattedDate,
+        color: diffDays === 0 ? 'text-warning' : 'text-red'
+      };
     }
     return { text: `IN ${diffDays} DAYS`, isExpired: false, date: formattedDate, color: 'text-green' };
   };
@@ -843,30 +1231,41 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
 
       {/* Search & Filter Controls Toolbar matching Image 1 */}
       <div className="gymflow-controls-bar">
-        {/* Rounded Search Input with Magnifier & Microphone */}
-        <div className="gymflow-search-box">
-          <span className="search-icon-lens">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </span>
+        {/* Search Input matching Membership search bar perfectly */}
+        <div className="search-bar-wrapper" style={{ flex: 1, position: 'relative' }}>
           <input
             type="text"
-            className="gymflow-search-input"
-            placeholder="Search by name, phone, reg no, plan, or status"
+            className="form-input search-input-field"
+            placeholder="Search by name, phone, reg no, plan, or status..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
             }}
+            style={{
+              paddingLeft: 36,
+              paddingRight: 14,
+              width: '100%',
+              height: 42,
+              minHeight: 42,
+              boxSizing: 'border-box',
+              fontSize: 13.5,
+              borderRadius: 8,
+            }}
           />
-          <span className="search-icon-mic" title="Voice search shortcut">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-              <line x1="12" y1="19" x2="12" y2="22" />
-            </svg>
+          <span
+            className="search-bar-icon"
+            style={{
+              position: 'absolute',
+              left: 12,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              display: 'flex',
+              alignItems: 'center',
+              pointerEvents: 'none',
+            }}
+          >
+            <Icons.Search size={15} />
           </span>
         </div>
 
@@ -882,6 +1281,115 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
           </svg>
           <span>FILTERS</span>
         </button>
+
+        {/* Modern Interactive Export Pill & Popover */}
+        <div style={{ position: 'relative' }}>
+          <div className={`gymflow-export-pill ${showExportMenu ? 'active' : ''}`}>
+            {/* Primary Action Button: Immediately downloads Excel (.xlsx) */}
+            <button
+              type="button"
+              className="gymflow-export-action-btn"
+              onClick={() => handleExportData('excel')}
+              disabled={isExporting}
+              title="Download all members in Microsoft Excel (.xlsx)"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: isExporting ? 'spin 1s linear infinite' : 'none' }}>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>{isExporting ? 'EXPORTING...' : 'EXPORT'}</span>
+              <span className="gymflow-export-format-tag">XLSX</span>
+            </button>
+
+            {/* Toggle Dropdown Arrow */}
+            <button
+              type="button"
+              className="gymflow-export-toggle-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowExportMenu((prev) => !prev);
+              }}
+              disabled={isExporting}
+              title="Choose download format: Excel (.xlsx) or CSV"
+            >
+              <svg className={`export-chevron-icon ${showExportMenu ? 'open' : ''}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Luxury Floating Popover */}
+          {showExportMenu && (
+            <div className="gymflow-export-popover" onClick={(e) => e.stopPropagation()}>
+              <div className="export-popover-header">
+                <span>EXPORT DIRECTORY</span>
+                <span className="export-count-pill">{totalMembers || members.length} members</span>
+              </div>
+
+              {/* Option 1: Microsoft Excel */}
+              <button
+                type="button"
+                className="export-format-tile tile-excel"
+                onClick={() => handleExportData('excel')}
+              >
+                <div className="export-tile-icon icon-excel">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="8" y1="13" x2="16" y2="13" />
+                    <line x1="8" y1="17" x2="16" y2="17" />
+                    <polyline points="10 9 9 9 8 9" />
+                  </svg>
+                </div>
+                <div className="export-tile-meta">
+                  <div className="export-tile-title-row">
+                    <span className="export-tile-title">Microsoft Excel</span>
+                    <span className="export-badge-recommended">RECOMMENDED</span>
+                  </div>
+                  <div className="export-tile-desc">Formatted .xlsx workbook with auto-fitted columns</div>
+                </div>
+                <svg className="export-tile-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+
+              {/* Option 2: CSV Spreadsheet */}
+              <button
+                type="button"
+                className="export-format-tile tile-csv"
+                onClick={() => handleExportData('csv')}
+              >
+                <div className="export-tile-icon icon-csv">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                    <line x1="10" y1="9" x2="8" y2="9" />
+                  </svg>
+                </div>
+                <div className="export-tile-meta">
+                  <div className="export-tile-title-row">
+                    <span className="export-tile-title">CSV Document</span>
+                    <span className="export-badge-universal">UNIVERSAL</span>
+                  </div>
+                  <div className="export-tile-desc">UTF-8 BOM comma-separated spreadsheet (.csv)</div>
+                </div>
+                <svg className="export-tile-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+
+              <div className="export-popover-footer">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ff7a00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                </svg>
+                <span>Exports all pages & applied filters in one single file</span>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Table / Cards View Mode Switcher */}
         <div className="gymflow-view-switcher">
@@ -948,42 +1456,50 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
           <table className="gymflow-table">
             <thead>
               <tr>
-                <th style={{ width: 44 }}>
-                  <input
-                    type="checkbox"
-                    className="gymflow-checkbox"
-                    checked={members.length > 0 && selectedIds.size === members.length}
-                    onChange={toggleSelectAll}
-                    title="Select all members"
-                  />
+                <th
+                  onClick={() => handleSort('name')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  title="Click to sort by Member Name"
+                >
+                  MEMBER <span style={{ opacity: sortField === 'name' ? 1 : 0.4, fontSize: 11 }}>{sortField === 'name' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
                 </th>
-                <th>MEMBER</th>
                 <th>
                   ENGAGEMENT
                   <span className="th-subtext">Green = checked in</span>
                 </th>
-                <th>PLAN / STATUS</th>
-                <th>EXPIRY ↑</th>
-                <th className="text-right">QUICK ACTION</th>
+                <th
+                  onClick={() => handleSort('status')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  title="Click to sort by Plan / Status"
+                >
+                  PLAN / STATUS <span style={{ opacity: sortField === 'status' ? 1 : 0.4, fontSize: 11 }}>{sortField === 'status' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
+                </th>
+                <th
+                  onClick={() => handleSort('expiry')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  title="Click to sort by Expiry Date"
+                >
+                  EXPIRY <span style={{ opacity: sortField === 'expiry' ? 1 : 0.4, fontSize: 11 }}>{sortField === 'expiry' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
+                </th>
+                <th className="text-right" style={{ minWidth: 200 }}>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan="6" className="text-center py-5">
+                  <td colSpan="5" className="text-center py-5">
                     <span className="spinner"></span> Loading registered members...
                   </td>
                 </tr>
               ) : members.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="text-center py-5 text-muted">
+                  <td colSpan="5" className="text-center py-5 text-muted">
                     No gym members found matching criteria.
                   </td>
                 </tr>
               ) : (
-                members.map((m, idx) => {
+                sortedMembers.map((m, idx) => {
                   const expiry = getExpiryMeta(m);
-                  const isSelected = selectedIds.has(m.id);
                   const initials = m.name?.charAt(0).toLowerCase() || 'm';
 
                   // Dynamic color tag for initial square
@@ -991,17 +1507,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                   const avatarBg = avatarColors[idx % avatarColors.length];
 
                   return (
-                    <tr key={m.id} className={isSelected ? 'row-selected' : ''}>
-                      {/* Checkbox */}
-                      <td>
-                        <input
-                          type="checkbox"
-                          className="gymflow-checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleSelectMember(m.id)}
-                        />
-                      </td>
-
+                    <tr key={m.id}>
                       {/* Member Info: Square Initial Avatar + Name + Phone + ID */}
                       <td>
                         <div className="gymflow-member-cell">
@@ -1061,49 +1567,112 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                         </div>
                       </td>
 
-                      {/* Quick Action Circles matching Image 1 */}
+                      {/* Quick Action Buttons: Check In, Pass & 3-Dot Management */}
                       <td className="text-right">
-                        <div className="gymflow-actions-flex">
-                          {/* Dark Circle Check-in Button */}
+                        <div className="gymflow-table-actions">
+                          {/* 1. Quick Check-In Button */}
+                          {isStaff && (
+                            <button
+                              type="button"
+                              className="btn-tbl-action btn-tbl-checkin"
+                              onClick={() => handleQuickCheckIn(m)}
+                              disabled={checkingInId === m.id}
+                              title="Instant Attendance Check-in"
+                            >
+                              <Icons.Check size={13} />
+                              <span>{checkingInId === m.id ? 'Checking In...' : 'Check In'}</span>
+                            </button>
+                          )}
+
+                          {/* 2. QR Pass Button */}
                           <button
                             type="button"
-                            className="gymflow-circle-action action-check"
-                            title="Verify Check-in Pass"
+                            className="btn-tbl-action btn-tbl-pass"
                             onClick={() => setSelectedMember(m)}
+                            title="View 1-Year Permanent Member Card & QR Pass"
                           >
-                            <Icons.Check size={14} />
+                            <Icons.QrCode size={13} />
+                            <span>Pass</span>
                           </button>
 
-                          {/* Orange Circle Renew Button */}
-                          <button
-                            type="button"
-                            className="gymflow-circle-action action-renew"
-                            title="Renew / Modify Subscription"
-                            onClick={() => isStaff && handleOpenEdit(m)}
-                          >
-                            <Icons.Refresh size={13} />
-                          </button>
+                          {/* 3. More Actions Dropdown Menu (No Duplicates) */}
+                          <div className="gymflow-dropdown-wrap">
+                            <button
+                              type="button"
+                              className={`btn-tbl-more ${openMenuMemberId === m.id ? 'active' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuMemberId(openMenuMemberId === m.id ? null : m.id);
+                              }}
+                              title="More Management Actions"
+                              aria-label="More actions"
+                            >
+                              ⋮
+                            </button>
 
-                          {/* Green Circle WhatsApp / Message Button */}
-                          <a
-                            href={`https://wa.me/${m.phone?.replace(/[^0-9]/g, '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="gymflow-circle-action action-message"
-                            title="Direct Message via WhatsApp"
-                          >
-                            <Icons.MessageCircle size={14} />
-                          </a>
+                            {openMenuMemberId === m.id && (
+                              <div className="gymflow-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                                {isStaff && (
+                                  <button
+                                    type="button"
+                                    className="dropdown-item"
+                                    onClick={() => {
+                                      setOpenMenuMemberId(null);
+                                      handleOpenEdit(m);
+                                    }}
+                                  >
+                                    <Icons.Edit size={14} />
+                                    <span>Edit Profile Details</span>
+                                  </button>
+                                )}
 
-                          {/* 3-Dots Action Button */}
-                          <button
-                            type="button"
-                            className="gymflow-circle-action action-more"
-                            title="Member Profile & Management"
-                            onClick={() => setSelectedMember(m)}
-                          >
-                            ⋮
-                          </button>
+                                {isStaff && (
+                                  <button
+                                    type="button"
+                                    className="dropdown-item"
+                                    onClick={() => {
+                                      setOpenMenuMemberId(null);
+                                      handleOpenRenewModal(m);
+                                    }}
+                                  >
+                                    <Icons.Refresh size={14} />
+                                    <span>Renew / Assign Plan</span>
+                                  </button>
+                                )}
+
+                                {isStaff && (
+                                  <button
+                                    type="button"
+                                    className="dropdown-item"
+                                    onClick={() => {
+                                      setOpenMenuMemberId(null);
+                                      handleRegenerateQr(m.id);
+                                    }}
+                                  >
+                                    <Icons.Zap size={14} />
+                                    <span>Regenerate QR Token</span>
+                                  </button>
+                                )}
+
+                                {isManagement && (
+                                  <>
+                                    <div className="dropdown-divider"></div>
+                                    <button
+                                      type="button"
+                                      className="dropdown-item dropdown-item-danger"
+                                      onClick={() => {
+                                        setOpenMenuMemberId(null);
+                                        handleDeleteMember(m);
+                                      }}
+                                    >
+                                      <Icons.Trash size={14} />
+                                      <span>Delete Member</span>
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -1116,7 +1685,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
       ) : (
         /* Cards Mode */
         <div className="gymflow-cards-grid">
-          {members.map((m, idx) => {
+          {sortedMembers.map((m, idx) => {
             const expiry = getExpiryMeta(m);
             const initials = m.name?.charAt(0).toLowerCase() || 'm';
             const avatarColors = ['#1e293b', '#d97706', '#0f766e', '#4338ca', '#be123c'];
@@ -1144,6 +1713,20 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                 </div>
 
                 <div className="card-item-bottom">
+                  {isStaff && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-xs"
+                      onClick={() => handleQuickCheckIn(m)}
+                      disabled={checkingInId === m.id}
+                      style={{ color: '#16a34a', borderColor: 'rgba(22, 163, 74, 0.3)' }}
+                      title="Instant Attendance Check-in"
+                    >
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        <Icons.Check size={13} /> {checkingInId === m.id ? '...' : 'Check In'}
+                      </span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="btn btn-secondary btn-xs"
@@ -1161,6 +1744,18 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     >
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                         <Icons.Edit size={13} /> Edit
+                      </span>
+                    </button>
+                  )}
+                  {isStaff && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-xs"
+                      onClick={() => handleOpenRenewModal(m)}
+                      title="Renew / Assign Plan"
+                    >
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        <Icons.Refresh size={13} /> Renew
                       </span>
                     </button>
                   )}
@@ -2401,28 +2996,48 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                     </div>
                   </div>
 
-                  <div className="reg-form-group">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                      <label>Date of Birth</label>
-                      {formData.date_of_birth && !formErrors.date_of_birth && (
-                        <span style={{ fontSize: 10, fontWeight: 700, color: '#10b981' }}>
-                          {calculateAge(formData.date_of_birth)} yrs
-                        </span>
+                  <div className="reg-form-row-2">
+                    <div className="reg-form-group">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                        <label>Date of Birth</label>
+                        {formData.date_of_birth && !formErrors.date_of_birth && (
+                          <span style={{ fontSize: 10, fontWeight: 700, color: '#10b981' }}>
+                            {calculateAge(formData.date_of_birth)} yrs
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="date"
+                        className={`reg-control ${formErrors.date_of_birth ? 'input-error' : ''}`}
+                        max={maxDobString}
+                        min="1920-01-01"
+                        value={formData.date_of_birth}
+                        onChange={(e) => handleFieldChange('date_of_birth', e.target.value)}
+                        onClick={(e) => openDatePicker(e.currentTarget)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      {formErrors.date_of_birth && (
+                        <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.date_of_birth}</span>
                       )}
                     </div>
-                    <input
-                      type="date"
-                      className={`reg-control ${formErrors.date_of_birth ? 'input-error' : ''}`}
-                      max={maxDobString}
-                      min="1920-01-01"
-                      value={formData.date_of_birth}
-                      onChange={(e) => handleFieldChange('date_of_birth', e.target.value)}
-                      onClick={(e) => openDatePicker(e.currentTarget)}
-                      style={{ cursor: 'pointer' }}
-                    />
-                    {formErrors.date_of_birth && (
-                      <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.date_of_birth}</span>
-                    )}
+                    <div className="reg-form-group">
+                      <label>Blood Type</label>
+                      <select
+                        className="reg-control"
+                        value={formData.blood_type ? formData.blood_type.toUpperCase() : ''}
+                        onChange={(e) => handleFieldChange('blood_type', e.target.value)}
+                      >
+                        <option value="">Select Blood Type</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div className="reg-form-group">
@@ -2532,10 +3147,144 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
         </div>
       )}
 
-      {/* Modal 3: Official 1-Year Permanent Member Card */}
+      {/* Modal 3: Renew / Assign Membership Plan */}
+      {renewingMember && (
+        <div className="modal-backdrop">
+          <div className="modal-card modal-card-register-fit" style={{ maxWidth: 520 }}>
+            <div className="modal-header-compact">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 7, background: '#fff7ed', color: '#E67C00', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icons.Refresh size={15} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'inherit' }}>
+                    Renew / Assign Membership Plan
+                  </h3>
+                  <span style={{ fontSize: 11, color: '#64748b' }}>
+                    {renewingMember.name} • <strong style={{ color: '#E67C00' }}>{renewingMember.member_code}</strong>
+                  </span>
+                </div>
+              </div>
+              <button type="button" className="btn-close" onClick={() => setRenewingMember(null)}>×</button>
+            </div>
+
+            <form onSubmit={handleRenewSubmit} noValidate style={{ margin: 0 }}>
+              <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {renewingMember.active_subscription ? (
+                  <div style={{ background: 'rgba(22, 163, 74, 0.08)', border: '1px solid rgba(22, 163, 74, 0.25)', borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
+                    <span style={{ color: '#16a34a', fontWeight: 700 }}>Current Active Plan: </span>
+                    <strong>{renewingMember.active_subscription.plan_name || 'Active'}</strong>
+                    {renewingMember.active_subscription.end_date && ` (expires ${new Date(renewingMember.active_subscription.end_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })})`}
+                  </div>
+                ) : (
+                  <div style={{ background: 'rgba(230, 124, 0, 0.08)', border: '1px solid rgba(230, 124, 0, 0.25)', borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
+                    <span style={{ color: '#ea580c', fontWeight: 700 }}>No active subscription on file. </span>
+                    Assign a membership plan below to enable instant workout check-ins.
+                  </div>
+                )}
+
+                <div className="reg-form-group">
+                  <label style={{ fontSize: 12, fontWeight: 700, marginBottom: 4, display: 'block' }}>
+                    Select Membership Plan <span style={{ color: '#E67C00' }}>*</span>
+                  </label>
+                  <select
+                    className={`reg-control ${renewErrors.membership_plan_id ? 'input-error' : ''}`}
+                    value={renewForm.membership_plan_id}
+                    onChange={(e) => setRenewForm(prev => ({ ...prev, membership_plan_id: e.target.value }))}
+                    style={{ width: '100%', height: 38, borderRadius: 8, padding: '0 10px', fontSize: 13 }}
+                  >
+                    <option value="">-- Choose Plan --</option>
+                    {membershipPlans.map((plan) => (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.name} — {Number(plan.price).toLocaleString()} ETB ({plan.duration_value} {plan.duration_type}{plan.duration_value > 1 ? 's' : ''})
+                      </option>
+                    ))}
+                  </select>
+                  {renewErrors.membership_plan_id && (
+                    <span className="form-error-text" style={{ fontSize: 11, color: '#ef4444' }}>
+                      <Icons.AlertCircle size={12} /> {renewErrors.membership_plan_id}
+                    </span>
+                  )}
+                </div>
+
+                <div className="reg-form-group">
+                  <label style={{ fontSize: 12, fontWeight: 700, marginBottom: 4, display: 'block' }}>
+                    Pass Start Date <span style={{ color: '#E67C00' }}>*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    className="reg-control"
+                    value={renewForm.start_date}
+                    onChange={(e) => setRenewForm(prev => ({ ...prev, start_date: e.target.value }))}
+                    style={{ width: '100%', height: 38, borderRadius: 8, padding: '0 10px', fontSize: 13 }}
+                  />
+                  <span style={{ fontSize: 10.5, color: '#64748b' }}>
+                    Plan duration begins from this date.
+                  </span>
+                </div>
+
+                <div className="reg-form-group">
+                  <label style={{ fontSize: 12, fontWeight: 700, marginBottom: 4, display: 'block' }}>
+                    Front-Desk Renewal Notes
+                  </label>
+                  <input
+                    type="text"
+                    className="reg-control"
+                    value={renewForm.notes}
+                    onChange={(e) => setRenewForm(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="e.g. Cash payment received at reception"
+                    style={{ width: '100%', height: 38, borderRadius: 8, padding: '0 10px', fontSize: 13 }}
+                  />
+                </div>
+
+                {(() => {
+                  const selPlan = membershipPlans.find(p => String(p.id) === String(renewForm.membership_plan_id));
+                  if (!selPlan) return null;
+                  const price = Number(selPlan.price) || 0;
+                  return (
+                    <div style={{ background: 'var(--bg-secondary, #f8fafc)', border: '1px solid var(--border-color, #e2e8f0)', borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ color: '#64748b' }}>Plan Fee:</span>
+                        <strong>{price.toLocaleString()} ETB</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 4, borderTop: '1px dashed #cbd5e1', fontWeight: 800 }}>
+                        <span>Total Payable:</span>
+                        <strong style={{ color: '#E67C00' }}>{price.toLocaleString()} ETB</strong>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="modal-footer" style={{ padding: '12px 20px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setRenewingMember(null)}
+                  disabled={isRenewSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={isRenewSubmitting}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#E67C00', borderColor: '#E67C00', fontWeight: 700 }}
+                >
+                  <Icons.Refresh size={14} />
+                  <span>{isRenewSubmitting ? 'Activating...' : 'Confirm & Activate Plan'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 4: Official 1-Year Permanent Member Card */}
       {selectedMember && (
         <div className="modal-backdrop">
-          <div className="modal-card" style={{ maxWidth: 540, maxHeight: '92vh', overflowY: 'auto' }}>
+          <div className="modal-card" style={{ maxWidth: 520, overflow: 'hidden' }}>
             <div className="modal-header">
               <div>
                 <h3 style={{ margin: 0, color: 'var(--gym-text-primary, #ffffff)' }}>TIGAT GYM — Permanent Member Card</h3>
@@ -2546,7 +3295,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
               <button type="button" className="btn-close" onClick={() => setSelectedMember(null)}>×</button>
             </div>
 
-            <div className="digital-card-container" style={{ padding: '10px 0' }}>
+            <div className="digital-card-container" style={{ padding: '6px 0' }}>
               <PermanentMemberCard
                 member={selectedMember}
                 membershipTitle="PREMIUM MEMBER"
@@ -2554,55 +3303,25 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
               />
             </div>
 
-            {/* Emergency Detail Strip */}
+            {/* High-Contrast Phone & Emergency Contact Strip */}
             {(selectedMember.phone || selectedMember.emergency_contact_phone) && (
-              <div
-                style={{
-                  background: 'rgba(255, 122, 0, 0.06)',
-                  border: '1px solid rgba(255, 122, 0, 0.18)',
-                  borderRadius: 10,
-                  padding: '8px 14px',
-                  fontSize: 11,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  color: 'var(--gym-text-muted, #94a3b8)',
-                  flexWrap: 'wrap',
-                  gap: 8,
-                  marginTop: 4,
-                }}
-              >
+              <div className="member-pass-phone-strip">
                 {selectedMember.phone && (
-                  <span>Phone: <strong style={{ color: 'var(--gym-text-primary, #ffffff)' }}>{selectedMember.phone}</strong></span>
+                  <div className="phone-strip-item">
+                    <span className="strip-label">Member Phone:</span>
+                    <strong className="strip-val">{selectedMember.phone}</strong>
+                  </div>
                 )}
                 {selectedMember.emergency_contact_name && (
-                  <span>Contact: <strong style={{ color: 'var(--gym-text-primary, #ffffff)' }}>{selectedMember.emergency_contact_name} ({selectedMember.emergency_contact_phone})</strong></span>
+                  <div className="phone-strip-item">
+                    <span className="strip-label">Emergency Contact:</span>
+                    <strong className="strip-val">
+                      {selectedMember.emergency_contact_name} {selectedMember.emergency_contact_phone ? `(${selectedMember.emergency_contact_phone})` : ''}
+                    </strong>
+                  </div>
                 )}
               </div>
             )}
-
-            <div className="modal-actions" style={{ justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-              {isStaff ? (
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => handleRegenerateQr(selectedMember.id)}
-                  title="Generate a new secure QR token if member lost card"
-                >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <Icons.Refresh size={14} /> Regenerate QR Token
-                  </span>
-                </button>
-              ) : <div></div>}
-
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => setSelectedMember(null)}
-              >
-                Close
-              </button>
-            </div>
           </div>
         </div>
       )}
