@@ -30,10 +30,15 @@ class MemberResource extends JsonResource
 
         $canViewSensitive = $isSelf || $isStaff || $isAssignedTrainer;
 
-        // Retrieve latest active subscription if loaded or available
+        // Retrieve active subscription covering the member's paid duration
         $activeSubscription = $this->whenLoaded('subscriptions', function () {
+            $today = now()->toDateString();
             return $this->subscriptions
                 ->where('status', 'active')
+                ->filter(function ($s) use ($today) {
+                    $end = $s->end_date ? $s->end_date->format('Y-m-d') : null;
+                    return $end && $end >= $today;
+                })
                 ->sortByDesc('end_date')
                 ->first();
         });
@@ -64,10 +69,12 @@ class MemberResource extends JsonResource
             'active_subscription' => $activeSubscription ? [
                 'id' => $activeSubscription->id,
                 'subscription_number' => $activeSubscription->subscription_number,
+                'membership_plan_id' => $activeSubscription->membership_plan_id,
                 'plan_name' => $activeSubscription->membershipPlan?->name,
                 'start_date' => $activeSubscription->start_date?->format('Y-m-d'),
                 'end_date' => $activeSubscription->end_date?->format('Y-m-d'),
                 'status' => $activeSubscription->status,
+                'days_remaining' => $activeSubscription->days_remaining,
             ] : null,
         ];
     }

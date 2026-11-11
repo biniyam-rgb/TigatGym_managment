@@ -15,13 +15,7 @@ class SubscriptionResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $today = Carbon::today();
-        $endDate = $this->end_date ? Carbon::parse($this->end_date) : null;
-        $daysRemaining = 0;
-        if ($endDate && $this->status === 'active') {
-            $diff = $today->diffInDays($endDate, false);
-            $daysRemaining = (int) max(0, $diff);
-        }
+        $daysRemaining = $this->days_remaining;
 
         return [
             'id' => $this->id,
@@ -64,6 +58,8 @@ class SubscriptionResource extends JsonResource
             'notes' => $this->notes,
             'days_remaining' => $daysRemaining,
             'is_active' => $this->isActive(),
+            'is_upcoming' => $this->isUpcoming(),
+            'days_until_start' => $this->days_until_start,
             'is_frozen' => $this->isFrozen(),
             'is_expired' => $this->isExpired(),
             'created_at' => $this->created_at?->toIso8601String(),
