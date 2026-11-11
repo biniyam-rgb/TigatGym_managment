@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import apiClient from '../services/api';
 import { useAuth } from '../context/useAuth';
 import { decodeQRFromImageData } from '../utils/qrCodeDecoder';
+import PermanentMemberCard from './PermanentMemberCard';
 
 // Crisp, theme-aware Lucide-style SVG Icons (replacing all emojis)
 const AttendanceIcons = {
@@ -135,6 +136,26 @@ const AttendanceIcons = {
       <polyline points="12 5 19 12 12 19" />
     </svg>
   ),
+  CreditCard: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="20" height="14" x="2" y="5" rx="2" />
+      <line x1="2" x2="22" y1="10" y2="10" />
+    </svg>
+  ),
+  Calendar: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+      <line x1="16" x2="16" y1="2" y2="6" />
+      <line x1="8" x2="8" y1="2" y2="6" />
+      <line x1="3" x2="21" y1="10" y2="10" />
+    </svg>
+  ),
+  Clock: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  ),
 };
 
 export default function AttendanceScanner({ onNavigateToMemberships }) {
@@ -172,6 +193,14 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ current_page: 1, last_page: 1, total: 0 });
+
+  // Member Detail Modal State
+  const [isMemberDetailModalOpen, setIsMemberDetailModalOpen] = useState(false);
+  const [detailMember, setDetailMember] = useState(null);
+  const [detailActiveTab, setDetailActiveTab] = useState('pass'); // 'pass' | 'payments' | 'attendance' | 'profile'
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const [memberPayments, setMemberPayments] = useState([]);
+  const [memberAttendance, setMemberAttendance] = useState([]);
 
   // Correction Modal (Admin / Owner)
   const [isCorrectionModalOpen, setIsCorrectionModalOpen] = useState(false);
@@ -600,6 +629,52 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
     }
   };
 
+  // Open Member Details Modal (Pass, Payments, Visits, Profile)
+  const handleOpenMemberDetails = async (memberOrId) => {
+    const memberId = typeof memberOrId === 'object' ? (memberOrId.id || memberOrId.user_id) : memberOrId;
+    if (!memberId) return;
+
+    setIsMemberDetailModalOpen(true);
+    setIsLoadingDetail(true);
+    setDetailActiveTab('pass');
+    setMemberPayments([]);
+    setMemberAttendance([]);
+
+    if (typeof memberOrId === 'object') {
+      setDetailMember(memberOrId);
+    }
+
+    try {
+      // 1. Fetch full member profile
+      const res = await apiClient.getMember(memberId);
+      const mData = res?.member || res?.data?.member || res?.data || memberOrId;
+      setDetailMember(mData);
+
+      // Determine the user_id (for payments and attendance queries)
+      const targetUserId = mData.user_id || mData.id || memberId;
+
+      // 2. Fetch payments for this member
+      try {
+        const payRes = await apiClient.getPayments({ member_id: targetUserId, per_page: 20 });
+        setMemberPayments(payRes?.data || []);
+      } catch (payErr) {
+        console.warn('Could not fetch member payments:', payErr);
+      }
+
+      // 3. Fetch attendance history for this member
+      try {
+        const attRes = await apiClient.getAttendance({ member_id: targetUserId, per_page: 20 });
+        setMemberAttendance(attRes?.data || []);
+      } catch (attErr) {
+        console.warn('Could not fetch member attendance history:', attErr);
+      }
+    } catch (err) {
+      console.error('Failed to load member profile details:', err);
+    } finally {
+      setIsLoadingDetail(false);
+    }
+  };
+
   return (
     <div className="attendance-scanner-container">
       {/* Top Level Real-Time KPI Cards (Unified Clean TigatGym Design) */}
@@ -907,7 +982,11 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                 gap: 16,
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }}
+                onClick={() => handleOpenMemberDetails(lookupPreview.member)}
+                title="Click to view full member details, pass & payments"
+              >
                 <div style={{
                   width: 48,
                   height: 48,
@@ -923,8 +1002,9 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                   {lookupPreview.member.name.charAt(0)}
                 </div>
                 <div>
-                  <div className="att-lookup-name" style={{ fontSize: 16, fontWeight: 700 }}>
-                    {lookupPreview.member.name}
+                  <div className="att-lookup-name" style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, color: '#ff7a00' }}>
+                    <span>{lookupPreview.member.name}</span>
+                    <span style={{ fontSize: 12, opacity: 0.8 }}>🔍</span>
                   </div>
                   <div style={{ fontSize: 12, color: '#ff8a00', fontFamily: 'monospace', fontWeight: 600 }}>
                     {lookupPreview.member.member_code} • {lookupPreview.member.phone || 'No Phone'}
@@ -1028,19 +1108,42 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
           </div>
         </div>
 
-        {/* Search Bar - Clean Borderless Modern SaaS Style */}
-        <div className="att-search-wrapper">
-          <AttendanceIcons.Search size={15} color="#94a3b8" />
+        {/* Search Bar - Matching Membership & Member side bar style */}
+        <div className="search-bar-wrapper" style={{ maxWidth: 440, position: 'relative', marginBottom: 16 }}>
           <input
             type="text"
-            className="att-search-input"
+            className="form-input search-input-field"
             placeholder="Search attendance by member name, phone, or TG-XXXX code..."
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
               setPage(1);
             }}
+            style={{
+              paddingLeft: 36,
+              paddingRight: 14,
+              width: '100%',
+              height: 42,
+              minHeight: 42,
+              boxSizing: 'border-box',
+              fontSize: 13.5,
+              borderRadius: 8,
+            }}
           />
+          <span
+            className="search-bar-icon"
+            style={{
+              position: 'absolute',
+              left: 12,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              display: 'flex',
+              alignItems: 'center',
+              pointerEvents: 'none',
+            }}
+          >
+            <AttendanceIcons.Search size={15} />
+          </span>
         </div>
 
         {/* Attendance Records Table */}
@@ -1068,7 +1171,6 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                   <th>Check-Out / Duration</th>
                   <th>Method</th>
                   <th>Status</th>
-                  <th>Reception Staff</th>
                   {isOwnerOrAdmin && <th style={{ textAlign: 'right' }}>Actions</th>}
                 </tr>
               </thead>
@@ -1081,12 +1183,36 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                     <tr key={r.id}>
                       {/* Member Info */}
                       <td>
-                        <div className="att-cell-name">
-                          {r.member?.name || `Member #${r.member_id}`}
-                        </div>
-                        <div className="att-cell-code">
-                          {r.member?.member_code || ''}
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenMemberDetails(r.member || r.member_id)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                            margin: 0,
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            display: 'block',
+                            width: '100%',
+                          }}
+                          title="Click to view full membership pass, payment history & details"
+                        >
+                          <div className="att-cell-name" style={{
+                            color: '#ff7a00',
+                            fontWeight: 700,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            transition: 'opacity 0.2s',
+                          }}>
+                            <span>{r.member?.name || `Member #${r.member_id}`}</span>
+                            <span style={{ fontSize: 11, opacity: 0.8 }} title="View details">🔍</span>
+                          </div>
+                          <div className="att-cell-code">
+                            {r.member?.member_code || ''}
+                          </div>
+                        </button>
                       </td>
 
                       {/* Plan */}
@@ -1201,11 +1327,6 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                             {r.denial_reason}
                           </div>
                         )}
-                      </td>
-
-                      {/* Reception Staff */}
-                      <td style={{ fontSize: 12, color: '#94a3b8' }}>
-                        {r.verified_by?.name || 'Reception Staff'}
                       </td>
 
                       {/* Actions */}
@@ -1347,6 +1468,413 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== COMPREHENSIVE MEMBER DETAILS MODAL ==================== */}
+      {isMemberDetailModalOpen && detailMember && (
+        <div className="modal-backdrop" onClick={() => setIsMemberDetailModalOpen(false)}>
+          <div
+            className="modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 680,
+              width: '95%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: 0,
+              borderRadius: 16,
+              background: 'var(--gym-card-bg, #141822)',
+              border: '1px solid var(--gym-card-border, #1e293b)',
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{
+              padding: '20px 24px',
+              borderBottom: '1px solid var(--gym-card-border, #1e293b)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'linear-gradient(135deg, rgba(255, 122, 0, 0.08) 0%, rgba(0,0,0,0) 100%)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: 12,
+                  background: 'linear-gradient(135deg, #ff7a00, #ea580c)',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 20,
+                  fontWeight: 900,
+                  boxShadow: '0 4px 12px rgba(255, 122, 0, 0.25)',
+                }}>
+                  {detailMember.name ? detailMember.name.charAt(0).toUpperCase() : 'M'}
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--gym-text-main, #ffffff)' }}>
+                      {detailMember.name}
+                    </h3>
+                    <span style={{
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      fontWeight: 800,
+                      color: '#ff7a00',
+                      background: 'rgba(255, 122, 0, 0.12)',
+                      padding: '2px 8px',
+                      borderRadius: 6,
+                    }}>
+                      {detailMember.member_code || `TG-${String(detailMember.id || detailMember.user_id).padStart(4, '0')}`}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--gym-text-muted, #94a3b8)', marginTop: 3 }}>
+                    {detailMember.phone || 'No phone'} • {detailMember.email || 'No email'}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setIsMemberDetailModalOpen(false)}
+                style={{ padding: '6px 10px', fontSize: 14 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Navigation Tabs */}
+            <div style={{
+              display: 'flex',
+              borderBottom: '1px solid var(--gym-card-border, #1e293b)',
+              padding: '0 16px',
+              background: 'rgba(0,0,0,0.1)',
+            }}>
+              {[
+                { id: 'pass', label: '💳 Pass & Card' },
+                { id: 'payments', label: `💰 Payments (${memberPayments.length})` },
+                { id: 'attendance', label: `📋 Visits (${memberAttendance.length})` },
+                { id: 'profile', label: '👤 Profile & Emergency' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setDetailActiveTab(tab.id)}
+                  style={{
+                    padding: '12px 16px',
+                    background: 'none',
+                    border: 'none',
+                    borderBottom: detailActiveTab === tab.id ? '2px solid #ff7a00' : '2px solid transparent',
+                    color: detailActiveTab === tab.id ? '#ff7a00' : 'var(--gym-text-muted, #94a3b8)',
+                    fontWeight: detailActiveTab === tab.id ? 700 : 500,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Contents */}
+            <div style={{ padding: 24 }}>
+              {isLoadingDetail ? (
+                <div style={{ textAlign: 'center', padding: 36, color: 'var(--gym-text-muted, #94a3b8)' }}>
+                  <span className="spinner" style={{ width: 26, height: 26, display: 'inline-block', marginBottom: 10 }}></span>
+                  <p>Loading member data & records...</p>
+                </div>
+              ) : (
+                <>
+                  {/* TAB 1: PASS & CARD */}
+                  {detailActiveTab === 'pass' && (
+                    <div>
+                      {/* Subscription Status Card */}
+                      <div style={{
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid var(--gym-card-border, #1e293b)',
+                        borderRadius: 12,
+                        padding: 16,
+                        marginBottom: 20,
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gym-text-muted, #94a3b8)', textTransform: 'uppercase' }}>
+                            Current Gym Membership Pass
+                          </span>
+                          {detailMember.active_subscription ? (
+                            <span style={{
+                              fontSize: 11,
+                              fontWeight: 800,
+                              color: '#22c55e',
+                              background: 'rgba(34, 197, 94, 0.15)',
+                              padding: '2px 8px',
+                              borderRadius: 12,
+                              textTransform: 'uppercase'
+                            }}>
+                              ● Active Pass
+                            </span>
+                          ) : (
+                            <span style={{
+                              fontSize: 11,
+                              fontWeight: 800,
+                              color: '#ef4444',
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              padding: '2px 8px',
+                              borderRadius: 12,
+                              textTransform: 'uppercase'
+                            }}>
+                              No Active Pass
+                            </span>
+                          )}
+                        </div>
+
+                        {detailMember.active_subscription ? (
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+                            <div>
+                              <div style={{ fontSize: 11, color: 'var(--gym-text-muted, #94a3b8)' }}>Package / Plan</div>
+                              <div style={{ fontSize: 14, fontWeight: 700, color: '#ff7a00', marginTop: 2 }}>
+                                {detailMember.active_subscription.plan_name || 'Standard Plan'}
+                              </div>
+                              <div style={{ fontSize: 10.5, color: 'var(--gym-text-muted, #94a3b8)', fontFamily: 'monospace' }}>
+                                Ref: {detailMember.active_subscription.subscription_number}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: 11, color: 'var(--gym-text-muted, #94a3b8)' }}>Start Date</div>
+                              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>
+                                {detailMember.active_subscription.start_date || '—'}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: 11, color: 'var(--gym-text-muted, #94a3b8)' }}>Expiry Date</div>
+                              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>
+                                {detailMember.active_subscription.end_date || '—'}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: 11, color: 'var(--gym-text-muted, #94a3b8)' }}>Days Left</div>
+                              <div style={{
+                                fontSize: 13,
+                                fontWeight: 800,
+                                color: (detailMember.active_subscription.days_remaining || 0) <= 5 ? '#f59e0b' : '#22c55e',
+                                marginTop: 2
+                              }}>
+                                {detailMember.active_subscription.days_remaining ?? '—'} days remaining
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                            <div style={{ fontSize: 13, color: '#f59e0b' }}>
+                              ⚠️ No active subscription found. Member requires pass renewal or package assignment before entry.
+                            </div>
+                            {onNavigateToMemberships && (
+                              <button
+                                type="button"
+                                className="btn btn-primary btn-sm"
+                                onClick={() => {
+                                  setIsMemberDetailModalOpen(false);
+                                  onNavigateToMemberships();
+                                }}
+                                style={{ fontWeight: 700, whiteSpace: 'nowrap' }}
+                              >
+                                Renew Pass →
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Official Permanent Member Card */}
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--gym-text-muted, #94a3b8)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          Permanent Member Credential & Digital Turnstile Card
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                          <PermanentMemberCard
+                            member={{
+                              id: detailMember.id,
+                              user_id: detailMember.user_id,
+                              name: detailMember.name,
+                              member_code: detailMember.member_code,
+                              phone: detailMember.phone,
+                              email: detailMember.email,
+                              joined_at: detailMember.joined_at,
+                              card_expires_at: detailMember.card_expires_at,
+                              qr_code_token: detailMember.qr_code_token,
+                            }}
+                            membershipTitle={detailMember.active_subscription?.plan_name ? detailMember.active_subscription.plan_name.toUpperCase() : 'PREMIUM MEMBER'}
+                            showActions={true}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 2: PAYMENTS */}
+                  {detailActiveTab === 'payments' && (
+                    <div>
+                      {memberPayments.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: 32, color: 'var(--gym-text-muted, #94a3b8)' }}>
+                          <p style={{ margin: 0, fontWeight: 600 }}>No payments recorded for this member</p>
+                          <p style={{ fontSize: 12, marginTop: 4 }}>Front-desk fees or renewals will show up here.</p>
+                        </div>
+                      ) : (
+                        <div className="table-responsive">
+                          <table className="gym-table" style={{ width: '100%' }}>
+                            <thead>
+                              <tr>
+                                <th>Receipt #</th>
+                                <th>Item / Plan</th>
+                                <th>Amount (ETB)</th>
+                                <th>Method</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {memberPayments.map(p => (
+                                <tr key={p.id}>
+                                  <td style={{ fontFamily: 'monospace', fontWeight: 700, color: '#ff7a00', fontSize: 12 }}>
+                                    {p.receipt_number || p.payment_number}
+                                  </td>
+                                  <td style={{ fontSize: 12.5 }}>
+                                    {p.payable?.plan_name || p.payment_type?.replace('_', ' ') || 'Subscription'}
+                                  </td>
+                                  <td style={{ fontWeight: 800, color: '#22c55e', fontSize: 13 }}>
+                                    {Number(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} ETB
+                                  </td>
+                                  <td>
+                                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#60a5fa' }}>
+                                      {p.payment_method?.replace('_', ' ')}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <span style={{
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      textTransform: 'uppercase',
+                                      color: p.status === 'completed' ? '#22c55e' : '#f59e0b',
+                                    }}>
+                                      {p.status}
+                                    </span>
+                                  </td>
+                                  <td style={{ fontSize: 12, color: 'var(--gym-text-muted, #94a3b8)' }}>
+                                    {p.paid_at ? new Date(p.paid_at).toLocaleDateString() : new Date(p.created_at).toLocaleDateString()}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* TAB 3: ATTENDANCE HISTORY */}
+                  {detailActiveTab === 'attendance' && (
+                    <div>
+                      {memberAttendance.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: 32, color: 'var(--gym-text-muted, #94a3b8)' }}>
+                          <p style={{ margin: 0, fontWeight: 600 }}>No check-in history found</p>
+                          <p style={{ fontSize: 12, marginTop: 4 }}>Turnstile scans and desk entries will appear here.</p>
+                        </div>
+                      ) : (
+                        <div className="table-responsive">
+                          <table className="gym-table" style={{ width: '100%' }}>
+                            <thead>
+                              <tr>
+                                <th>Date</th>
+                                <th>Check-In</th>
+                                <th>Check-Out</th>
+                                <th>Duration</th>
+                                <th>Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {memberAttendance.map(a => (
+                                <tr key={a.id}>
+                                  <td style={{ fontSize: 12.5, fontWeight: 600 }}>
+                                    {a.check_in_time ? new Date(a.check_in_time).toLocaleDateString() : '—'}
+                                  </td>
+                                  <td style={{ fontSize: 12 }}>
+                                    {a.check_in_time ? new Date(a.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                  </td>
+                                  <td style={{ fontSize: 12 }}>
+                                    {a.check_out_time ? (
+                                      new Date(a.check_out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                    ) : (
+                                      <span style={{ color: '#22c55e', fontWeight: 700 }}>In Gym</span>
+                                    )}
+                                  </td>
+                                  <td style={{ fontSize: 12, color: 'var(--gym-text-muted, #94a3b8)' }}>
+                                    {a.duration_minutes ? `${Math.floor(a.duration_minutes / 60)}h ${a.duration_minutes % 60}m` : (a.check_out_time ? '—' : 'Active')}
+                                  </td>
+                                  <td>
+                                    <span style={{
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      textTransform: 'uppercase',
+                                      color: a.status === 'admitted' ? '#22c55e' : '#ef4444',
+                                    }}>
+                                      {a.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* TAB 4: PROFILE & EMERGENCY */}
+                  {detailActiveTab === 'profile' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: 14, borderRadius: 10, border: '1px solid var(--gym-card-border, #1e293b)' }}>
+                        <div style={{ fontSize: 11, color: 'var(--gym-text-muted, #94a3b8)', textTransform: 'uppercase', fontWeight: 700 }}>Personal Info</div>
+                        <div style={{ marginTop: 8, fontSize: 13 }}>
+                          <div><strong>Full Name:</strong> {detailMember.name || '—'}</div>
+                          <div style={{ marginTop: 4 }}><strong>Gender:</strong> {detailMember.gender || 'Not specified'}</div>
+                          <div style={{ marginTop: 4 }}><strong>Date of Birth:</strong> {detailMember.date_of_birth || 'Not specified'}</div>
+                          <div style={{ marginTop: 4 }}><strong>Blood Type:</strong> {detailMember.blood_type || '—'}</div>
+                        </div>
+                      </div>
+
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: 14, borderRadius: 10, border: '1px solid var(--gym-card-border, #1e293b)' }}>
+                        <div style={{ fontSize: 11, color: 'var(--gym-text-muted, #94a3b8)', textTransform: 'uppercase', fontWeight: 700 }}>Emergency Contact</div>
+                        <div style={{ marginTop: 8, fontSize: 13 }}>
+                          <div><strong>Contact Name:</strong> {detailMember.emergency_contact_name || 'Not provided'}</div>
+                          <div style={{ marginTop: 4 }}>
+                            <strong>Contact Phone:</strong> {detailMember.emergency_contact_phone ? (
+                              <a href={`tel:${detailMember.emergency_contact_phone}`} style={{ color: '#ff7a00', textDecoration: 'none' }}>
+                                {detailMember.emergency_contact_phone}
+                              </a>
+                            ) : 'Not provided'}
+                          </div>
+                          <div style={{ marginTop: 4 }}><strong>Relationship:</strong> {detailMember.emergency_contact_relationship || '—'}</div>
+                        </div>
+                      </div>
+
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: 14, borderRadius: 10, border: '1px solid var(--gym-card-border, #1e293b)', gridColumn: 'span 2' }}>
+                        <div style={{ fontSize: 11, color: 'var(--gym-text-muted, #94a3b8)', textTransform: 'uppercase', fontWeight: 700 }}>Registration & Credential</div>
+                        <div style={{ marginTop: 8, fontSize: 13, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                          <div><strong>Permanent Member Code:</strong> <span style={{ fontFamily: 'monospace', color: '#ff7a00' }}>{detailMember.member_code}</span></div>
+                          <div><strong>Registration Date:</strong> {detailMember.joined_at || '—'}</div>
+                          <div><strong>Annual Card Expiry:</strong> {detailMember.card_expires_at || '—'}</div>
+                          <div><strong>Account Status:</strong> <span style={{ textTransform: 'uppercase', color: '#22c55e', fontWeight: 700 }}>{detailMember.status || 'Active'}</span></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
