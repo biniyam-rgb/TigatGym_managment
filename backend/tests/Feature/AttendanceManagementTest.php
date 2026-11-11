@@ -409,4 +409,69 @@ class AttendanceManagementTest extends TestCase
         $this->assertCount(1, $response->json('data'));
         $this->assertEquals($member1->id, $response->json('data.0.member_id'));
     }
+
+    public function test_member_cannot_enter_twice_on_the_same_day(): void
+    {
+        [$receptionist, $receptionistToken] = $this->createUserWithRole('receptionist');
+        [$member, $profile] = $this->createMemberWithProfile('Once Daily Member');
+        $plan = $this->createPlan();
+        $this->createActiveSubscription($member, $plan);
+
+        // 1. Check in 2 hours ago
+        $firstVisit = AttendanceRecord::create([
+            'member_id' => $member->id,
+            'check_in_time' => Carbon::now()->subHours(2),
+            'method' => 'qr_code',
+            'status' => 'admitted',
+            'verified_by' => $receptionist->id,
+        ]);
+
+        // 2. Member checks out 1 hour ago
+        $firstVisit->update(['check_out_time' => Carbon::now()->subHour()]);
+
+        // 3. Member attempts to check in again on the same day -> Denied
+        $secondAttempt = $this->withHeader('Authorization', "Bearer {$receptionistToken}")
+            ->postJson('/api/attendance/check-in', [
+                'qr_token' => $profile->qr_code_token,
+            ]);
+
+        $secondAttempt->assertStatus(422)
+            ->assertJson([
+                'status' => 'denied',
+            ]);
+
+        $this->assertStringContainsString('You entered before', $secondAttempt->json('message'));
+        $this->assertStringContainsString('cannot enter again', $secondAttempt->json('message'));
+    }
+
+    public function test_overstaying_members_are_automatically_checked_out_after_4_hours(): void
+    {
+        [$receptionist, $receptionistToken] = $this->createUserWithRole('receptionist');
+        [$member] = $this->createMemberWithProfile('Overstay Member');
+        $plan = $this->createPlan();
+        $this->createActiveSubscription($member, $plan);
+
+        // Check in 5 hours ago without checking out
+        $record = AttendanceRecord::create([
+            'member_id' => $member->id,
+            'check_in_time' => Carbon::now()->subHours(5),
+            'method' => 'qr_code',
+            'status' => 'admitted',
+            'verified_by' => $receptionist->id,
+        ]);
+
+        $this->assertNull($record->check_out_time);
+
+        // Call attendance summary or index to trigger auto-checkout
+        $response = $this->withHeader('Authorization', "Bearer {$receptionistToken}")
+            ->getJson('/api/attendance/summary');
+
+        $response->assertStatus(200);
+
+        // Verify record was automatically checked out with 4-hour cap
+        $record->refresh();
+        $this->assertNotNull($record->check_out_time);
+        $this->assertEquals(240, $record->duration_minutes);
+        $this->assertStringContainsString('Auto-exited', $record->notes);
+    }
 }

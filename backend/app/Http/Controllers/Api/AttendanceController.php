@@ -19,11 +19,41 @@ use Symfony\Component\HttpFoundation\Response;
 class AttendanceController extends Controller
 {
     /**
+     * Automatically check out any admitted visits that have exceeded the 4-hour maximum stay limit.
+     */
+    public static function autoCheckOutOverstayRecords(): int
+    {
+        $cutoff = Carbon::now()->subHours(4);
+        $overstays = AttendanceRecord::where('status', 'admitted')
+            ->whereNull('check_out_time')
+            ->where('check_in_time', '<=', $cutoff)
+            ->get();
+
+        foreach ($overstays as $record) {
+            $autoExitTime = $record->check_in_time->copy()->addHours(4);
+            $record->update([
+                'check_out_time' => $autoExitTime,
+                'notes' => trim(($record->notes ?? '') . ' [Auto-exited: Exceeded 4-hour maximum stay limit]'),
+            ]);
+
+            AuditLogger::log(
+                action: 'attendance.auto_checkout',
+                auditable: $record,
+                notes: "Auto-checked out {$record->member?->name} after 4-hour maximum stay limit reached."
+            );
+        }
+
+        return $overstays->count();
+    }
+
+    /**
      * Display a listing of attendance records.
      */
     public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', AttendanceRecord::class);
+
+        self::autoCheckOutOverstayRecords();
 
         $currentUser = $request->user();
         $query = AttendanceRecord::with(['member.memberProfile', 'subscription.plan', 'verifiedBy']);
@@ -77,7 +107,9 @@ class AttendanceController extends Controller
             $search = trim($request->search);
             $query->whereHas('member', function ($mq) use ($search) {
                 $mq->where('name', 'like', "%{$search}%")
-                   ->orWhere('phone', 'like', "%{$search}%")
+                   ->orWhere(function ($pq) use ($search) {
+                       $pq->wherePhoneMatches($search);
+                   })
                    ->orWhereHas('memberProfile', function ($pq) use ($search) {
                        $pq->where('member_code', 'like', "%{$search}%");
                    });
@@ -104,6 +136,8 @@ class AttendanceController extends Controller
      */
     public function summary(Request $request): JsonResponse
     {
+        self::autoCheckOutOverstayRecords();
+
         $today = Carbon::today();
         $currentUser = $request->user();
         $isMemberOnly = $currentUser->hasRole('member') && ! $currentUser->hasAnyRole('owner', 'admin', 'receptionist');
@@ -163,6 +197,8 @@ class AttendanceController extends Controller
     {
         $this->authorize('create', AttendanceRecord::class);
 
+        self::autoCheckOutOverstayRecords();
+
         $request->validate([
             'query' => ['required', 'string', 'min:2', 'max:100'],
         ]);
@@ -172,7 +208,9 @@ class AttendanceController extends Controller
         $member = User::whereHas('roles', fn ($q) => $q->where('name', 'member'))
             ->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhere(function ($pq) use ($search) {
+                      $pq->wherePhoneMatches($search);
+                  })
                   ->orWhere('email', 'like', "%{$search}%")
                   ->orWhereHas('memberProfile', function ($pq) use ($search) {
                       $pq->where('member_code', 'like', "%{$search}%")
@@ -191,11 +229,14 @@ class AttendanceController extends Controller
 
         $activeSubscription = $member->activeSubscription();
         $latestSubscription = $member->latestSubscription();
-        $openVisit = AttendanceRecord::where('member_id', $member->id)
+
+        $todayVisit = AttendanceRecord::where('member_id', $member->id)
             ->whereDate('check_in_time', Carbon::today())
-            ->whereNull('check_out_time')
             ->where('status', 'admitted')
+            ->latest('check_in_time')
             ->first();
+
+        $openVisit = ($todayVisit && is_null($todayVisit->check_out_time)) ? $todayVisit : null;
 
         $isEligible = $member->status === 'active' && $activeSubscription !== null;
         $reason = null;
@@ -209,6 +250,13 @@ class AttendanceController extends Controller
                 $reason = "Membership expired on {$latestSubscription->end_date?->format('M d, Y')}. Renewal required.";
             } else {
                 $reason = "No active membership plan on file.";
+            }
+        } elseif ($todayVisit) {
+            $isEligible = false;
+            if ($openVisit) {
+                $reason = "Member is currently inside the gym (Checked in at {$openVisit->check_in_time->format('h:i A')}). You entered before, so you cannot enter again.";
+            } else {
+                $reason = "You entered before today, so you cannot enter again until the day ends. (Limit: 1 visit per day).";
             }
         }
 
@@ -253,6 +301,8 @@ class AttendanceController extends Controller
     public function checkIn(Request $request): JsonResponse
     {
         $this->authorize('create', AttendanceRecord::class);
+
+        self::autoCheckOutOverstayRecords();
 
         $validated = $request->validate([
             'qr_token' => ['nullable', 'string', 'max:255'],
@@ -388,44 +438,49 @@ class AttendanceController extends Controller
         }
 
         // -------------------------------------------------------------
-        // Security Check 3: Anti-Passback & Rapid Double Check-in Alert
+        // Security Check 3: Single Entry Per Day Policy & Max 4h Limit
         // -------------------------------------------------------------
-        $openVisit = AttendanceRecord::where('member_id', $member->id)
+        $todayVisit = AttendanceRecord::where('member_id', $member->id)
             ->whereDate('check_in_time', Carbon::today())
             ->where('status', 'admitted')
-            ->whereNull('check_out_time')
             ->latest('check_in_time')
             ->first();
 
-        if ($openVisit) {
-            // If checked in within the last 5 minutes, flag as anti-passback violation
-            $minutesAgo = $openVisit->check_in_time->diffInMinutes($now);
-            if ($minutesAgo < 5) {
-                $denialReason = "Anti-passback alert: {$member->name} already checked in {$minutesAgo} min ago (at {$openVisit->check_in_time->format('h:i A')}).";
+        if ($todayVisit) {
+            $minutesAgo = $todayVisit->check_in_time->diffInMinutes($now);
+            $action = 'attendance.denied';
 
-                $deniedRecord = AttendanceRecord::create([
-                    'member_id' => $member->id,
-                    'subscription_id' => $activeSubscription->id,
-                    'check_in_time' => $now,
-                    'method' => $method,
-                    'status' => 'denied',
-                    'denial_reason' => $denialReason,
-                    'verified_by' => $staffUser->id,
-                    'notes' => $validated['notes'] ?? 'Anti-passback rapid double-entry prevented',
-                ]);
-
-                AuditLogger::log(
-                    action: 'attendance.anti_passback_alert',
-                    auditable: $deniedRecord,
-                    notes: $denialReason
-                );
-
-                return response()->json([
-                    'status' => 'denied',
-                    'message' => $denialReason,
-                    'data' => new AttendanceResource($deniedRecord->load(['member.memberProfile', 'subscription.plan', 'verifiedBy'])),
-                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            if (is_null($todayVisit->check_out_time) && $minutesAgo < 5) {
+                $action = 'attendance.anti_passback_alert';
+                $denialReason = "Anti-passback alert: You entered before ({$minutesAgo} min ago at {$todayVisit->check_in_time->format('h:i A')}), so you cannot enter again.";
+            } elseif (is_null($todayVisit->check_out_time)) {
+                $denialReason = "You entered before today (admitted at {$todayVisit->check_in_time->format('h:i A')}), so you cannot enter again.";
+            } else {
+                $denialReason = "You entered before today, so you cannot enter again until the day ends. (Gym access is limited to 1 visit per day, maximum 4 hours).";
             }
+
+            $deniedRecord = AttendanceRecord::create([
+                'member_id' => $member->id,
+                'subscription_id' => $activeSubscription->id,
+                'check_in_time' => $now,
+                'method' => $method,
+                'status' => 'denied',
+                'denial_reason' => $denialReason,
+                'verified_by' => $staffUser->id,
+                'notes' => $validated['notes'] ?? 'Daily single-entry limit policy enforcement',
+            ]);
+
+            AuditLogger::log(
+                action: $action,
+                auditable: $deniedRecord,
+                notes: "Denied duplicate entry to {$member->name} ({$member->memberProfile?->member_code}): {$denialReason}"
+            );
+
+            return response()->json([
+                'status' => 'denied',
+                'message' => $denialReason,
+                'data' => new AttendanceResource($deniedRecord->load(['member.memberProfile', 'subscription.plan', 'verifiedBy'])),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         // -------------------------------------------------------------
@@ -471,6 +526,8 @@ class AttendanceController extends Controller
     public function checkOut(Request $request): JsonResponse
     {
         $this->authorize('checkOut', AttendanceRecord::class);
+
+        self::autoCheckOutOverstayRecords();
 
         $validated = $request->validate([
             'attendance_id' => ['nullable', 'integer', 'exists:attendance_records,id'],
