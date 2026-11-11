@@ -2,6 +2,15 @@ import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../services/api';
 import { useAuth } from '../context/useAuth';
 
+const Icons = {
+  Search: ({ size = 15 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  ),
+};
+
 export default function UserManagement() {
   const { user: currentUser, hasRole } = useAuth();
   const [users, setUsers] = useState([]);
@@ -219,16 +228,42 @@ export default function UserManagement() {
 
       {/* Filter and Search Bar */}
       <div className="filter-bar">
-        <input
-          type="text"
-          className="form-control search-input"
-          placeholder="Search by name, email, or phone..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-        />
+        <div className="search-bar-wrapper" style={{ flex: '1 1 240px', position: 'relative' }}>
+          <input
+            type="text"
+            className="form-input search-input-field"
+            placeholder="Search by name, email, or phone..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            style={{
+              paddingLeft: 36,
+              paddingRight: 14,
+              width: '100%',
+              height: 42,
+              minHeight: 42,
+              boxSizing: 'border-box',
+              fontSize: 13.5,
+              borderRadius: 8,
+            }}
+          />
+          <span
+            className="search-bar-icon"
+            style={{
+              position: 'absolute',
+              left: 12,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              display: 'flex',
+              alignItems: 'center',
+              pointerEvents: 'none',
+            }}
+          >
+            <Icons.Search size={15} />
+          </span>
+        </div>
 
         <select
           className="form-control filter-select"

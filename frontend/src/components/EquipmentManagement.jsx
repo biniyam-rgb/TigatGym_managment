@@ -3,6 +3,12 @@ import { useAuth } from '../context/useAuth';
 import apiClient from '../services/api';
 
 const EquipmentIcons = {
+  Search: ({ size = 15 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  ),
   Dumbbell: ({ size = 16, color = 'currentColor' }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M6 5v14" />
@@ -247,14 +253,39 @@ export default function EquipmentManagement() {
             <option value="out_of_service">Out of Service</option>
           </select>
 
-          <input
-            type="text"
-            placeholder="Search equipment code, brand, model..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="search-input-compact"
-            style={{ minWidth: 260 }}
-          />
+          <div className="search-bar-wrapper" style={{ minWidth: 260, position: 'relative' }}>
+            <input
+              type="text"
+              placeholder="Search equipment code, brand, model..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="form-input search-input-field"
+              style={{
+                paddingLeft: 36,
+                paddingRight: 14,
+                width: '100%',
+                height: 42,
+                minHeight: 42,
+                boxSizing: 'border-box',
+                fontSize: 13.5,
+                borderRadius: 8,
+              }}
+            />
+            <span
+              className="search-bar-icon"
+              style={{
+                position: 'absolute',
+                left: 12,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                display: 'flex',
+                alignItems: 'center',
+                pointerEvents: 'none',
+              }}
+            >
+              <EquipmentIcons.Search size={15} />
+            </span>
+          </div>
         </div>
 
         <div className="section-actions">
