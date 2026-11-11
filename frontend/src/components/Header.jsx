@@ -21,8 +21,8 @@ const Icons = {
       <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
     </svg>
   ),
-  Search: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  Search: ({ size = 15 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="11" cy="11" r="8" />
       <line x1="21" y1="21" x2="16.65" y2="16.65" />
     </svg>
@@ -110,12 +110,21 @@ export default function Header({
       {/* Right Tools Bar: Search + Notification Bell + Theme Toggle + User Avatar */}
       <div className="header-right-tools">
         {/* Quick Search Bar matching modern SaaS Header */}
-        <div className="header-search-wrapper" title="Quick Search">
-          <Icons.Search />
+        <div className="header-search-wrapper search-bar-wrapper" title="Quick Search">
+          <Icons.Search className="search-bar-icon" />
           <input
             type="text"
             className="header-search-input"
             placeholder="Search anything..."
+            style={{
+              border: 'none',
+              outline: 'none',
+              background: 'transparent',
+              boxShadow: 'none',
+              padding: 0,
+              margin: 0,
+              width: '100%',
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && e.target.value.trim() && onNavigate) {
                 onNavigate('members');
