@@ -1,10 +1,16 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import apiClient from '../services/api';
 import { useAuth } from '../context/useAuth';
 import BrandLogo from './BrandLogo';
 import QRCodeDisplay from './QRCodeDisplay';
 
 const Icons = {
+  Search: ({ size = 15 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  ),
   CreditCard: ({ size = 16, color = 'currentColor' }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <rect width="20" height="14" x="2" y="5" rx="2" />
@@ -754,13 +760,6 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
     }
   };
 
-  // Compute Net Operating Balance (Revenue - Expenses)
-  const netOperatingBalance = useMemo(() => {
-    const rev = paymentSummary?.total_revenue || 0;
-    const exp = expenseSummary?.total_expenses || 0;
-    return rev - exp;
-  }, [paymentSummary, expenseSummary]);
-
   return (
     <div className="payment-ledger-container">
       {/* Toast Notification */}
@@ -782,7 +781,6 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
       )}
 
       {/* Top Level Financial KPIs */}
-      {/* 5 Unified Clean KPI Metric Cards */}
       <div className="clean-kpi-grid" style={{ marginBottom: 24, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
         {/* Total Collected Revenue */}
         <div className="clean-kpi-card">
@@ -832,41 +830,21 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
           </span>
         </div>
 
-        {/* Operating Expenses (Staff only) */}
-        {isStaff && (
-          <div className="clean-kpi-card">
-            <div className="clean-kpi-top">
-              <span className="kpi-label">Operating Expenses</span>
-              <div className="clean-kpi-icon" title="Operating Expenses">
-                <Icons.TrendingDown size={16} />
-              </div>
+        {/* Completed Receipts Count */}
+        <div className="clean-kpi-card">
+          <div className="clean-kpi-top">
+            <span className="kpi-label">Total Receipts</span>
+            <div className="clean-kpi-icon" title="Total Receipts">
+              <Icons.Receipt size={16} />
             </div>
-            <div className="kpi-value" style={{ color: '#ef4444' }}>
-              {expenseSummary ? formatETB(expenseSummary.total_expenses) : '0.00 ETB'}
-            </div>
-            <span className="kpi-trend trend-negative">
-              Rent, utilities, gear & staff
-            </span>
           </div>
-        )}
-
-        {/* Net Operating Balance */}
-        {isStaff && (
-          <div className="clean-kpi-card">
-            <div className="clean-kpi-top">
-              <span className="kpi-label">Net Cash Balance</span>
-              <div className="clean-kpi-icon" title="Net Cash Balance">
-                <Icons.Scale size={16} />
-              </div>
-            </div>
-            <div className="kpi-value" style={{ color: netOperatingBalance >= 0 ? '#16a34a' : '#ef4444' }}>
-              {formatETB(netOperatingBalance)}
-            </div>
-            <span className="kpi-trend" style={{ color: '#64748b' }}>
-              Total Revenue minus Total Expenses
-            </span>
+          <div className="kpi-value" style={{ color: '#ff8a00' }}>
+            {paymentSummary?.completed_count || 0}
           </div>
-        )}
+          <span className="kpi-trend" style={{ color: '#64748b' }}>
+            Audited desk transactions
+          </span>
+        </div>
       </div>
 
       {/* Main Tab Switcher */}
@@ -916,42 +894,68 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                 className="btn btn-primary"
                 onClick={handleOpenRecordPayment}
                 style={{
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
                   gap: 8,
-                  padding: '10px 18px',
-                  fontWeight: 700,
+                  fontWeight: 600,
+                  fontSize: 13,
+                  padding: '9px 16px',
+                  borderRadius: 8,
                 }}
               >
-                <span>+</span> Record Payment (ETB)
+                <span>+ Record Payment</span>
               </button>
             )}
           </div>
 
           {/* Filters Bar */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: 12,
-            marginBottom: 20,
-            background: '#0d1017',
-            padding: 14,
-            borderRadius: 10,
-            border: '1px solid #232936',
-          }}>
+          <div
+            className="dashboard-card"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: 12,
+              marginBottom: 20,
+              padding: 14,
+              borderRadius: 10,
+            }}
+          >
             {/* Search Input */}
-            <div style={{ gridColumn: 'span 2' }}>
+            <div className="search-bar-wrapper" style={{ gridColumn: 'span 2', position: 'relative' }}>
               <input
                 type="text"
-                className="form-control"
+                className="form-input search-input-field"
                 placeholder="Search receipt #, member name, phone, or bank ref..."
                 value={paymentsSearch}
                 onChange={(e) => {
                   setPaymentsSearch(e.target.value);
                   setPaymentsPage(1);
                 }}
-                style={{ width: '100%' }}
+                style={{
+                  paddingLeft: 36,
+                  paddingRight: 14,
+                  width: '100%',
+                  height: 42,
+                  minHeight: 42,
+                  boxSizing: 'border-box',
+                  fontSize: 13.5,
+                  borderRadius: 8,
+                }}
               />
+              <span
+                className="search-bar-icon"
+                style={{
+                  position: 'absolute',
+                  left: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  pointerEvents: 'none',
+                }}
+              >
+                <Icons.Search size={15} />
+              </span>
             </div>
 
             {/* Status Filter */}
@@ -1022,17 +1026,15 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
             </div>
           ) : (
             <div className="table-responsive">
-              <table className="gymcore-table" style={{ width: '100%' }}>
+              <table className="gym-table" style={{ width: '100%' }}>
                 <thead>
                   <tr>
                     <th>Receipt / Payment #</th>
                     <th>Member</th>
-                    <th>Type</th>
                     <th>Payment Method</th>
                     <th>Amount (ETB)</th>
                     <th>Status</th>
                     <th>Delivery</th>
-                    <th>Date & Staff</th>
                     <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
@@ -1045,41 +1047,68 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                     return (
                       <tr key={p.id}>
                         {/* Receipt & Payment Code */}
-                        <td>
-                          <div style={{ fontWeight: 700, color: '#ff8a00', fontFamily: 'monospace' }}>
+                        <td style={{ minWidth: 170 }}>
+                          <div style={{ fontWeight: 700, color: '#ff8a00', fontFamily: 'monospace', fontSize: 13.5 }}>
                             {p.receipt_number || p.payment_number}
                           </div>
                           {p.receipt_number && (
-                            <div style={{ fontSize: 11, color: '#a1a1aa', fontFamily: 'monospace' }}>
-                              {p.payment_number}
+                            <div style={{ fontSize: 11, color: 'var(--gym-text-muted, #94a3b8)', fontFamily: 'monospace', marginTop: 2 }}>
+                              Ref: {p.payment_number}
                             </div>
                           )}
                         </td>
 
                         {/* Member */}
-                        <td>
-                          <div style={{ fontWeight: 600, color: '#f5f5f5' }}>
-                            {p.member?.name || `Member #${p.user_id}`}
+                        <td style={{ minWidth: 220 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{
+                              width: 34,
+                              height: 34,
+                              borderRadius: '50%',
+                              background: 'rgba(255, 122, 0, 0.12)',
+                              border: '1px solid rgba(255, 122, 0, 0.3)',
+                              color: '#ff7a00',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 13,
+                              fontWeight: 800,
+                              flexShrink: 0
+                            }}>
+                              {p.member?.name ? p.member.name.charAt(0).toUpperCase() : 'M'}
+                            </div>
+                            <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                              <div style={{
+                                fontWeight: 700,
+                                fontSize: 13.5,
+                                color: 'var(--gym-text-main, #0f172a)',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}>
+                                {p.member?.name || `Member #${p.user_id}`}
+                              </div>
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                marginTop: 2,
+                                fontSize: 11,
+                                color: 'var(--gym-text-muted, #64748b)'
+                              }}>
+                                <span style={{
+                                  fontFamily: 'monospace',
+                                  fontWeight: 700,
+                                  color: '#ff8a00',
+                                  background: 'rgba(255, 122, 0, 0.08)',
+                                  padding: '1px 5px',
+                                  borderRadius: 4
+                                }}>
+                                  {p.member?.member_code || `TG-${String(p.user_id).padStart(4, '0')}`}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                          <div style={{ fontSize: 11, color: '#a1a1aa' }}>
-                            {p.member?.member_code || p.member?.phone || ''}
-                          </div>
-                        </td>
-
-                        {/* Payment Type */}
-                        <td>
-                          <span style={{
-                            display: 'inline-block',
-                            padding: '3px 8px',
-                            borderRadius: 4,
-                            fontSize: 11,
-                            fontWeight: 600,
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            color: '#d4d4d8',
-                            textTransform: 'capitalize',
-                          }}>
-                            {p.payment_type?.replace('_', ' ') || 'Subscription'}
-                          </span>
                         </td>
 
                         {/* Method & Bank Slip reference */}
@@ -1105,12 +1134,12 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                             </span>
                           </div>
                           {p.transactions?.[0]?.gateway_reference && (
-                            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, fontFamily: 'monospace' }}>
+                            <div style={{ fontSize: 11, color: 'var(--gym-text-muted, #94a3b8)', marginTop: 2, fontFamily: 'monospace' }}>
                               Ref: {p.transactions[0].gateway_reference}
                             </div>
                           )}
                           {p.transactions?.[0]?.bank_name && (
-                            <div style={{ fontSize: 10, color: '#64748b' }}>
+                            <div style={{ fontSize: 10, color: 'var(--gym-text-muted, #64748b)' }}>
                               {p.transactions[0].bank_name}
                             </div>
                           )}
@@ -1172,24 +1201,14 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                                  '⏳ Pending'}
                               </span>
                               {p.document_delivery.recipient_email && p.document_delivery.status !== 'skipped_no_email' && (
-                                <div style={{ fontSize: 10, color: '#a1a1aa', marginTop: 2, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.document_delivery.recipient_email}>
+                                <div style={{ fontSize: 10, color: 'var(--gym-text-muted, #a1a1aa)', marginTop: 2, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.document_delivery.recipient_email}>
                                   {p.document_delivery.recipient_email}
                                 </div>
                               )}
                             </div>
                           ) : (
-                            <span style={{ fontSize: 11, color: '#64748b' }}>—</span>
+                            <span style={{ fontSize: 11, color: 'var(--gym-text-muted, #64748b)' }}>—</span>
                           )}
-                        </td>
-
-                        {/* Date & Recorded By */}
-                        <td>
-                          <div style={{ fontSize: 12, color: '#f5f5f5' }}>
-                            {p.paid_at ? new Date(p.paid_at).toLocaleDateString() : new Date(p.created_at).toLocaleDateString()}
-                          </div>
-                          <div style={{ fontSize: 11, color: '#a1a1aa' }}>
-                            by {p.recorded_by?.name || 'Staff'}
-                          </div>
                         </td>
 
                         {/* Actions */}
@@ -1205,32 +1224,6 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                             >
                               Receipt
                             </button>
-
-                            {/* Download Card PDF */}
-                            {p.document_delivery && (
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => handleDownloadCard(p)}
-                                title="Download Membership Card PDF"
-                                style={{ padding: '4px 8px', fontSize: 12, color: '#ff8a00' }}
-                              >
-                                📇 Card
-                              </button>
-                            )}
-
-                            {/* Resend Documents (Staff only) */}
-                            {isStaff && p.document_delivery && (
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => handleResendDocuments(p)}
-                                title="Resend Card & Receipt PDFs via Email"
-                                style={{ padding: '4px 8px', fontSize: 12 }}
-                              >
-                                ✉️ Resend
-                              </button>
-                            )}
 
                             {/* Refund (Owner/Admin only) */}
                             {isOwnerOrAdmin && isCompleted && (
@@ -1306,7 +1299,7 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                 Gym Operating Expenditures & Outflows
               </h3>
               <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: 13 }}>
-                Track facility overhead: Facility rent, utilities, equipment maintenance, and supplies.
+                Track facility overhead {expenseSummary?.total_expenses ? `(Total: ${formatETB(expenseSummary.total_expenses)})` : ''}: Facility rent, utilities, equipment maintenance, and supplies.
               </p>
             </div>
 
@@ -1327,28 +1320,52 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
           </div>
 
           {/* Expense Filters */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: 12,
-            marginBottom: 20,
-            background: '#0d1017',
-            padding: 14,
-            borderRadius: 10,
-            border: '1px solid #232936',
-          }}>
-            <div style={{ gridColumn: 'span 2' }}>
+          <div
+            className="dashboard-card"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: 12,
+              marginBottom: 20,
+              padding: 14,
+              borderRadius: 10,
+            }}
+          >
+            <div className="search-bar-wrapper" style={{ gridColumn: 'span 2', position: 'relative' }}>
               <input
                 type="text"
-                className="form-control"
+                className="form-input search-input-field"
                 placeholder="Search expense #, title, or vendor recipient..."
                 value={expensesSearch}
                 onChange={(e) => {
                   setExpensesSearch(e.target.value);
                   setExpensesPage(1);
                 }}
-                style={{ width: '100%' }}
+                style={{
+                  paddingLeft: 36,
+                  paddingRight: 14,
+                  width: '100%',
+                  height: 42,
+                  minHeight: 42,
+                  boxSizing: 'border-box',
+                  fontSize: 13.5,
+                  borderRadius: 8,
+                }}
               />
+              <span
+                className="search-bar-icon"
+                style={{
+                  position: 'absolute',
+                  left: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  pointerEvents: 'none',
+                }}
+              >
+                <Icons.Search size={15} />
+              </span>
             </div>
 
             <div>
@@ -2052,24 +2069,26 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
 
       {/* ==================== MODAL 2: BRANDED PRINTABLE RECEIPT ==================== */}
       {isReceiptModalOpen && selectedPayment && (
-        <div className="modal-backdrop">
-          <div className="modal-card receipt-modal-card" style={{
-            maxWidth: 500,
-            background: '#0d1017',
-            border: '1px solid #292e38',
+        <div className="modal-backdrop" onClick={() => setIsReceiptModalOpen(false)}>
+          <div className="modal-card receipt-modal-card" onClick={(e) => e.stopPropagation()} style={{
+            maxWidth: 520,
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
             borderRadius: 16,
-            padding: 28,
-            boxShadow: '0 20px 50px rgba(0,0,0,0.8)',
+            padding: 24,
+            boxShadow: '0 20px 50px rgba(0,0,0,0.18)',
+            color: '#0f172a',
           }}>
             {/* Receipt Modal Controls (Hidden in print) */}
             <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <span className="badge" style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+              <span className="badge" style={{ background: 'rgba(34, 197, 94, 0.12)', color: '#16a34a', border: '1px solid rgba(34, 197, 94, 0.3)', fontWeight: 700 }}>
                 Verified Official Receipt
               </span>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={() => setIsReceiptModalOpen(false)}
+                style={{ padding: '4px 8px', fontSize: 13 }}
               >
                 ✕
               </button>
@@ -2077,66 +2096,67 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
 
             {/* Printable Receipt Container */}
             <div id="printable-receipt" style={{
-              background: '#07090e',
-              border: '1px dashed #292e38',
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
               borderRadius: 12,
               padding: 24,
-              color: '#f5f5f5',
+              color: '#0f172a',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
             }}>
               {/* Header Branding */}
-              <div style={{ textAlign: 'center', borderBottom: '1px solid #1f242d', paddingBottom: 16, marginBottom: 16 }}>
+              <div style={{ textAlign: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: 16, marginBottom: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
                   <BrandLogo variant="sidebar" size={80} showSubtext={false} />
                 </div>
-                <h4 style={{ margin: 0, color: '#f5f5f5', fontSize: 16, fontWeight: 800, letterSpacing: '0.06em' }}>
+                <h4 style={{ margin: 0, color: '#0f172a', fontSize: 18, fontWeight: 900, letterSpacing: '0.06em' }}>
                   TIGAT GYM
                 </h4>
-                <div style={{ fontSize: 11, color: '#ff8a00', fontWeight: 700, letterSpacing: '0.1em', marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: '#E67C00', fontWeight: 800, letterSpacing: '0.12em', marginTop: 3 }}>
                   OFFICIAL PAYMENT RECEIPT
                 </div>
-                <div style={{ fontSize: 11, color: '#a1a1aa', marginTop: 4 }}>
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
                   Tigat Gym • Addis Ababa, Ethiopia
                 </div>
               </div>
 
               {/* Receipt Metadata */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 12, marginBottom: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 12, marginBottom: 16 }}>
                 <div>
-                  <div style={{ color: '#a1a1aa' }}>Receipt Number:</div>
-                  <div style={{ fontWeight: 800, color: '#ff8a00', fontFamily: 'monospace' }}>
+                  <div style={{ color: '#64748b', fontSize: 11, fontWeight: 600 }}>Receipt Number:</div>
+                  <div style={{ fontWeight: 800, color: '#E67C00', fontFamily: 'monospace', fontSize: 13.5, marginTop: 1 }}>
                     {selectedPayment.receipt_number || selectedPayment.payment_number}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ color: '#a1a1aa' }}>Date & Time:</div>
-                  <div style={{ fontWeight: 600 }}>
+                  <div style={{ color: '#64748b', fontSize: 11, fontWeight: 600 }}>Date & Time:</div>
+                  <div style={{ fontWeight: 600, color: '#0f172a', marginTop: 1 }}>
                     {selectedPayment.paid_at ? new Date(selectedPayment.paid_at).toLocaleString() : new Date(selectedPayment.created_at).toLocaleString()}
                   </div>
                 </div>
                 <div>
-                  <div style={{ color: '#a1a1aa' }}>Billed To:</div>
-                  <div style={{ fontWeight: 700, color: '#f5f5f5' }}>
+                  <div style={{ color: '#64748b', fontSize: 11, fontWeight: 600 }}>Billed To:</div>
+                  <div style={{ fontWeight: 800, color: '#0f172a', fontSize: 13.5, marginTop: 1 }}>
                     {selectedPayment.member?.name || 'Member'}
                   </div>
-                  <div style={{ fontSize: 11, color: '#a1a1aa' }}>
+                  <div style={{ fontSize: 11, color: '#E67C00', fontWeight: 700, fontFamily: 'monospace', marginTop: 1 }}>
                     Code: {selectedPayment.member?.member_code || '—'}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ color: '#a1a1aa' }}>Front Desk Officer:</div>
-                  <div style={{ fontWeight: 600, color: '#d4d4d8' }}>
+                  <div style={{ color: '#64748b', fontSize: 11, fontWeight: 600 }}>Front Desk Officer:</div>
+                  <div style={{ fontWeight: 600, color: '#334155', marginTop: 1 }}>
                     {selectedPayment.recorded_by?.name || user?.name || 'Reception Staff'}
                   </div>
                 </div>
               </div>
 
               {/* Itemized Breakdown Table */}
-              <div style={{ borderTop: '1px solid #1f242d', borderBottom: '1px solid #1f242d', padding: '12px 0', marginBottom: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#a1a1aa', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>
+              <div style={{ borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0', padding: '12px 0', marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', fontWeight: 800, textTransform: 'uppercase', marginBottom: 8 }}>
                   <span>Description</span>
                   <span>Amount (ETB)</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5, fontWeight: 700, color: '#0f172a' }}>
                   <span>
                     {selectedPayment.payable?.plan_name ||
                      (selectedPayment.payment_type ? selectedPayment.payment_type.replace('_', ' ').toUpperCase() : 'MEMBERSHIP ACCESS')}
@@ -2144,44 +2164,61 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                   <span>{formatETB(selectedPayment.amount)}</span>
                 </div>
                 {selectedPayment.notes && (
-                  <div style={{ fontSize: 11, color: '#a1a1aa', marginTop: 4, fontStyle: 'italic' }}>
+                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 4, fontStyle: 'italic' }}>
                     "{selectedPayment.notes}"
                   </div>
                 )}
               </div>
 
               {/* Grand Total */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 16,
+                background: '#f8fafc',
+                padding: '12px 14px',
+                borderRadius: 8,
+                border: '1px solid #e2e8f0',
+              }}>
                 <div>
-                  <div style={{ fontSize: 11, color: '#a1a1aa', textTransform: 'uppercase', fontWeight: 700 }}>
+                  <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 800 }}>
                     Total Paid
                   </div>
-                  <div style={{ fontSize: 11, color: '#ff8a00', fontWeight: 600, textTransform: 'capitalize' }}>
+                  <div style={{ fontSize: 12, color: '#E67C00', fontWeight: 700, textTransform: 'capitalize', marginTop: 2 }}>
                     Method: {selectedPayment.payment_method?.replace('_', ' ')}
                   </div>
                   {selectedPayment.transactions?.[0]?.gateway_reference && (
-                    <div style={{ fontSize: 10, color: '#94a3b8', fontFamily: 'monospace' }}>
+                    <div style={{ fontSize: 10, color: '#64748b', fontFamily: 'monospace', marginTop: 2 }}>
                       Txn Ref: {selectedPayment.transactions[0].gateway_reference}
                     </div>
                   )}
                 </div>
-                <div style={{ fontSize: 24, fontWeight: 800, color: '#22c55e' }}>
+                <div style={{ fontSize: 24, fontWeight: 900, color: '#16a34a' }}>
                   {formatETB(selectedPayment.amount)}
                 </div>
               </div>
 
               {/* QR Verification Matrix */}
-              <div style={{ textAlign: 'center', borderTop: '1px dashed #1f242d', paddingTop: 16 }}>
-                <div style={{ display: 'inline-block', background: '#fff', padding: 8, borderRadius: 8, marginBottom: 8 }}>
+              <div style={{ textAlign: 'center', borderTop: '1px dashed #e2e8f0', paddingTop: 16 }}>
+                <div style={{
+                  display: 'inline-block',
+                  background: '#ffffff',
+                  padding: 8,
+                  borderRadius: 10,
+                  marginBottom: 8,
+                  border: '1.5px solid #fed7aa',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                }}>
                   <QRCodeDisplay
                     value={`TIGAT-VERIFIED-RECEIPT:${selectedPayment.receipt_number}:${selectedPayment.amount}ETB`}
                     size={80}
                   />
                 </div>
-                <div style={{ fontSize: 10, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
                   Security Token: {selectedPayment.payment_number}
                 </div>
-                <div style={{ fontSize: 11, color: '#ff8a00', fontWeight: 600, marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: '#E67C00', fontWeight: 700, marginTop: 4 }}>
                   Thank you for training with TIGAT GYM! 💪
                 </div>
               </div>
@@ -2190,8 +2227,8 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
             {/* Document Delivery Status Banner in Receipt Modal */}
             {selectedPayment?.document_delivery && (
               <div style={{
-                background: '#0d1117',
-                border: '1px solid #1f293d',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
                 borderRadius: 8,
                 padding: '12px 14px',
                 marginTop: 16,
@@ -2202,20 +2239,20 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                 gap: 12,
               }}>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#ff8a00', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#E67C00', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                     Automated Document Delivery (Card & Receipt PDFs)
                   </div>
-                  <div style={{ fontSize: 12, color: '#e2e8f0', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: 12, color: '#0f172a', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <span style={{
                       fontWeight: 700,
-                      color: selectedPayment.document_delivery.status === 'sent' ? '#22c55e' :
+                      color: selectedPayment.document_delivery.status === 'sent' ? '#16a34a' :
                              selectedPayment.document_delivery.status === 'failed' ? '#ef4444' :
-                             selectedPayment.document_delivery.status === 'skipped_no_email' ? '#94a3b8' : '#f59e0b',
+                             selectedPayment.document_delivery.status === 'skipped_no_email' ? '#64748b' : '#f59e0b',
                     }}>
                       ● {selectedPayment.document_delivery.status?.toUpperCase()}
                     </span>
                     {selectedPayment.document_delivery.recipient_email && (
-                      <span style={{ color: '#94a3b8' }}>
+                      <span style={{ color: '#475569' }}>
                         to <strong>{selectedPayment.document_delivery.recipient_email}</strong>
                       </span>
                     )}
@@ -2237,7 +2274,7 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                     type="button"
                     className="btn btn-secondary btn-sm"
                     onClick={() => handleDownloadCard(selectedPayment)}
-                    style={{ fontSize: 12, padding: '5px 10px', color: '#ff8a00', fontWeight: 600 }}
+                    style={{ fontSize: 12, padding: '5px 10px', color: '#E67C00', fontWeight: 600 }}
                   >
                     📇 Download Card PDF
                   </button>
