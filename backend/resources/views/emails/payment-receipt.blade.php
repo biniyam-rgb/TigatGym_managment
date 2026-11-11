@@ -60,7 +60,7 @@
                 <!-- Receipt Number -->
                 <tr>
                   <td style="padding: 12px 18px; font-size: 13px; color: #64748b; border-bottom: 1px solid #f1f5f9;">Receipt Number</td>
-                  <td align="right" style="padding: 12px 18px; font-size: 13px; font-weight: 800; font-family: monospace; color: #ea580c; border-bottom: 1px solid #f1f5f9;">
+                  <td align="right" style="padding: 12px 18px; font-size: 13.5px; font-weight: 800; font-family: monospace; color: #ff7a00; border-bottom: 1px solid #f1f5f9;">
                     {{ $payment->receipt_number }}
                   </td>
                 </tr>

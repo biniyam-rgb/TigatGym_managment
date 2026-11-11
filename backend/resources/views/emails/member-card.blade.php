@@ -56,8 +56,15 @@
                     <div style="font-size: 17px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2;">
                       {{ $user->name }}
                     </div>
-                    <div style="font-size: 10px; font-weight: 800; color: #ea580c; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 3px; margin-bottom: 16px;">
-                      PREMIUM MEMBER
+                    <div style="margin-top: 3px; margin-bottom: 14px;">
+                      <span style="font-size: 10px; font-weight: 800; color: #ea580c; text-transform: uppercase; letter-spacing: 0.08em;">
+                        PREMIUM MEMBER
+                      </span>
+                      @if(!empty($user->phone))
+                      <span style="display: inline-block; font-size: 10px; font-weight: 800; color: #0f172a; background: rgba(234, 88, 12, 0.1); border: 1px solid rgba(234, 88, 12, 0.25); padding: 1px 6px; border-radius: 4px; margin-left: 6px;">
+                        📞 {{ $user->phone }}
+                      </span>
+                      @endif
                     </div>
 
                     <!-- Membership ID -->
