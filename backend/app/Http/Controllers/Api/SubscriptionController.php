@@ -53,7 +53,7 @@ class SubscriptionController extends Controller
             $query->where('status', $request->status);
         }
 
-        // Search by subscription_number or member name/code
+        // Search by subscription_number or member name/code/phone or plan name
         if ($request->filled('search')) {
             $search = trim($request->search);
             $query->where(function ($q) use ($search) {
@@ -61,15 +61,20 @@ class SubscriptionController extends Controller
                   ->orWhereHas('member', function ($mq) use ($search) {
                       $mq->where('name', 'like', "%{$search}%")
                          ->orWhere('email', 'like', "%{$search}%")
-                         ->orWhere('phone', 'like', "%{$search}%")
+                         ->orWhere(function ($pq) use ($search) {
+                             $pq->wherePhoneMatches($search);
+                         })
                          ->orWhereHas('memberProfile', function ($pq) use ($search) {
                              $pq->where('member_code', 'like', "%{$search}%");
                          });
+                  })
+                  ->orWhereHas('plan', function ($plq) use ($search) {
+                      $plq->where('name', 'like', "%{$search}%");
                   });
             });
         }
 
-        $subscriptions = $query->orderBy('created_at', 'desc')->paginate($request->integer('per_page', 25));
+        $subscriptions = $query->orderBy('created_at', 'desc')->paginate($request->integer('per_page', 10));
 
         return response()->json([
             'status' => 'success',

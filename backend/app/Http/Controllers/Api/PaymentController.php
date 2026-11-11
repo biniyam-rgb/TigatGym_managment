@@ -85,7 +85,9 @@ class PaymentController extends Controller
                   ->orWhere('payment_number', 'like', "%{$search}%")
                   ->orWhereHas('user', function ($uq) use ($search) {
                       $uq->where('name', 'like', "%{$search}%")
-                         ->orWhere('phone', 'like', "%{$search}%")
+                         ->orWhere(function ($pq) use ($search) {
+                             $pq->wherePhoneMatches($search);
+                         })
                          ->orWhereHas('memberProfile', function ($mq) use ($search) {
                              $mq->where('member_code', 'like', "%{$search}%");
                          });
