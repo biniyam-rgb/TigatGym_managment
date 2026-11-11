@@ -38,7 +38,7 @@ class MemberController extends Controller
             $query->whereIn('user_id', $assignedMemberUserIds);
         }
 
-        // Search: member_code, name, email, phone
+        // Search: member_code, name, email, phone, plan
         if ($request->filled('search')) {
             $search = trim($request->search);
             $query->where(function ($q) use ($search) {
@@ -46,7 +46,12 @@ class MemberController extends Controller
                   ->orWhereHas('user', function ($uq) use ($search) {
                       $uq->where('name', 'like', "%{$search}%")
                          ->orWhere('email', 'like', "%{$search}%")
-                         ->orWhere('phone', 'like', "%{$search}%");
+                         ->orWhere(function ($pq) use ($search) {
+                             $pq->wherePhoneMatches($search);
+                         });
+                  })
+                  ->orWhereHas('subscriptions.membershipPlan', function ($sq) use ($search) {
+                      $sq->where('name', 'like', "%{$search}%");
                   });
             });
         }
@@ -257,7 +262,13 @@ class MemberController extends Controller
             // Update User fields
             $userFields = [];
             if (isset($validated['name'])) $userFields['name'] = $validated['name'];
-            if (isset($validated['email'])) $userFields['email'] = $validated['email'];
+            if (array_key_exists('email', $validated)) {
+                if (! empty($validated['email'])) {
+                    $userFields['email'] = $validated['email'];
+                } else {
+                    $userFields['email'] = strtolower(str_replace('-', '', $member->member_code)) . '@members.tigatgym.com';
+                }
+            }
             if (isset($validated['phone'])) $userFields['phone'] = $validated['phone'];
             if ($isStaff && isset($validated['status'])) $userFields['status'] = $validated['status'];
 
