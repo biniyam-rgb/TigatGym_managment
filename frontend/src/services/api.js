@@ -214,6 +214,7 @@ export const apiClient = {
     if (params.status) query.append('status', params.status);
     if (params.page) query.append('page', params.page);
     if (params.per_page) query.append('per_page', params.per_page);
+    if (params.all) query.append('all', '1');
 
     const queryString = query.toString();
     return this.get(`/users${queryString ? `?${queryString}` : ''}`);
@@ -251,6 +252,7 @@ export const apiClient = {
     if (params.gender) query.append('gender', params.gender);
     if (params.page) query.append('page', params.page);
     if (params.per_page) query.append('per_page', params.per_page);
+    if (params.all) query.append('all', '1');
 
     const queryString = query.toString();
     return this.get(`/members${queryString ? `?${queryString}` : ''}`);
@@ -326,6 +328,7 @@ export const apiClient = {
     if (params.plan_id) query.append('plan_id', params.plan_id);
     if (params.page) query.append('page', params.page);
     if (params.per_page) query.append('per_page', params.per_page);
+    if (params.all) query.append('all', '1');
 
     const queryString = query.toString();
     return this.get(`/subscriptions${queryString ? `?${queryString}` : ''}`);
@@ -367,6 +370,7 @@ export const apiClient = {
     if (params.date_to) query.append('date_to', params.date_to);
     if (params.page) query.append('page', params.page);
     if (params.per_page) query.append('per_page', params.per_page);
+    if (params.all) query.append('all', '1');
 
     const queryString = query.toString();
     return this.get(`/payments${queryString ? `?${queryString}` : ''}`);
@@ -409,6 +413,7 @@ export const apiClient = {
     if (params.user_id) query.append('user_id', params.user_id);
     if (params.page) query.append('page', params.page);
     if (params.per_page) query.append('per_page', params.per_page);
+    if (params.all) query.append('all', '1');
 
     const queryString = query.toString();
     return this.get(`/document-deliveries${queryString ? `?${queryString}` : ''}`);
@@ -441,6 +446,7 @@ export const apiClient = {
     if (params.date_to) query.append('date_to', params.date_to);
     if (params.page) query.append('page', params.page);
     if (params.per_page) query.append('per_page', params.per_page);
+    if (params.all) query.append('all', '1');
 
     const queryString = query.toString();
     return this.get(`/expenses${queryString ? `?${queryString}` : ''}`);
@@ -483,6 +489,7 @@ export const apiClient = {
     if (params.currently_inside) query.append('currently_inside', '1');
     if (params.page) query.append('page', params.page);
     if (params.per_page) query.append('per_page', params.per_page);
+    if (params.all) query.append('all', '1');
 
     const queryString = query.toString();
     return this.get(`/attendance${queryString ? `?${queryString}` : ''}`);
