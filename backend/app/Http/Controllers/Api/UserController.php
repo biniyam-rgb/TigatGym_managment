@@ -41,7 +41,9 @@ class UserController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%");
+                  ->orWhere(function ($pq) use ($search) {
+                      $pq->wherePhoneMatches($search);
+                  });
             });
         }
 
@@ -93,10 +95,7 @@ class UserController extends Controller
 
             // Automatically create domain profile based on role
             if ($validated['role'] === 'member') {
-                $uniqueCode = 'TG-M-' . strtoupper(Str::random(6));
-                while (MemberProfile::where('member_code', $uniqueCode)->exists()) {
-                    $uniqueCode = 'TG-M-' . strtoupper(Str::random(6));
-                }
+                $uniqueCode = MemberProfile::generateNextMemberCode();
 
                 MemberProfile::create([
                     'user_id' => $user->id,
@@ -246,10 +245,7 @@ class UserController extends Controller
 
             // Create profile if missing
             if ($roleName === 'member' && ! $user->memberProfile) {
-                $uniqueCode = 'TG-M-' . strtoupper(Str::random(6));
-                while (MemberProfile::where('member_code', $uniqueCode)->exists()) {
-                    $uniqueCode = 'TG-M-' . strtoupper(Str::random(6));
-                }
+                $uniqueCode = MemberProfile::generateNextMemberCode();
                 MemberProfile::create([
                     'user_id' => $user->id,
                     'member_code' => $uniqueCode,

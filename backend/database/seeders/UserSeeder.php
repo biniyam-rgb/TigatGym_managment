@@ -88,7 +88,7 @@ class UserSeeder extends Seeder
                 MemberProfile::firstOrCreate(
                     ['user_id' => $user->id],
                     [
-                        'member_code' => 'TG-M-0001',
+                        'member_code' => 'TG-0001',
                         'qr_code_token' => 'TIGAT-QR-' . Str::random(32),
                         'date_of_birth' => '1995-05-15',
                         'gender' => 'male',
