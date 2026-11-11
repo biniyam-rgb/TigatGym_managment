@@ -78,3 +78,116 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* ==========================================================================
+   GLOBAL THIN & MODERN STYLED SCROLLBAR (TIGAT GYM PREMIUM AESTHETIC)
+   ========================================================================== */
+
+/* Universal thin scrollbar for Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 122, 0, 0.35) transparent;
+}
+
+/* Chrome, Edge, Safari, Opera (Webkit/Blink) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  transition: all 0.2s ease-in-out;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #ff8a00 0%, #ea580c 100%);
+  box-shadow: 0 0 10px rgba(255, 122, 0, 0.5);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Dedicated styling for Modal Cards, Split Pages & Table Overflows */
+.modal-card,
+.modal-card-wide,
+.modal-card-register-fit,
+.table-responsive,
+.sidebar-nav,
+.digital-card-container,
+div[style*="overflow"] {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 122, 0, 0.4) transparent;
+}
+
+.modal-card::-webkit-scrollbar,
+.modal-card-wide::-webkit-scrollbar,
+.modal-card-register-fit::-webkit-scrollbar,
+.table-responsive::-webkit-scrollbar,
+.sidebar-nav::-webkit-scrollbar,
+div[style*="overflow"]::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.modal-card::-webkit-scrollbar-thumb,
+.modal-card-wide::-webkit-scrollbar-thumb,
+.modal-card-register-fit::-webkit-scrollbar-thumb,
+.table-responsive::-webkit-scrollbar-thumb,
+.sidebar-nav::-webkit-scrollbar-thumb,
+div[style*="overflow"]::-webkit-scrollbar-thumb {
+  background: rgba(255, 122, 0, 0.35);
+  border-radius: 9999px;
+}
+
+.modal-card::-webkit-scrollbar-thumb:hover,
+.modal-card-wide::-webkit-scrollbar-thumb:hover,
+.modal-card-register-fit::-webkit-scrollbar-thumb:hover,
+.table-responsive::-webkit-scrollbar-thumb:hover,
+.sidebar-nav::-webkit-scrollbar-thumb:hover,
+div[style*="overflow"]::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #ff7a00 0%, #ea580c 100%);
+  box-shadow: 0 0 12px rgba(255, 122, 0, 0.6);
+}
+
+/* Dark Theme specific thumb contrast */
+body.theme-dark *,
+[data-theme="dark"] * {
+  scrollbar-color: rgba(255, 122, 0, 0.4) transparent;
+}
+
+body.theme-dark ::-webkit-scrollbar-thumb,
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+body.theme-dark ::-webkit-scrollbar-thumb:hover,
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #ff8a00 0%, #ea580c 100%);
+  box-shadow: 0 0 12px rgba(255, 122, 0, 0.7);
+}
+
+/* Light Theme specific thumb contrast */
+body.theme-light *,
+[data-theme="light"] * {
+  scrollbar-color: rgba(234, 88, 12, 0.45) transparent;
+}
+
+body.theme-light ::-webkit-scrollbar-thumb,
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.35);
+}
+
+body.theme-light ::-webkit-scrollbar-thumb:hover,
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #ff7a00 0%, #ea580c 100%);
+  box-shadow: 0 0 10px rgba(255, 122, 0, 0.5);
+}
