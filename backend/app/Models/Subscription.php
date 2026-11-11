@@ -46,6 +46,12 @@ class Subscription extends Model
         ];
     }
 
+    protected $appends = [
+        'days_remaining',
+        'is_upcoming',
+        'days_until_start',
+    ];
+
     public function member(): BelongsTo
     {
         return $this->belongsTo(User::class, 'member_id');
@@ -76,6 +82,30 @@ class Subscription extends Model
         return $this->status === 'active' && now()->toDateString() <= $this->end_date->format('Y-m-d');
     }
 
+    public function isUpcoming(): bool
+    {
+        $today = now()->toDateString();
+        $startDate = $this->start_date ? $this->start_date->format('Y-m-d') : null;
+
+        return $this->status === 'active' && $startDate && $startDate > $today;
+    }
+
+    public function getDaysUntilStartAttribute(): int
+    {
+        if (!$this->start_date) {
+            return 0;
+        }
+
+        $startDate = Carbon::parse($this->start_date)->startOfDay();
+        $today = Carbon::today();
+
+        if ($startDate->isPast() || $startDate->isToday()) {
+            return 0;
+        }
+
+        return (int) max(0, ceil($today->diffInDays($startDate, false)));
+    }
+
     public function isFrozen(): bool
     {
         return $this->status === 'frozen';
@@ -84,6 +114,25 @@ class Subscription extends Model
     public function isExpired(): bool
     {
         return $this->status === 'expired' || ($this->status === 'active' && now()->toDateString() > $this->end_date->format('Y-m-d'));
+    }
+
+    /**
+     * Get remaining days for an active subscription (inclusive of the end date).
+     * If the subscription starts in the future, its duration is calculated from its start date.
+     */
+    public function getDaysRemainingAttribute(): int
+    {
+        $endDate = $this->end_date ? Carbon::parse($this->end_date) : null;
+        if (!$endDate || $this->status !== 'active') {
+            return 0;
+        }
+
+        $today = Carbon::today();
+        if ($endDate->copy()->startOfDay()->isPast() && !$endDate->isToday()) {
+            return 0;
+        }
+
+        return (int) max(0, ceil($today->diffInDays($endDate->copy()->endOfDay(), false)));
     }
 
     /**

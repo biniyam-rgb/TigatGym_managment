@@ -52,6 +52,17 @@ class MemberProfile extends Model
     }
 
     /**
+     * Retrieve the model for a bound value (supports Profile ID, user_id, or member_code).
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        return $this->where('id', $value)
+            ->orWhere('user_id', $value)
+            ->orWhere('member_code', $value)
+            ->first() ?? abort(404, 'Member profile not found');
+    }
+
+    /**
      * Generate the next sequential member number: TG-0001, TG-0002...
      */
     public static function generateNextMemberCode(): string

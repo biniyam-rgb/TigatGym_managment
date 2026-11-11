@@ -195,9 +195,12 @@ class User extends Authenticatable
 
     public function activeSubscription(): ?Subscription
     {
+        $today = now()->toDateString();
+
         return $this->subscriptions()
             ->with('plan')
-            ->active()
+            ->where('status', 'active')
+            ->where('end_date', '>=', $today)
             ->orderByDesc('end_date')
             ->first();
     }
@@ -218,5 +221,45 @@ class User extends Authenticatable
     public function attendanceRecords(): HasMany
     {
         return $this->hasMany(AttendanceRecord::class, 'member_id');
+    }
+
+    /**
+     * Scope query to match a phone number flexibly (handling Ethiopian country code +251, leading 0, spaces, and bare digits).
+     */
+    public function scopeWherePhoneMatches($query, string $search)
+    {
+        $search = trim($search);
+        $digits = preg_replace('/\D+/', '', $search);
+
+        $candidates = [$search, $digits];
+        if (str_starts_with($digits, '251') && strlen($digits) > 3) {
+            $candidates[] = substr($digits, 3);
+        } elseif (str_starts_with($digits, '0') && strlen($digits) > 1) {
+            $candidates[] = substr($digits, 1);
+        }
+
+        $variants = [];
+        foreach ($candidates as $cand) {
+            if (!$cand) continue;
+            $variants[] = $cand;
+            $clean = preg_replace('/\D+/', '', $cand);
+            if (strlen($clean) >= 2) {
+                $variants[] = $clean;
+                $variants[] = '0' . $clean;
+                $variants[] = '+251' . $clean;
+                $variants[] = '251' . $clean;
+            }
+        }
+
+        $variants = array_filter(array_unique($variants));
+
+        return $query->where(function ($q) use ($variants, $digits) {
+            foreach ($variants as $v) {
+                $q->orWhere('phone', 'like', "%{$v}%");
+            }
+            if ($digits && strlen($digits) >= 3) {
+                $q->orWhereRaw("REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', ''), '(', '') LIKE ?", ["%{$digits}%"]);
+            }
+        });
     }
 }

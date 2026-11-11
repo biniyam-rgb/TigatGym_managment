@@ -64,6 +64,13 @@ class AttendanceRecord extends Model
             ->whereDate('check_in_time', Carbon::today());
     }
 
+    public function scopeOverstaying($query, int $maxHours = 4)
+    {
+        return $query->where('status', 'admitted')
+            ->whereNull('check_out_time')
+            ->where('check_in_time', '<=', Carbon::now()->subHours($maxHours));
+    }
+
     public function isCheckedIn(): bool
     {
         return $this->status === 'admitted' && is_null($this->check_out_time);
