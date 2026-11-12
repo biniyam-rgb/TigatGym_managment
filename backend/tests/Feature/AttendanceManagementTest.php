@@ -22,6 +22,13 @@ class AttendanceManagementTest extends TestCase
     {
         parent::setUp();
         $this->seed(RoleSeeder::class);
+        Carbon::setTestNow(Carbon::today()->setHour(14)->setMinute(0));
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
     }
 
     protected function createUserWithRole(string $role): array

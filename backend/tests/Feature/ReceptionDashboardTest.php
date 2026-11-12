@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AttendanceRecord;
+use App\Models\AuditLog;
 use App\Models\FitnessClass;
 use App\Models\MemberProfile;
 use App\Models\MembershipPlan;
@@ -17,6 +18,18 @@ use Tests\TestCase;
 class ReceptionDashboardTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Carbon::setTestNow(Carbon::today()->setHour(14)->setMinute(0));
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
 
     private function createRole(string $name): Role
     {
@@ -161,5 +174,53 @@ class ReceptionDashboardTest extends TestCase
         $response = $this->getJson('/api/reception/dashboard');
 
         $response->assertStatus(401);
+    }
+
+    public function test_receptionist_activities_are_notified_to_admin(): void
+    {
+        [$receptionist, ] = $this->createUserWithRole('receptionist');
+        [, $adminToken] = $this->createUserWithRole('admin');
+
+        // Receptionist performs an action recorded in audit_logs
+        AuditLog::create([
+            'user_id' => $receptionist->id,
+            'action' => 'attendance.check_in',
+            'notes' => 'Admitted Dawit Haile (TG-0005) via QR scanner',
+            'ip_address' => '127.0.0.1',
+        ]);
+
+        $response = $this->withHeader('Authorization', "Bearer {$adminToken}")
+            ->getJson('/api/reception/dashboard?refresh=1');
+
+        $response->assertStatus(200);
+        $activities = $response->json('data.activity_notifications');
+        $this->assertNotEmpty($activities);
+        $this->assertEquals('reception_activity', $activities[0]['type']);
+        $this->assertEquals($receptionist->name, $activities[0]['actor_name']);
+        $this->assertStringContainsString('Admitted Dawit Haile', $activities[0]['message']);
+    }
+
+    public function test_admin_activities_are_notified_to_owner(): void
+    {
+        [$admin, ] = $this->createUserWithRole('admin');
+        [, $ownerToken] = $this->createUserWithRole('owner');
+
+        // Admin performs an action recorded in audit_logs
+        AuditLog::create([
+            'user_id' => $admin->id,
+            'action' => 'member.suspended',
+            'notes' => 'Suspended member Abel (TG-0013): Safety policy breach',
+            'ip_address' => '127.0.0.1',
+        ]);
+
+        $response = $this->withHeader('Authorization', "Bearer {$ownerToken}")
+            ->getJson('/api/reception/dashboard?refresh=1');
+
+        $response->assertStatus(200);
+        $activities = $response->json('data.activity_notifications');
+        $this->assertNotEmpty($activities);
+        $this->assertEquals('admin_activity', $activities[0]['type']);
+        $this->assertEquals($admin->name, $activities[0]['actor_name']);
+        $this->assertStringContainsString('Suspended member Abel', $activities[0]['message']);
     }
 }

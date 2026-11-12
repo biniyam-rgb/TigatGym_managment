@@ -6,7 +6,9 @@ use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AuthenticationTest extends TestCase
@@ -281,5 +283,97 @@ class AuthenticationTest extends TestCase
 
         $resetResponse->assertStatus(422)
             ->assertJson(['message' => 'This password reset token is invalid or has expired.']);
+    }
+
+    public function test_user_can_update_profile_name_email_and_phone(): void
+    {
+        $user = $this->createUser([
+            'name' => 'Original Name',
+            'email' => 'original@tigatgym.com',
+            'phone' => '+251911000001',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/auth/profile', [
+                'name' => 'Updated Name',
+                'email' => 'updated@tigatgym.com',
+                'phone' => '+251911000002',
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'message' => 'Profile updated successfully.',
+                'user' => [
+                    'id' => $user->id,
+                    'name' => 'Updated Name',
+                    'email' => 'updated@tigatgym.com',
+                    'phone' => '+251911000002',
+                ],
+            ]);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'name' => 'Updated Name',
+            'email' => 'updated@tigatgym.com',
+            'phone' => '+251911000002',
+        ]);
+    }
+
+    public function test_user_can_upload_profile_avatar(): void
+    {
+        Storage::fake('public');
+
+        $user = $this->createUser();
+        $file = UploadedFile::fake()->create('profile.jpg', 100, 'image/jpeg');
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/auth/profile', [
+                'name' => 'User With Avatar',
+                'avatar' => $file,
+            ]);
+
+        $response->assertStatus(200);
+        $user->refresh();
+        $this->assertNotNull($user->avatar);
+        $this->assertStringContainsString('avatars/', $user->avatar);
+    }
+
+    public function test_user_cannot_update_profile_with_duplicate_phone(): void
+    {
+        $user1 = $this->createUser([
+            'email' => 'user1@example.com',
+            'phone' => '+251911111111',
+        ]);
+
+        $user2 = $this->createUser([
+            'email' => 'user2@example.com',
+            'phone' => '+251922222222',
+        ]);
+
+        $response = $this->actingAs($user2)
+            ->postJson('/api/auth/profile', [
+                'name' => 'User 2',
+                'phone' => '+251911111111', // Existing phone of user 1
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['phone']);
+    }
+
+    public function test_user_can_remove_avatar(): void
+    {
+        Storage::fake('public');
+        $user = $this->createUser([
+            'avatar' => '/storage/avatars/old_avatar.jpg',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/auth/profile', [
+                'remove_avatar' => true,
+            ]);
+
+        $response->assertStatus(200);
+        $user->refresh();
+        $this->assertNull($user->avatar);
     }
 }

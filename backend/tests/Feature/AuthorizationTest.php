@@ -79,6 +79,99 @@ class AuthorizationTest extends TestCase
         $response->assertStatus(403);
     }
 
+    public function test_admin_cannot_create_admin_account(): void
+    {
+        [$admin, $token] = $this->createUserWithRole('admin');
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
+            ->postJson('/api/users', [
+                'name' => 'Subordinate Admin',
+                'email' => 'subadmin@tigatgym.com',
+                'password' => 'Password123!',
+                'role' => 'admin',
+            ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_admin_cannot_promote_user_to_admin(): void
+    {
+        [$admin, $token] = $this->createUserWithRole('admin');
+        [$targetUser] = $this->createUserWithRole('member');
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
+            ->postJson("/api/users/{$targetUser->id}/roles", [
+                'role' => 'admin',
+            ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_owner_can_create_admin_account(): void
+    {
+        [$owner, $token] = $this->createUserWithRole('owner');
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
+            ->postJson('/api/users', [
+                'name' => 'New Facility Admin',
+                'email' => 'newadmin_' . uniqid() . '@tigatgym.com',
+                'password' => 'Password123!',
+                'role' => 'admin',
+                'desk_station' => 'Operations Management',
+                'employee_id_number' => 'TG-ADM-002',
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('user.name', 'New Facility Admin')
+            ->assertJsonPath('user.desk_station', 'Operations Management')
+            ->assertJsonPath('user.employee_id_number', 'TG-ADM-002');
+    }
+
+    public function test_admin_can_create_receptionist_with_duty_credentials(): void
+    {
+        [$admin, $token] = $this->createUserWithRole('admin');
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
+            ->postJson('/api/users', [
+                'name' => 'Sara Receptionist',
+                'email' => 'sara_' . uniqid() . '@tigatgym.com',
+                'password' => 'Password123!',
+                'role' => 'receptionist',
+                'work_shift' => 'Morning Shift (6:00 AM – 2:00 PM)',
+                'desk_station' => 'Main Front Desk & Admissions',
+                'emergency_contact' => 'Dawit Kebede (+251911000111)',
+                'employee_id_number' => 'TG-REC-005',
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('user.name', 'Sara Receptionist')
+            ->assertJsonPath('user.work_shift', 'Morning Shift (6:00 AM – 2:00 PM)')
+            ->assertJsonPath('user.desk_station', 'Main Front Desk & Admissions')
+            ->assertJsonPath('user.employee_id_number', 'TG-REC-005');
+    }
+
+    public function test_admin_can_create_trainer_with_coaching_credentials(): void
+    {
+        [$admin, $token] = $this->createUserWithRole('admin');
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
+            ->postJson('/api/users', [
+                'name' => 'Coach Yohannes',
+                'email' => 'coach_' . uniqid() . '@tigatgym.com',
+                'password' => 'Password123!',
+                'role' => 'trainer',
+                'specialization' => 'Strength & Conditioning',
+                'certifications' => 'ACE Certified, CPR/AED',
+                'hourly_rate' => 450.00,
+                'bio' => 'Experienced Olympic weightlifting and functional strength trainer.',
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('user.name', 'Coach Yohannes')
+            ->assertJsonPath('user.trainer_profile.specialization', 'Strength & Conditioning')
+            ->assertJsonPath('user.trainer_profile.certifications', 'ACE Certified, CPR/AED');
+    }
+
     public function test_admin_cannot_modify_owner_account(): void
     {
         [$admin, $token] = $this->createUserWithRole('admin');
