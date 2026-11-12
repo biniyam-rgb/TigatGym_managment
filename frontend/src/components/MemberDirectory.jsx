@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import apiClient from '../services/api';
 import { useAuth } from '../context/useAuth';
+import useDebounce from '../hooks/useDebounce';
 import QRCodeDisplay from './QRCodeDisplay';
 import BrandLogo from './BrandLogo';
 import PermanentMemberCard from './PermanentMemberCard';
@@ -150,14 +151,25 @@ const CHAPA_PROVIDERS = [
   { id: 'awash', name: 'AwashBirr', badge: 'Awash Bank', color: '#d97706', icon: '💳' },
 ];
 
-export default function MemberDirectory({ initialOpenRegister = false }) {
+export default function MemberDirectory({ initialOpenRegister = false, initialSearch = '' }) {
   const { user, hasRole } = useAuth();
   const [members, setMembers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
+  const debouncedSearch = useDebounce(search, 250);
+
+  const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [genderFilter, setGenderFilter] = useState('');
-  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    if (initialSearch) {
+      setTimeout(() => {
+        setSearch(initialSearch);
+        setPage(1);
+      }, 0);
+    }
+  }, [initialSearch]);
   const [totalPages, setTotalPages] = useState(1);
   const [totalMembers, setTotalMembers] = useState(0);
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'cards'
@@ -249,11 +261,67 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
   const isStaff = hasRole('owner') || hasRole('admin') || hasRole('receptionist');
   const isManagement = hasRole('owner') || hasRole('admin');
 
+  // Member Suspension Reason Modal state
+  const [suspendModalMember, setSuspendModalMember] = useState(null);
+  const [suspensionReason, setSuspensionReason] = useState('');
+  const [isSuspending, setIsSuspending] = useState(false);
+
+  const handlePromptSuspendMember = (member) => {
+    setSuspendModalMember(member);
+    setSuspensionReason(member.suspension_reason || '');
+  };
+
+  const handleConfirmSuspendMember = async (e) => {
+    e?.preventDefault();
+    if (!suspendModalMember) return;
+    if (!suspensionReason.trim()) {
+      setNotification({
+        type: 'danger',
+        message: 'Please provide a clear reason for suspension so the front desk can explain it to the member.',
+      });
+      return;
+    }
+
+    setIsSuspending(true);
+    try {
+      await apiClient.updateMember(suspendModalMember.id, {
+        status: 'suspended',
+        suspension_reason: suspensionReason.trim(),
+      });
+      setNotification({
+        type: 'success',
+        message: `Member "${suspendModalMember.name}" suspended. Reason logged for Reception alerts.`,
+      });
+      setSuspendModalMember(null);
+      setSuspensionReason('');
+      fetchMembers();
+      window.dispatchEvent(new CustomEvent('gymcore:refresh'));
+    } catch (err) {
+      setNotification({ type: 'danger', message: err.message || 'Failed to suspend member.' });
+    } finally {
+      setIsSuspending(false);
+    }
+  };
+
+  const handleReactivateMember = async (member) => {
+    try {
+      await apiClient.updateMember(member.id, { status: 'active' });
+      setNotification({
+        type: 'success',
+        message: `Member "${member.name}" reactivated successfully.`,
+      });
+      fetchMembers();
+      window.dispatchEvent(new CustomEvent('gymcore:refresh'));
+    } catch (err) {
+      setNotification({ type: 'danger', message: err.message || 'Failed to reactivate member.' });
+    }
+  };
+
   const fetchMembers = useCallback(async () => {
     setIsLoading(true);
     try {
       const res = await apiClient.getMembers({
-        search,
+        search: debouncedSearch,
         status: statusFilter,
         gender: genderFilter,
         page,
@@ -270,11 +338,26 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
     } finally {
       setIsLoading(false);
     }
-  }, [search, statusFilter, genderFilter, page]);
+  }, [debouncedSearch, statusFilter, genderFilter, page]);
 
+  // Load plans once on mount
+  useEffect(() => {
+    apiClient.getMembershipPlans({ active_only: 1 })
+      .then((res) => {
+        if (res?.data) {
+          setMembershipPlans(res.data || []);
+        }
+      })
+      .catch((err) => console.error('Failed to load membership plans:', err));
+  }, []);
+
+  // Fetch members when search, filters, or page changes
   useEffect(() => {
     let ignore = false;
-    apiClient.getMembers({ search, status: statusFilter, gender: genderFilter, page, per_page: 10 })
+    setTimeout(() => {
+      if (!ignore) setIsLoading(true);
+    }, 0);
+    apiClient.getMembers({ search: debouncedSearch, status: statusFilter, gender: genderFilter, page, per_page: 10 })
       .then((res) => {
         if (!ignore && res?.data) {
           setMembers(res.data);
@@ -290,18 +373,10 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
         }
       });
 
-    apiClient.getMembershipPlans({ active_only: 1 })
-      .then((res) => {
-        if (!ignore && res?.data) {
-          setMembershipPlans(res.data || []);
-        }
-      })
-      .catch((err) => console.error('Failed to load membership plans:', err));
-
     return () => {
       ignore = true;
     };
-  }, [search, statusFilter, genderFilter, page]);
+  }, [debouncedSearch, statusFilter, genderFilter, page]);
 
   const openDatePicker = (inputEl) => {
     if (!inputEl) return;
@@ -315,12 +390,14 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
     }
   };
 
-  const handleFieldBlur = (field) => {
-    const error = validateSingleField(field, formData[field], formData, true);
+  const handleFieldBlur = async (field) => {
+    const error = validateSingleField(field, formData[field], formData, !editingMember);
+    if (error) {
+      setFormErrors((prev) => ({ ...prev, [field]: error }));
+      return;
+    }
+
     setFormErrors((prev) => {
-      if (error) {
-        return { ...prev, [field]: error };
-      }
       if (prev[field]) {
         const next = { ...prev };
         delete next[field];
@@ -328,6 +405,40 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
       }
       return prev;
     });
+
+    // Real-time server check: verify if phone number or email is already taken
+    const currentVal = formData[field];
+    if (field === 'phone' && currentVal && currentVal.trim().length >= 9) {
+      try {
+        const res = await apiClient.checkContactAvailability({
+          phone: currentVal.trim(),
+          exclude_user_id: editingMember?.user_id || editingMember?.id || undefined,
+        });
+        if (res.phone_taken) {
+          setFormErrors((prev) => ({
+            ...prev,
+            phone: res.phone_message || 'This phone number is already registered to another member.',
+          }));
+        }
+      } catch (err) {
+        console.warn('Phone availability check notice:', err);
+      }
+    } else if (field === 'email' && currentVal && currentVal.trim().length >= 5) {
+      try {
+        const res = await apiClient.checkContactAvailability({
+          email: currentVal.trim(),
+          exclude_user_id: editingMember?.user_id || editingMember?.id || undefined,
+        });
+        if (res.email_taken) {
+          setFormErrors((prev) => ({
+            ...prev,
+            email: res.email_message || 'This email address is already registered to another account.',
+          }));
+        }
+      } catch (err) {
+        console.warn('Email availability check notice:', err);
+      }
+    }
   };
 
   const handleFieldChange = (field, value) => {
@@ -537,6 +648,31 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
     setFormErrors({});
     setIsSubmitting(true);
     try {
+      // 0. Pre-validate phone and email uniqueness with server
+      try {
+        const contactCheck = await apiClient.checkContactAvailability({
+          phone: formData.phone?.trim() || undefined,
+          email: formData.email?.trim() || undefined,
+        });
+        const conflictErrs = {};
+        if (contactCheck.phone_taken) {
+          conflictErrs.phone = contactCheck.phone_message || 'This phone number is already registered to another member.';
+        }
+        if (contactCheck.email_taken) {
+          conflictErrs.email = contactCheck.email_message || 'This email address is already registered to another account.';
+        }
+        if (Object.keys(conflictErrs).length > 0) {
+          setFormErrors(conflictErrs);
+          const firstErr = Object.values(conflictErrs)[0];
+          setRegisterError(firstErr);
+          setNotification({ type: 'danger', message: firstErr });
+          setIsSubmitting(false);
+          return;
+        }
+      } catch (checkErr) {
+        console.warn('Contact pre-check warning:', checkErr);
+      }
+
       // 1. Create Member Profile
       const memberPayload = {
         name: formData.name.trim(),
@@ -625,8 +761,8 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
       fetchMembers();
     } catch (err) {
       console.error('Registration submission error:', err);
-      if (err.errors || err.data?.errors) {
-        const rawErrors = err.errors || err.data?.errors;
+      const rawErrors = err.errors || err.data?.errors;
+      if (rawErrors) {
         const normalized = {};
         for (const [key, val] of Object.entries(rawErrors)) {
           normalized[key] = Array.isArray(val) ? val[0] : String(val);
@@ -634,10 +770,12 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
         setFormErrors(normalized);
         const firstErr = Object.values(normalized)[0];
         setRegisterError(firstErr || err.message || 'Validation failed. Please verify form fields.');
+        setNotification({ type: 'danger', message: firstErr || err.message || 'Validation failed.' });
       } else {
-        setRegisterError(err.message || 'Failed to register member. Please check form fields and try again.');
+        const msg = err.message || 'Failed to register member. Please check form fields and try again.';
+        setRegisterError(msg);
+        setNotification({ type: 'danger', message: msg });
       }
-      setNotification({ type: 'danger', message: err.message || 'Failed to register member' });
     } finally {
       setIsSubmitting(false);
     }
@@ -688,11 +826,20 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
       setEditingMember(null);
       fetchMembers();
     } catch (err) {
-      const msg = err.data?.message || err.message || 'Failed to update member';
-      if (err.data?.errors) {
-        setFormErrors(err.data.errors);
+      console.error('Member edit error:', err);
+      const rawErrors = err.errors || err.data?.errors;
+      if (rawErrors) {
+        const normalized = {};
+        for (const [key, val] of Object.entries(rawErrors)) {
+          normalized[key] = Array.isArray(val) ? val[0] : String(val);
+        }
+        setFormErrors(normalized);
+        const firstErr = Object.values(normalized)[0];
+        setNotification({ type: 'danger', message: firstErr || err.message || 'Validation failed. Please verify form fields.' });
+      } else {
+        const msg = err.data?.message || err.message || 'Failed to update member';
+        setNotification({ type: 'danger', message: msg });
       }
-      setNotification({ type: 'danger', message: msg });
     } finally {
       setIsSubmitting(false);
     }
@@ -1244,7 +1391,7 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
             }}
             style={{
               paddingLeft: 36,
-              paddingRight: 14,
+              paddingRight: search ? 34 : 14,
               width: '100%',
               height: 42,
               minHeight: 42,
@@ -1253,6 +1400,29 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
               borderRadius: 8,
             }}
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => { setSearch(''); setPage(1); }}
+              style={{
+                position: 'absolute',
+                right: 10,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--gym-text-muted, #94a3b8)',
+                fontSize: 15,
+                padding: '4px 6px',
+                borderRadius: 4,
+                lineHeight: 1,
+              }}
+              title="Clear search"
+            >
+              ✕
+            </button>
+          )}
           <span
             className="search-bar-icon"
             style={{
@@ -1549,9 +1719,27 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                           <span className="plan-name-title">
                             {m.active_subscription?.plan_name || 'MONTHLY'}
                           </span>
-                          <span className={`gymflow-status-pill pill-${m.status === 'active' ? 'active' : m.status === 'inactive' ? 'at-risk' : 'lost'}`}>
-                            • {m.status === 'active' ? 'ACTIVE' : m.status === 'inactive' ? 'AT-RISK' : 'LOST'}
+                          <span className={`gymflow-status-pill pill-${m.status === 'active' ? 'active' : m.status === 'suspended' ? 'suspended' : m.status === 'inactive' ? 'at-risk' : 'lost'}`}>
+                            • {m.status === 'active' ? 'ACTIVE' : m.status === 'suspended' ? 'SUSPENDED' : m.status === 'inactive' ? 'AT-RISK' : 'LOST'}
                           </span>
+                          {m.status === 'suspended' && m.suspension_reason && (
+                            <span
+                              style={{
+                                fontSize: 11,
+                                color: '#ef4444',
+                                fontWeight: 600,
+                                display: 'block',
+                                marginTop: 3,
+                                maxWidth: 170,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                              title={`Reason: ${m.suspension_reason}`}
+                            >
+                              ⚠️ {m.suspension_reason}
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -1567,24 +1755,10 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                         </div>
                       </td>
 
-                      {/* Quick Action Buttons: Check In, Pass & 3-Dot Management */}
+                      {/* Quick Action Buttons: Pass & 3-Dot Management */}
                       <td className="text-right">
                         <div className="gymflow-table-actions">
-                          {/* 1. Quick Check-In Button */}
-                          {isStaff && (
-                            <button
-                              type="button"
-                              className="btn-tbl-action btn-tbl-checkin"
-                              onClick={() => handleQuickCheckIn(m)}
-                              disabled={checkingInId === m.id}
-                              title="Instant Attendance Check-in"
-                            >
-                              <Icons.Check size={13} />
-                              <span>{checkingInId === m.id ? 'Checking In...' : 'Check In'}</span>
-                            </button>
-                          )}
-
-                          {/* 2. QR Pass Button */}
+                          {/* QR Pass Button */}
                           <button
                             type="button"
                             className="btn-tbl-action btn-tbl-pass"
@@ -1640,6 +1814,21 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                                   </button>
                                 )}
 
+                                {isStaff && m.status === 'active' && (
+                                  <button
+                                    type="button"
+                                    className="dropdown-item"
+                                    disabled={checkingInId === m.id}
+                                    onClick={() => {
+                                      setOpenMenuMemberId(null);
+                                      handleQuickCheckIn(m);
+                                    }}
+                                  >
+                                    <Icons.CheckCircle size={14} />
+                                    <span>{checkingInId === m.id ? 'Checking In...' : 'Quick Check-In'}</span>
+                                  </button>
+                                )}
+
                                 {isStaff && (
                                   <button
                                     type="button"
@@ -1657,6 +1846,33 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                                 {isManagement && (
                                   <>
                                     <div className="dropdown-divider"></div>
+                                    {m.status === 'suspended' ? (
+                                      <button
+                                        type="button"
+                                        className="dropdown-item"
+                                        style={{ color: '#16a34a' }}
+                                        onClick={() => {
+                                          setOpenMenuMemberId(null);
+                                          handleReactivateMember(m);
+                                        }}
+                                      >
+                                        <Icons.Check size={14} />
+                                        <span>Reactivate Account</span>
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        className="dropdown-item"
+                                        style={{ color: '#dc2626' }}
+                                        onClick={() => {
+                                          setOpenMenuMemberId(null);
+                                          handlePromptSuspendMember(m);
+                                        }}
+                                      >
+                                        <Icons.AlertTriangle size={14} />
+                                        <span>Suspend Member</span>
+                                      </button>
+                                    )}
                                     <button
                                       type="button"
                                       className="dropdown-item dropdown-item-danger"
@@ -1713,20 +1929,6 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                 </div>
 
                 <div className="card-item-bottom">
-                  {isStaff && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-xs"
-                      onClick={() => handleQuickCheckIn(m)}
-                      disabled={checkingInId === m.id}
-                      style={{ color: '#16a34a', borderColor: 'rgba(22, 163, 74, 0.3)' }}
-                      title="Instant Attendance Check-in"
-                    >
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                        <Icons.Check size={13} /> {checkingInId === m.id ? '...' : 'Check In'}
-                      </span>
-                    </button>
-                  )}
                   <button
                     type="button"
                     className="btn btn-secondary btn-xs"
@@ -2554,304 +2756,253 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
       {/* Modal: Digital QR Pass & Official Receipt (Shown Immediately After Registration) */}
       {registeredMemberPass && (
         <div className="modal-backdrop">
-          <div className="modal-card" style={{ maxWidth: passModalTab === 'both' ? 820 : 580, textAlign: 'center', padding: 22, maxHeight: '95vh', display: 'flex', flexDirection: 'column' }}>
-            
-            {/* Prominent Celebratory Hero Confirmation Banner */}
-            <div style={{
-              background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
-              border: '2px solid #10b981',
-              borderRadius: 14,
-              padding: '16px 20px',
-              marginBottom: 12,
-              boxShadow: '0 4px 16px rgba(16, 185, 129, 0.15)',
-              textAlign: 'center',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-                <div style={{
-                  width: 46,
-                  height: 46,
-                  borderRadius: '50%',
-                  background: '#10b981',
-                  color: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 0 16px rgba(16, 185, 129, 0.45)',
-                  flexShrink: 0,
-                }}>
-                  <Icons.Check size={28} strokeWidth={3} />
-                </div>
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <h2 style={{ margin: 0, fontSize: 19, fontWeight: 900, color: '#065f46', letterSpacing: '-0.01em' }}>
-                      Successfully Registered!
-                    </h2>
-                    <span style={{
-                      background: '#059669',
-                      color: '#ffffff',
-                      fontSize: 10.5,
-                      fontWeight: 800,
-                      padding: '2px 8px',
-                      borderRadius: 12,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
-                    }}>
-                      ✓ Activated
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 11.5, color: '#047857', fontWeight: 700, marginTop: 1 }}>
-                    አባል በተሳካ ሁኔታ ተመዝግቧል • Official digital pass & payment receipt generated
-                  </div>
-                </div>
+          <div className="reg-success-modal">
+            {/* Close Button */}
+            <button
+              type="button"
+              className="reg-success-close-btn no-print"
+              onClick={() => setRegisteredMemberPass(null)}
+              title="Close and view directory"
+            >
+              ✕
+            </button>
+
+            {/* Clean Hero Header */}
+            <div className="reg-success-header no-print">
+              <div className="reg-success-badge-icon">
+                <Icons.Check size={24} strokeWidth={2.8} />
               </div>
-
-              {/* 4 Summary Pill Highlights */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: 8,
-                marginTop: 12,
-                paddingTop: 10,
-                borderTop: '1px solid rgba(16, 185, 129, 0.3)',
-                fontSize: 11,
-              }}>
-                <div style={{ background: '#ffffff', padding: '6px 8px', borderRadius: 8, border: '1px solid #a7f3d0', textAlign: 'center' }}>
-                  <div style={{ color: '#047857', fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase' }}>Member Name</div>
-                  <div style={{ fontWeight: 800, color: '#0f172a', fontSize: 12, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {registeredMemberPass.member?.name}
-                  </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <h3 className="reg-success-title">Member Registered Successfully!</h3>
+                  <span style={{
+                    background: '#10b981',
+                    color: '#ffffff',
+                    fontSize: 10,
+                    fontWeight: 800,
+                    padding: '2px 8px',
+                    borderRadius: 10,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                  }}>
+                    Active Pass
+                  </span>
                 </div>
-
-                <div style={{ background: '#ffffff', padding: '6px 8px', borderRadius: 8, border: '1px solid #a7f3d0', textAlign: 'center' }}>
-                  <div style={{ color: '#047857', fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase' }}>Member ID</div>
-                  <div style={{ fontWeight: 800, color: '#E67C00', fontFamily: 'monospace', fontSize: 12, marginTop: 1 }}>
-                    {registeredMemberPass.member?.member_code || 'TG-0000'}
-                  </div>
-                </div>
-
-                <div style={{ background: '#ffffff', padding: '6px 8px', borderRadius: 8, border: '1px solid #a7f3d0', textAlign: 'center' }}>
-                  <div style={{ color: '#047857', fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase' }}>Selected Plan</div>
-                  <div style={{ fontWeight: 800, color: '#0f172a', fontSize: 11.5, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {registeredMemberPass.plan ? registeredMemberPass.plan.name : 'Standard Access'}
-                  </div>
-                </div>
-
-                <div style={{ background: '#ffffff', padding: '6px 8px', borderRadius: 8, border: '1px solid #a7f3d0', textAlign: 'center' }}>
-                  <div style={{ color: '#047857', fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase' }}>Payment Status</div>
-                  <div style={{ fontWeight: 800, color: '#059669', fontSize: 11.5, marginTop: 1 }}>
-                    {registeredMemberPass.paymentMethod === 'chapa'
-                      ? `Paid (Chapa)`
-                      : `Paid (Cash)`}
-                  </div>
+                <div className="reg-success-subtitle">
+                  Digital turnstile credentials & official receipt issued for Tigat Gym.
                 </div>
               </div>
             </div>
 
-            {/* View Switcher Tabs Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, borderBottom: '1px solid #e2e8f0', paddingBottom: 8 }}>
-              <div style={{ fontSize: 11.5, color: '#64748b', textAlign: 'left' }}>
-                Receipt: <strong style={{ color: '#059669', fontFamily: 'monospace' }}>{registeredMemberPass.payment?.receipt_number || registeredMemberPass.payment?.payment_number || 'RCT-AUTO'}</strong>
+            {/* Quick-Info Strip */}
+            <div className="reg-summary-strip no-print">
+              <div className="reg-summary-item">
+                <span className="reg-summary-label">Member</span>
+                <span className="reg-summary-val" title={registeredMemberPass.member?.name}>
+                  {registeredMemberPass.member?.name}
+                </span>
               </div>
-
-              {/* View Switcher Tabs */}
-              <div className="no-print" style={{ display: 'flex', background: '#f1f5f9', borderRadius: 8, padding: 3, gap: 4 }}>
-                <button
-                  type="button"
-                  onClick={() => setPassModalTab('receipt')}
-                  style={{
-                    border: 'none',
-                    padding: '4px 10px',
-                    borderRadius: 6,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    background: passModalTab === 'receipt' ? '#ffffff' : 'transparent',
-                    color: passModalTab === 'receipt' ? '#E67C00' : '#64748b',
-                    boxShadow: passModalTab === 'receipt' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                  }}
-                >
-                  🧾 Official Receipt
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPassModalTab('pass')}
-                  style={{
-                    border: 'none',
-                    padding: '4px 10px',
-                    borderRadius: 6,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    background: passModalTab === 'pass' ? '#ffffff' : 'transparent',
-                    color: passModalTab === 'pass' ? '#E67C00' : '#64748b',
-                    boxShadow: passModalTab === 'pass' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                  }}
-                >
-                  💳 Permanent Card (1-Yr)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPassModalTab('both')}
-                  style={{
-                    border: 'none',
-                    padding: '4px 10px',
-                    borderRadius: 6,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    background: passModalTab === 'both' ? '#ffffff' : 'transparent',
-                    color: passModalTab === 'both' ? '#E67C00' : '#64748b',
-                    boxShadow: passModalTab === 'both' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                  }}
-                >
-                  📋 Both
-                </button>
+              <div className="reg-summary-item">
+                <span className="reg-summary-label">Member ID</span>
+                <span className="reg-summary-val" style={{ color: '#ea580c', fontFamily: 'monospace', fontWeight: 800 }}>
+                  {registeredMemberPass.member?.member_code || 'TG-0000'}
+                </span>
+              </div>
+              <div className="reg-summary-item">
+                <span className="reg-summary-label">Assigned Plan</span>
+                <span className="reg-summary-val" title={registeredMemberPass.plan ? registeredMemberPass.plan.name : 'Standard Access'}>
+                  {registeredMemberPass.plan ? registeredMemberPass.plan.name : 'Standard Access'}
+                </span>
+              </div>
+              <div className="reg-summary-item">
+                <span className="reg-summary-label">Total Paid</span>
+                <span className="reg-summary-val" style={{ color: '#16a34a', fontWeight: 800 }}>
+                  {Number(registeredMemberPass.payment?.amount || registeredMemberPass.plan?.price || 0).toLocaleString()} ETB
+                </span>
               </div>
             </div>
 
-            <div style={{ overflowY: 'auto', flex: 1, paddingRight: 4, margin: '8px 0' }}>
-              {/* PRINTABLE RECEIPT CONTAINER (Always available with id="printable-receipt" for clean print) */}
+            {/* Segmented View Switcher Tabs */}
+            <div className="reg-tab-switcher no-print">
+              <button
+                type="button"
+                className={`reg-tab-btn ${passModalTab === 'receipt' ? 'active' : ''}`}
+                onClick={() => setPassModalTab('receipt')}
+              >
+                🧾 Official Receipt
+              </button>
+              <button
+                type="button"
+                className={`reg-tab-btn ${passModalTab === 'pass' ? 'active' : ''}`}
+                onClick={() => setPassModalTab('pass')}
+              >
+                💳 Digital Turnstile Card
+              </button>
+            </div>
+
+            {/* Tab Body with Custom Smooth Scroll */}
+            <div style={{ overflowY: 'auto', flex: 1, paddingRight: 2, margin: '4px 0 10px 0' }}>
+              {/* TAB 1: OFFICIAL HIGH-CONTRAST WHITE RECEIPT */}
               <div
                 id="printable-receipt"
+                className="reg-receipt-sheet"
                 style={{
-                  display: passModalTab === 'pass' ? 'none' : 'block',
-                  background: '#ffffff',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 14,
-                  padding: 20,
-                  textAlign: 'left',
-                  color: '#0f172a',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
-                  marginBottom: passModalTab === 'both' ? 16 : 0,
+                  display: passModalTab === 'receipt' ? 'block' : 'none',
                 }}
               >
                 {/* Header Branding */}
-                <div style={{ textAlign: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: 12, marginBottom: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>
+                <div style={{ textAlign: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: 14, marginBottom: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
                     <BrandLogo variant="reception" size={48} showSubtext={false} />
                   </div>
-                  <h4 style={{ margin: 0, color: '#0f172a', fontSize: 16, fontWeight: 900, letterSpacing: '0.06em' }}>
+                  <h4 style={{ margin: 0, fontSize: 17, fontWeight: 900, letterSpacing: '0.06em' }}>
                     TIGAT GYM
                   </h4>
-                  <div style={{ fontSize: 10.5, color: '#E67C00', fontWeight: 800, letterSpacing: '0.08em', marginTop: 1 }}>
+                  <div className="receipt-orange" style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', marginTop: 2 }}>
                     OFFICIAL PAYMENT RECEIPT
                   </div>
-                  <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>
+                  <div className="receipt-muted" style={{ fontSize: 10.5, marginTop: 2 }}>
                     Tigat Fitness Hub • Addis Ababa, Ethiopia
                   </div>
                 </div>
 
-                {/* Receipt Metadata */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 11.5, marginBottom: 14 }}>
+                {/* Receipt Key-Value Metadata Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 11.5, marginBottom: 14 }}>
                   <div>
-                    <div style={{ color: '#64748b', fontSize: 10.5 }}>Receipt Number:</div>
-                    <div style={{ fontWeight: 800, color: '#E67C00', fontFamily: 'monospace', fontSize: 12.5 }}>
+                    <div className="receipt-muted" style={{ fontSize: 10.5, fontWeight: 600 }}>Receipt Number:</div>
+                    <div className="receipt-orange" style={{ fontWeight: 800, fontFamily: 'monospace', fontSize: 13, marginTop: 1 }}>
                       {registeredMemberPass.payment?.receipt_number || registeredMemberPass.payment?.payment_number || 'RCT-AUTO'}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ color: '#64748b', fontSize: 10.5 }}>Date & Time:</div>
-                    <div style={{ fontWeight: 600, color: '#0f172a' }}>
-                      {registeredMemberPass.issuedAt ? new Date(registeredMemberPass.issuedAt).toLocaleString() : ''}
+                    <div className="receipt-muted" style={{ fontSize: 10.5, fontWeight: 600 }}>Date & Time:</div>
+                    <div className="receipt-dark" style={{ fontWeight: 700, marginTop: 1 }}>
+                      {registeredMemberPass.issuedAt ? new Date(registeredMemberPass.issuedAt).toLocaleString() : new Date().toLocaleString()}
                     </div>
                   </div>
                   <div>
-                    <div style={{ color: '#64748b', fontSize: 10.5 }}>Billed To Member:</div>
-                    <div style={{ fontWeight: 700, color: '#0f172a' }}>
+                    <div className="receipt-muted" style={{ fontSize: 10.5, fontWeight: 600 }}>Billed To:</div>
+                    <div className="receipt-dark" style={{ fontWeight: 800, fontSize: 13, marginTop: 1 }}>
                       {registeredMemberPass.member?.name}
                     </div>
-                    <div style={{ fontSize: 10.5, color: '#E67C00', fontFamily: 'monospace', fontWeight: 700 }}>
-                      ID: {registeredMemberPass.member?.member_code || 'TG-0000'}
+                    <div className="receipt-orange" style={{ fontSize: 10.5, fontFamily: 'monospace', fontWeight: 700 }}>
+                      Code: {registeredMemberPass.member?.member_code || 'TG-0000'}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ color: '#64748b', fontSize: 10.5 }}>Front Desk Officer:</div>
-                    <div style={{ fontWeight: 600, color: '#0f172a' }}>
+                    <div className="receipt-muted" style={{ fontSize: 10.5, fontWeight: 600 }}>Front Desk Officer:</div>
+                    <div className="receipt-dark" style={{ fontWeight: 700, marginTop: 1 }}>
                       {registeredMemberPass.officerName || user?.name || 'Reception Staff'}
                     </div>
                   </div>
                 </div>
 
-                {/* Itemized Breakdown Table */}
-                <div style={{ borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9', padding: '10px 0', marginBottom: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: '#64748b', fontWeight: 800, textTransform: 'uppercase', marginBottom: 6 }}>
-                    <span>Description</span>
-                    <span>Amount (ETB)</span>
+                {/* Itemized Line Items */}
+                <div style={{ borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0', padding: '10px 0', marginBottom: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', marginBottom: 6 }}>
+                    <span className="receipt-muted">Description</span>
+                    <span className="receipt-muted">Amount (ETB)</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, fontWeight: 700, color: '#0f172a' }}>
-                    <span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 800 }}>
+                    <span className="receipt-dark">
                       {registeredMemberPass.plan ? registeredMemberPass.plan.name : 'Registration & Gym Access Pass'}
                     </span>
-                    <span>
+                    <span className="receipt-dark">
                       {Number(registeredMemberPass.payment?.amount || registeredMemberPass.plan?.price || 0).toLocaleString()} ETB
                     </span>
                   </div>
                   {registeredMemberPass.plan && (
-                    <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 2 }}>
+                    <div className="receipt-muted" style={{ fontSize: 11, marginTop: 2 }}>
                       Duration: {registeredMemberPass.plan.duration_value} {registeredMemberPass.plan.duration_type}{registeredMemberPass.plan.duration_value > 1 ? 's' : ''}
                     </div>
                   )}
                 </div>
 
-                {/* Grand Total & Method */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                {/* Grand Total Row */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 14,
+                  background: '#f8fafc',
+                  padding: '12px 14px',
+                  borderRadius: 8,
+                  border: '1px solid #e2e8f0',
+                }}>
                   <div>
-                    <div style={{ fontSize: 10.5, color: '#64748b', textTransform: 'uppercase', fontWeight: 800 }}>
+                    <div className="receipt-muted" style={{ fontSize: 10.5, textTransform: 'uppercase', fontWeight: 800 }}>
                       Payment Method
                     </div>
-                    <div style={{ fontSize: 12, color: '#E67C00', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <div className="receipt-dark" style={{ fontSize: 12.5, fontWeight: 800, marginTop: 2 }}>
                       {registeredMemberPass.paymentMethod === 'chapa' ? (
                         <>⚡ Chapa Pay ({registeredMemberPass.chapaProvider ? registeredMemberPass.chapaProvider.toUpperCase() : 'TELEBIRR'})</>
                       ) : (
-                        <>💵 Cash (Desk Drawer)</>
+                        <>💵 Cash (Front Desk)</>
                       )}
                     </div>
-                    {registeredMemberPass.chapaPayerPhone && (
-                      <div style={{ fontSize: 10, color: '#64748b', marginTop: 1 }}>
-                        Payer Phone: {registeredMemberPass.chapaPayerPhone}
-                      </div>
-                    )}
                     {registeredMemberPass.paymentReference && (
-                      <div style={{ fontSize: 10, color: '#64748b', fontFamily: 'monospace', marginTop: 2 }}>
-                        Txn Ref: {registeredMemberPass.paymentReference}
+                      <div className="receipt-muted" style={{ fontSize: 10.5, fontFamily: 'monospace', marginTop: 1 }}>
+                        Ref: {registeredMemberPass.paymentReference}
                       </div>
                     )}
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 10.5, color: '#64748b', textTransform: 'uppercase', fontWeight: 800 }}>
+                    <div className="receipt-muted" style={{ fontSize: 10.5, textTransform: 'uppercase', fontWeight: 800 }}>
                       Total Paid
                     </div>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: '#059669' }}>
+                    <div className="receipt-green" style={{ fontSize: 20, fontWeight: 900 }}>
                       {Number(registeredMemberPass.payment?.amount || registeredMemberPass.plan?.price || 0).toLocaleString()} ETB
                     </div>
                   </div>
                 </div>
 
-                {/* Footer Security Stamp */}
-                <div style={{ textAlign: 'center', borderTop: '1px dashed #e2e8f0', paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ textAlign: 'left', fontSize: 9.5, color: '#94a3b8' }}>
-                    <div>Security Token: {registeredMemberPass.payment?.payment_number || 'PAY-OFFICIAL'}</div>
-                    <div>Thank you for choosing Tigat Gym! 💪</div>
+                {/* Security Token & QR Validation Stamp */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  borderTop: '1px dashed #e2e8f0',
+                  paddingTop: 10,
+                }}>
+                  <div style={{ textAlign: 'left', fontSize: 10 }}>
+                    <div className="receipt-muted" style={{ fontFamily: 'monospace' }}>
+                      Token: {registeredMemberPass.payment?.payment_number || 'PAY-OFFICIAL'}
+                    </div>
+                    <div className="receipt-orange" style={{ fontWeight: 700, marginTop: 2 }}>
+                      Thank you for choosing Tigat Gym! 💪
+                    </div>
                   </div>
-                  <div style={{ width: 44, height: 44, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{
+                    width: 46,
+                    height: 46,
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 6,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 2,
+                  }}>
                     <QRCodeDisplay
                       value={`TIGAT-RECEIPT:${registeredMemberPass.payment?.receipt_number || 'RCT-AUTO'}:${registeredMemberPass.member?.member_code}`}
-                      size={38}
+                      size={40}
                     />
                   </div>
                 </div>
               </div>
 
-              {/* OFFICIAL 1-YEAR PERMANENT MEMBERSHIP CARD */}
+              {/* TAB 2: DIGITAL TURNSTILE MEMBERSHIP CARD */}
               <div
                 style={{
-                  display: passModalTab === 'receipt' ? 'none' : 'block',
+                  display: passModalTab === 'pass' ? 'flex' : 'none',
+                  flexDirection: 'column',
+                  alignItems: 'center',
                   width: '100%',
                 }}
               >
-                <div style={{ marginBottom: 10, textAlign: 'center' }}>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: '#ea580c', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                    1-Year Permanent Member Card • Issued for Turnstile Access
+                <div style={{ marginBottom: 12, textAlign: 'center' }}>
+                  <span style={{ fontSize: 11.5, fontWeight: 800, color: '#ea580c', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                    Official Digital Credential • Present at Turnstile for Access
                   </span>
                 </div>
                 <PermanentMemberCard
@@ -2867,43 +3018,53 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
               </div>
             </div>
 
-            {/* Automatic Email Confirmation Banner */}
-            <div className="no-print" style={{ margin: '8px 0', padding: '8px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, textAlign: 'center', fontSize: 12, color: '#166534', fontWeight: 600 }}>
-              ✉️ Official 1-Year Member Card & Payment Receipt are automatically sent to the member's registered email address.
-            </div>
-
-            {/* Modal Actions */}
-            <div className="no-print" style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 12, paddingTop: 10, borderTop: '1px solid #f1f5f9', flexWrap: 'wrap' }}>
+            {/* Modal Bottom Actions */}
+            <div className="no-print" style={{
+              display: 'flex',
+              gap: 10,
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+              paddingTop: 12,
+              borderTop: '1px solid rgba(148, 163, 184, 0.2)',
+              flexWrap: 'wrap',
+            }}>
               <button
                 type="button"
-                className="btn btn-secondary"
+                className="btn btn-secondary btn-sm"
                 onClick={() => window.print()}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700 }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700 }}
               >
                 <Icons.Printer size={15} />
-                <span>Print Pass & Receipt</span>
+                <span>Print Document</span>
               </button>
               <button
                 type="button"
-                className="btn btn-secondary"
+                className="btn btn-secondary btn-sm"
                 onClick={() => {
                   setRegisteredMemberPass(null);
                   setFormData(initialFormData);
                   setIsRegisterOpen(true);
                 }}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, color: '#E67C00', borderColor: '#fed7aa' }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, color: '#ea580c', borderColor: '#ea580c' }}
               >
                 <Icons.UserPlus size={15} />
-                <span>+ Register Another Member</span>
+                <span>+ Register Another</span>
               </button>
               <button
                 type="button"
-                className="btn btn-primary"
+                className="btn btn-primary btn-sm"
                 onClick={() => setRegisteredMemberPass(null)}
-                style={{ background: '#059669', borderColor: '#059669', fontWeight: 800, fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 6 }}
+                style={{
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  borderColor: '#059669',
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
               >
                 <Icons.Check size={16} />
-                <span>Done (View in Directory)</span>
+                <span>Done</span>
               </button>
             </div>
           </div>
@@ -3322,6 +3483,118 @@ export default function MemberDirectory({ initialOpenRegister = false }) {
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Member Suspension Reason Definition Modal */}
+      {suspendModalMember && (
+        <div className="modal-backdrop">
+          <div className="modal-dialog" style={{ maxWidth: 520, borderRadius: 16, overflow: 'hidden' }}>
+            <div style={{ background: '#fef2f2', borderBottom: '1px solid #fee2e2', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 22 }}>⛔</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#991b1b' }}>Suspend Member Account</h3>
+                  <div style={{ fontSize: 12.5, color: '#b91c1c', marginTop: 2 }}>{suspendModalMember.name} ({suspendModalMember.member_code})</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setSuspendModalMember(null)}
+                style={{ background: 'transparent', border: 'none', fontSize: 20, color: '#991b1b', cursor: 'pointer' }}
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmSuspendMember} style={{ padding: 20 }}>
+              <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12.5, color: '#9a3412', lineHeight: 1.4 }}>
+                ℹ️ <strong>Reception Notification:</strong> This reason will immediately display on the <strong>Reception Dashboard</strong> and <strong>Attendance Scanner</strong> so receptionists know why access is blocked and can inform the member.
+              </div>
+
+              {/* Quick Presets */}
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                  Quick Preset Reasons:
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {[
+                    'Facility Rule Violation',
+                    'Payment Dispute / Outstanding Fees',
+                    'Misconduct / Conduct Incident',
+                    'Equipment Misuse or Damage',
+                    'Gym Safety Policy Breach',
+                    'Temporary Medical Hold',
+                  ].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setSuspensionReason(preset)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: 6,
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                        border: '1px solid #e2e8f0',
+                        background: suspensionReason === preset ? '#fee2e2' : '#f8fafc',
+                        color: suspensionReason === preset ? '#991b1b' : '#475569',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Textarea Reason */}
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                  Reason for Suspension <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  className="form-control"
+                  value={suspensionReason}
+                  onChange={(e) => setSuspensionReason(e.target.value)}
+                  placeholder="Explain why this member is being suspended so the front desk can explain it to them (e.g. Non-payment, violation of gym rules, misconduct)..."
+                  style={{ width: '100%', borderRadius: 8, border: '1px solid #cbd5e1', padding: 10, fontSize: 13, boxSizing: 'border-box', background: '#fff' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setSuspendModalMember(null)}
+                  disabled={isSuspending}
+                  style={{ height: 38, padding: '0 16px', borderRadius: 8, background: '#f1f5f9', border: '1px solid #e2e8f0', color: '#475569', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSuspending || !suspensionReason.trim()}
+                  style={{
+                    height: 38,
+                    padding: '0 20px',
+                    borderRadius: 8,
+                    background: isSuspending || !suspensionReason.trim() ? '#fca5a5' : '#dc2626',
+                    border: 'none',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: isSuspending || !suspensionReason.trim() ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 2px 8px rgba(220, 38, 38, 0.25)',
+                  }}
+                >
+                  {isSuspending ? 'Suspending...' : 'Confirm Suspension'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
