@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/useAuth';
 import apiClient from '../services/api';
+import useDebounce from '../hooks/useDebounce';
 
 // Crisp Lucide-style SVG icons matching the clean SaaS header
 const Icons = {
@@ -29,6 +30,14 @@ const Icons = {
   ),
 };
 
+// Defensive conversion ensuring any non-array or object structure safely resolves to an Array
+function safeArray(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'object') return Object.values(val);
+  return [];
+}
+
 export default function Header({
   title,
   subtitle,
@@ -47,36 +56,120 @@ export default function Header({
   const [notifications, setNotifications] = useState([]);
   const notifRef = useRef(null);
 
-  useEffect(() => {
-    let ignore = false;
+  // Quick Header Search State & Live Popover
+  const [headerSearch, setHeaderSearch] = useState('');
+  const debouncedHeaderSearch = useDebounce(headerSearch, 200);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchDropdownOpen, setSearchDropdownOpen] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const searchWrapperRef = useRef(null);
 
-    // Load active notifications
-    apiClient.getReceptionDashboard()
+  useEffect(() => {
+    const q = debouncedHeaderSearch?.trim();
+    if (!q || q.length < 2) {
+      setTimeout(() => {
+        setSearchResults([]);
+        setIsSearching(false);
+      }, 0);
+      return;
+    }
+
+    let ignore = false;
+    setTimeout(() => {
+      if (!ignore) setIsSearching(true);
+    }, 0);
+    apiClient.getMembers({ search: q, per_page: 5 })
       .then((res) => {
-        if (!ignore && res?.data?.membership_alerts) {
-          const dismissed = JSON.parse(localStorage.getItem('tigat_dismissed_notifs') || '[]');
-          const liveAlerts = res.data.membership_alerts
-            .filter((a) => !dismissed.includes(`alert_${a.id}`))
-            .map((a) => ({
-              id: `alert_${a.id}`,
-              title: a.type === 'expired' ? `Expired: ${a.member_name}` : `Expiring: ${a.member_name}`,
-              message: a.type === 'expired' ? 'Membership is expired. Renewal pending.' : `Plan expires in ${a.days_remaining ?? 3} days.`,
-              type: a.type === 'expired' ? 'danger' : 'warning',
-              view: 'memberships',
-            }));
-          setNotifications(liveAlerts);
+        if (!ignore) {
+          setSearchResults(res?.data || []);
+          setSearchDropdownOpen(true);
+          setIsSearching(false);
         }
       })
-      .catch(() => {
-        // Fallback default operational notifications
-        setNotifications([
-          { id: 'notif_1', title: 'Expiring Memberships', message: '3 members have plans expiring soon.', type: 'warning', view: 'memberships' },
-          { id: 'notif_2', title: 'Front-Desk Attendance', message: 'Check-in pace operating normally today.', type: 'info', view: 'attendance' },
-        ]);
+      .catch((err) => {
+        if (!ignore) {
+          console.error('Quick header search error:', err);
+          setIsSearching(false);
+        }
       });
 
     return () => {
       ignore = true;
+    };
+  }, [debouncedHeaderSearch]);
+
+  // Close search dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target)) {
+        setSearchDropdownOpen(false);
+      }
+    };
+    if (searchDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [searchDropdownOpen]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadAlerts = () => {
+      // Load active notifications
+      apiClient.getReceptionDashboard({ refresh: 1 })
+        .then((res) => {
+          if (!ignore && res?.data) {
+            const dismissed = JSON.parse(localStorage.getItem('tigat_dismissed_notifs') || '[]');
+            const items = [];
+
+            // 1. Role-specific Activity Notifications (Receptionist activities for Admin, Admin activities for Owner)
+            safeArray(res.data.activity_notifications).forEach((act) => {
+              if (act && !dismissed.includes(act.id)) {
+                items.push({
+                  id: act.id,
+                  title: act.title,
+                  message: act.message,
+                  time: act.time || 'Recent',
+                  type: act.type === 'admin_activity' ? 'primary' : 'info',
+                  view: act.view || 'notifications',
+                });
+              }
+            });
+
+            // 2. Membership Alerts (Suspended, Expiring, Expired)
+            safeArray(res.data.membership_alerts).forEach((a) => {
+              if (a && !dismissed.includes(`alert_${a.id}`)) {
+                items.push({
+                  id: `alert_${a.id}`,
+                  title: a.type === 'suspended' ? `⛔ Suspended: ${a.member_name}` : a.type === 'expired' ? `Expired: ${a.member_name}` : `Expiring: ${a.member_name}`,
+                  message: a.type === 'suspended' ? `Reason: ${a.reason || 'Administrative hold'}` : a.type === 'expired' ? 'Membership is expired. Renewal pending.' : `Plan expires in ${a.days_remaining ?? 3} days.`,
+                  time: a.suspended_at || 'Urgent',
+                  type: a.type === 'suspended' || a.type === 'expired' ? 'danger' : 'warning',
+                  view: a.type === 'suspended' ? 'notifications' : 'memberships',
+                });
+              }
+            });
+
+            setNotifications(items);
+          }
+        })
+        .catch(() => {
+          // Fallback default operational notifications
+          setNotifications([
+            { id: 'notif_1', title: 'Expiring Memberships', message: '3 members have plans expiring soon.', type: 'warning', view: 'memberships' },
+            { id: 'notif_2', title: 'Front-Desk Attendance', message: 'Check-in pace operating normally today.', type: 'info', view: 'attendance' },
+          ]);
+        });
+    };
+
+    loadAlerts();
+    window.addEventListener('gymcore:refresh', loadAlerts);
+
+    return () => {
+      ignore = true;
+      window.removeEventListener('gymcore:refresh', loadAlerts);
     };
   }, []);
 
@@ -110,27 +203,217 @@ export default function Header({
       {/* Right Tools Bar: Search + Notification Bell + Theme Toggle + User Avatar */}
       <div className="header-right-tools">
         {/* Quick Search Bar matching modern SaaS Header */}
-        <div className="header-search-wrapper search-bar-wrapper" title="Quick Search">
+        <div
+          ref={searchWrapperRef}
+          className="header-search-wrapper search-bar-wrapper"
+          title="Quick Search"
+          style={{ position: 'relative' }}
+        >
           <Icons.Search className="search-bar-icon" />
           <input
             type="text"
             className="header-search-input"
             placeholder="Search anything..."
+            value={headerSearch}
+            onChange={(e) => {
+              setHeaderSearch(e.target.value);
+              if (e.target.value.trim().length >= 2) {
+                setSearchDropdownOpen(true);
+              }
+            }}
+            onFocus={() => {
+              if (searchResults.length > 0 || headerSearch.trim().length >= 2) {
+                setSearchDropdownOpen(true);
+              }
+            }}
             style={{
               border: 'none',
               outline: 'none',
               background: 'transparent',
               boxShadow: 'none',
-              padding: 0,
+              padding: '0 24px 0 0',
               margin: 0,
               width: '100%',
             }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && e.target.value.trim() && onNavigate) {
-                onNavigate('members');
+              if (e.key === 'Enter' && headerSearch.trim() && onNavigate) {
+                setSearchDropdownOpen(false);
+                onNavigate('members', { search: headerSearch.trim() });
               }
             }}
           />
+
+          {headerSearch && (
+            <button
+              type="button"
+              onClick={() => {
+                setHeaderSearch('');
+                setSearchResults([]);
+                setSearchDropdownOpen(false);
+              }}
+              style={{
+                position: 'absolute',
+                right: 8,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--gym-text-muted, #94a3b8)',
+                fontSize: 14,
+                padding: '2px 4px',
+                borderRadius: 4,
+                lineHeight: 1,
+              }}
+              title="Clear search"
+            >
+              ✕
+            </button>
+          )}
+
+          {/* Quick Search Floating Results Popover */}
+          {searchDropdownOpen && headerSearch.trim().length >= 2 && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 8px)',
+                left: 0,
+                right: 0,
+                minWidth: 320,
+                background: 'var(--gym-card-bg, #ffffff)',
+                border: '1px solid var(--gym-border, #e2e8f0)',
+                borderRadius: 10,
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                zIndex: 1050,
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 12px',
+                  background: 'var(--gym-bg-subtle, #f8fafc)',
+                  borderBottom: '1px solid var(--gym-border, #e2e8f0)',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  color: 'var(--gym-text-muted, #64748b)',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                <span>Matching Members</span>
+                {isSearching && <span style={{ fontSize: 10, color: '#3b82f6' }}>Searching...</span>}
+              </div>
+
+              {isSearching && searchResults.length === 0 ? (
+                <div style={{ padding: '16px', textAlign: 'center', fontSize: 12, color: 'var(--gym-text-muted, #64748b)' }}>
+                  Searching Tigat Gym database...
+                </div>
+              ) : searchResults.length === 0 ? (
+                <div style={{ padding: '16px', textAlign: 'center', fontSize: 12, color: 'var(--gym-text-muted, #64748b)' }}>
+                  No members found matching &quot;<strong>{headerSearch}</strong>&quot;
+                </div>
+              ) : (
+                <div style={{ maxHeight: 280, overflowY: 'auto' }}>
+                  {searchResults.map((m) => {
+                    const statusColor = m.status === 'active' ? '#22c55e' : m.status === 'suspended' ? '#ef4444' : '#f59e0b';
+                    return (
+                      <div
+                        key={m.id}
+                        onClick={() => {
+                          setSearchDropdownOpen(false);
+                          if (onNavigate) {
+                            onNavigate('members', { search: m.name });
+                          }
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          padding: '10px 12px',
+                          borderBottom: '1px solid var(--gym-border, #f1f5f9)',
+                          cursor: 'pointer',
+                          transition: 'background 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gym-bg-subtle, #f8fafc)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <div
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            background: 'var(--gym-primary-light, #e0e7ff)',
+                            color: 'var(--gym-primary, #4338ca)',
+                            fontWeight: 700,
+                            fontSize: 13,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {(m.name || 'M').charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--gym-text-primary, #0f172a)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {m.name}
+                            </span>
+                            <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--gym-text-muted, #64748b)' }}>
+                              ({m.member_code})
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--gym-text-muted, #64748b)', marginTop: 2 }}>
+                            {m.phone || 'No phone'} • {m.current_plan || 'No Active Plan'}
+                          </div>
+                        </div>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            padding: '2px 6px',
+                            borderRadius: 6,
+                            background: `${statusColor}18`,
+                            color: statusColor,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {m.status}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div
+                onClick={() => {
+                  setSearchDropdownOpen(false);
+                  if (onNavigate) {
+                    onNavigate('members', { search: headerSearch.trim() });
+                  }
+                }}
+                style={{
+                  padding: '9px 12px',
+                  background: 'var(--gym-bg-subtle, #f8fafc)',
+                  borderTop: '1px solid var(--gym-border, #e2e8f0)',
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  color: 'var(--gym-primary, #3b82f6)',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; }}
+              >
+                Press Enter or click here to view in Member Directory →
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Notifications Shortcut with Dynamic Badge & Interactive Popover */}

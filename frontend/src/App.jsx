@@ -161,11 +161,16 @@ function GymCoreApp() {
 
         <main className="gymcore-content-body">
           {activeView === 'members' && (
-            <MemberDirectory initialOpenRegister={Boolean(navParams?.openRegister)} />
+            <MemberDirectory
+              initialOpenRegister={Boolean(navParams?.openRegister)}
+              initialSearch={navParams?.search || ''}
+            />
           )}
           {activeView === 'memberships' && <SubscriptionManagement />}
           {(activeView === 'payments' || activeView === 'expenses') && (
-            <PaymentLedger initialOpenRecordPayment={Boolean(navParams?.openRecordPayment)} />
+            <PaymentLedger
+              initialTab={activeView === 'expenses' ? 'expenses' : 'payments'}
+            />
           )}
           {activeView === 'attendance' && (
             <AttendanceScanner

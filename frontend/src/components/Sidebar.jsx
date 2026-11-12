@@ -153,11 +153,10 @@ function NavIcon({ id }) {
 export default function Sidebar({
   activeView,
   onViewChange,
-  onOpenPasswordModal,
   isCollapsed = false,
   onToggleCollapse,
 }) {
-  const { user, primaryRole, hasRole, logout } = useAuth();
+  const { primaryRole, hasRole, logout } = useAuth();
 
   // Navigation items structured by permissions
   const defaultNavItems = [
@@ -165,15 +164,15 @@ export default function Sidebar({
     { id: 'members', label: 'Members', roles: ['owner', 'admin', 'trainer'] },
     { id: 'memberships', label: 'Memberships', roles: ['owner', 'admin', 'member'] },
     { id: 'payments', label: 'Payments', roles: ['owner', 'admin', 'member'] },
-    { id: 'attendance', label: 'Attendance', roles: ['owner', 'admin', 'trainer', 'member'] },
-    { id: 'notifications', label: 'Notifications', roles: ['owner', 'admin', 'trainer'] },
     { id: 'trainers', label: 'Trainers', roles: ['owner', 'admin', 'trainer'] },
     { id: 'workouts', label: 'Workouts', roles: ['owner', 'admin', 'trainer', 'member'] },
     { id: 'classes', label: 'Classes', roles: ['owner', 'admin', 'trainer', 'member'] },
     { id: 'equipment', label: 'Equipment', roles: ['owner', 'admin'] },
-    { id: 'expenses', label: 'Expenses', roles: ['owner', 'admin'] },
+    { id: 'expenses', label: 'Expenses', roles: ['owner'] },
     { id: 'users', label: 'Staff Accounts', roles: ['owner', 'admin'] },
     { id: 'audit', label: 'Audit Logs', roles: ['owner'] },
+    { id: 'notifications', label: 'Notifications', roles: ['owner', 'admin', 'trainer', 'member'] },
+    { id: 'profile', label: 'My Profile', roles: ['owner', 'admin', 'trainer', 'member'] },
   ];
 
   // Specific Receptionist navigation with the 8 requested menu items:
@@ -267,38 +266,8 @@ export default function Sidebar({
         })}
       </nav>
 
-      {/* Sidebar Footer: User details and Logout */}
+      {/* Sidebar Footer: Logout */}
       <div className="sidebar-footer">
-        {primaryRole !== 'receptionist' && (
-          <div className="sidebar-user-row" title={isCollapsed ? `${user?.name} (${user?.email})` : undefined}>
-            <div className="sidebar-user-avatar">
-              {user?.name?.charAt(0).toUpperCase() || 'U'}
-            </div>
-            {!isCollapsed && (
-              <>
-                <div className="sidebar-user-meta">
-                  <span className="sidebar-user-name">{user?.name}</span>
-                  <span className="sidebar-user-email">
-                    {user?.email || `${primaryRole?.toUpperCase()} ACCOUNT`}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className="sidebar-user-key-btn"
-                  onClick={onOpenPasswordModal}
-                  title="Change Password"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="7.5" cy="15.5" r="4.5" />
-                    <path d="m21 3-9.5 9.5" />
-                    <path d="m15.5 7.5 3 3" />
-                  </svg>
-                </button>
-              </>
-            )}
-          </div>
-        )}
-
         {/* Dedicated Separate Logout Button */}
         <button
           type="button"
