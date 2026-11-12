@@ -142,6 +142,19 @@ export function AuthProvider({ children }) {
     });
   };
 
+  const updateProfile = async (formDataOrObject) => {
+    const response = await apiClient.updateProfile(formDataOrObject);
+    if (response?.user) {
+      setUser(response.user);
+      try {
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(response.user));
+      } catch {
+        // ignore
+      }
+    }
+    return response;
+  };
+
   const hasRole = (roleName) => {
     if (!user || !user.role_names) return false;
     return user.role_names.includes(roleName);
@@ -162,6 +175,7 @@ export function AuthProvider({ children }) {
     login,
     logout,
     changePassword,
+    updateProfile,
     hasRole,
     hasAnyRole,
     primaryRole,

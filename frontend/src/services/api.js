@@ -67,13 +67,17 @@ export const apiClient = {
     }
 
     const token = this.getToken();
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
 
     const headers = {
-      'Content-Type': 'application/json',
       'Accept': 'application/json',
       ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       ...options.headers,
     };
+
+    if (!isFormData && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     const config = {
       ...options,
@@ -191,6 +195,16 @@ export const apiClient = {
     return this.get('/auth/me');
   },
 
+  updateProfile(data) {
+    if (typeof FormData !== 'undefined' && data instanceof FormData) {
+      return this.request('/auth/profile', {
+        method: 'POST',
+        body: data,
+      });
+    }
+    return this.post('/auth/profile', data);
+  },
+
   changePassword(passwords) {
     return this.post('/auth/change-password', passwords);
   },
@@ -264,6 +278,14 @@ export const apiClient = {
 
   createMember(payload) {
     return this.post('/members', payload);
+  },
+
+  checkContactAvailability(params = {}) {
+    const query = new URLSearchParams();
+    if (params.phone) query.append('phone', params.phone);
+    if (params.email) query.append('email', params.email);
+    if (params.exclude_user_id) query.append('exclude_user_id', params.exclude_user_id);
+    return this.get(`/members/check-contact?${query.toString()}`);
   },
 
   updateMember(id, payload) {
