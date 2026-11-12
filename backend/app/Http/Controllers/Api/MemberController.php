@@ -12,13 +12,52 @@ use App\Services\AuditLogger;
 use App\Services\GymMailService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
 class MemberController extends Controller
 {
+    /**
+     * Check if a phone number or email is already taken before submitting.
+     */
+    public function checkContact(Request $request): JsonResponse
+    {
+        $phone = $request->query('phone');
+        $email = $request->query('email');
+        $excludeUserId = $request->integer('exclude_user_id') ?: null;
+
+        $response = [
+            'phone_taken' => false,
+            'phone_message' => null,
+            'email_taken' => false,
+            'email_message' => null,
+        ];
+
+        if (! empty($phone)) {
+            $existingPhoneUser = User::findUserByPhone($phone, $excludeUserId);
+            if ($existingPhoneUser) {
+                $response['phone_taken'] = true;
+                $response['phone_message'] = "The phone number is already registered to {$existingPhoneUser->name}.";
+            }
+        }
+
+        if (! empty($email)) {
+            $existingEmailUser = User::where('email', strtolower(trim($email)))
+                ->when($excludeUserId, fn($q) => $q->where('id', '!=', $excludeUserId))
+                ->first();
+            if ($existingEmailUser) {
+                $response['email_taken'] = true;
+                $response['email_message'] = "The email address is already registered to {$existingEmailUser->name}.";
+            }
+        }
+
+        return response()->json($response, Response::HTTP_OK);
+    }
+
     /**
      * Display a listing of gym members.
      */
@@ -101,7 +140,7 @@ class MemberController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'min:2', 'max:255'],
-            'email' => ['nullable', 'string', 'email', 'max:255', 'unique:users,email'],
+            'email' => ['nullable', 'string', 'email:rfc', 'max:255', 'unique:users,email'],
             'phone' => ['required', 'string', 'min:9', 'max:30'],
             'password' => ['nullable', 'string', 'min:8'],
             'date_of_birth' => ['nullable', 'date', 'before:today', 'after:1920-01-01'],
@@ -113,7 +152,24 @@ class MemberController extends Controller
             'emergency_contact_relationship' => ['nullable', 'string', 'max:50'],
             'fitness_goals' => ['nullable', 'string', 'max:1000'],
             'health_conditions' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'name.required' => 'Full name is required.',
+            'phone.required' => 'Phone number is required.',
+            'email.email' => 'Please enter a valid email address.',
+            'email.unique' => 'The email address is already taken by another account.',
+            'date_of_birth.before' => 'Date of birth must be a past date.',
+            'date_of_birth.after' => 'Please enter a realistic birth year (after 1920).',
         ]);
+
+        // Explicit check: ensure phone number is not taken by another user/member
+        if (! empty($validated['phone'])) {
+            $existingPhoneUser = User::findUserByPhone($validated['phone']);
+            if ($existingPhoneUser) {
+                throw ValidationException::withMessages([
+                    'phone' => ["The phone number '{$validated['phone']}' is already registered to another member ({$existingPhoneUser->name})."],
+                ]);
+            }
+        }
 
         $memberProfile = DB::transaction(function () use ($validated) {
             $memberCode = MemberProfile::generateNextMemberCode();
@@ -238,9 +294,10 @@ class MemberController extends Controller
 
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'min:2', 'max:255'],
-            'email' => ['nullable', 'string', 'email', 'max:255', 'unique:users,email,' . $member->user_id],
+            'email' => ['nullable', 'string', 'email:rfc', 'max:255', 'unique:users,email,' . $member->user_id],
             'phone' => ['sometimes', 'string', 'min:9', 'max:30'],
             'status' => ['sometimes', 'string', 'in:active,inactive,suspended'],
+            'suspension_reason' => ['nullable', 'string', 'max:1000'],
             'date_of_birth' => ['nullable', 'date', 'before:today', 'after:1920-01-01'],
             'gender' => ['nullable', 'string', 'in:male,female,other'],
             'blood_type' => ['nullable', 'string', 'in:A+,A-,B+,B-,AB+,AB-,O+,O-'],
@@ -250,7 +307,22 @@ class MemberController extends Controller
             'emergency_contact_relationship' => ['nullable', 'string', 'max:50'],
             'fitness_goals' => ['nullable', 'string', 'max:1000'],
             'health_conditions' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'email.unique' => 'The email address is already taken by another account.',
+            'email.email' => 'Please enter a valid email address.',
+            'date_of_birth.before' => 'Date of birth must be a past date.',
+            'date_of_birth.after' => 'Please enter a realistic birth year (after 1920).',
         ]);
+
+        // Explicit check: ensure phone number is not taken by another user/member
+        if (! empty($validated['phone'])) {
+            $existingPhoneUser = User::findUserByPhone($validated['phone'], $member->user_id);
+            if ($existingPhoneUser) {
+                throw ValidationException::withMessages([
+                    'phone' => ["The phone number '{$validated['phone']}' is already registered to another member ({$existingPhoneUser->name})."],
+                ]);
+            }
+        }
 
         $oldProfileValues = $member->only([
             'gender', 'blood_type', 'address', 'emergency_contact_name',
@@ -270,7 +342,21 @@ class MemberController extends Controller
                 }
             }
             if (isset($validated['phone'])) $userFields['phone'] = $validated['phone'];
-            if ($isStaff && isset($validated['status'])) $userFields['status'] = $validated['status'];
+            if ($isStaff && isset($validated['status'])) {
+                $userFields['status'] = $validated['status'];
+                if ($validated['status'] === 'suspended') {
+                    $userFields['suspension_reason'] = $request->input('suspension_reason') ?? $member->user->suspension_reason ?? 'Administrative suspension';
+                    $userFields['suspended_at'] = now();
+                    $userFields['suspended_by'] = $currentUser->id;
+                    $member->user->tokens()->delete();
+                } elseif ($validated['status'] === 'active') {
+                    $userFields['suspension_reason'] = null;
+                    $userFields['suspended_at'] = null;
+                    $userFields['suspended_by'] = null;
+                }
+            } elseif (array_key_exists('suspension_reason', $validated)) {
+                $userFields['suspension_reason'] = $validated['suspension_reason'];
+            }
 
             if (! empty($userFields)) {
                 $member->user->update($userFields);
@@ -287,6 +373,9 @@ class MemberController extends Controller
                 $member->update($profileFields);
             }
         });
+
+        // Invalidate cached dashboard metrics so alerts show immediately
+        Cache::forget('reception_dashboard_stats_'.today()->toDateString());
 
         AuditLogger::log(
             action: 'member.updated',

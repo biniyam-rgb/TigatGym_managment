@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
+use App\Models\AuditLog;
 use App\Models\ClassBooking;
 use App\Models\FitnessClass;
 use App\Models\Payment;
@@ -100,6 +101,11 @@ class ReceptionDashboardController extends Controller
             $thirtyDaysAgo = $today->copy()->subDays(30)->startOfDay();
             $signupsCount = User::role('member')
                 ->where('created_at', '>=', $thirtyDaysAgo)
+                ->count();
+
+            // Suspended Members Count
+            $suspendedMembersCount = User::role('member')
+                ->where('status', 'suspended')
                 ->count();
 
             // -------------------------------------------------------------------------
@@ -230,7 +236,32 @@ class ReceptionDashboardController extends Controller
                     ];
                 });
 
-            $membershipAlerts = $expiringSoonSubscriptions->concat($expiredSubscriptions)->concat($inactiveMembers)->values();
+            $suspendedMembers = User::where('status', 'suspended')
+                ->with(['memberProfile:id,user_id,member_code', 'suspender:id,name'])
+                ->latest('updated_at')
+                ->limit(10)
+                ->get()
+                ->map(function ($member) {
+                    $suspendedDate = $member->suspended_at ? Carbon::parse($member->suspended_at) : ($member->updated_at ? Carbon::parse($member->updated_at) : null);
+
+                    return [
+                        'id' => 'susp_'.$member->id,
+                        'member_id' => $member->id,
+                        'member_name' => $member->name,
+                        'member_code' => $member->memberProfile?->member_code ?? ('TG-'.(1000 + $member->id)),
+                        'plan_name' => 'Account Suspended',
+                        'expiration_date' => '—',
+                        'days_remaining' => 0,
+                        'type' => 'suspended',
+                        'status_label' => 'Suspended',
+                        'severity' => 'critical',
+                        'reason' => (! empty($member->suspension_reason)) ? $member->suspension_reason : 'Administrative Suspension',
+                        'suspended_at' => $suspendedDate ? $suspendedDate->format('M d, Y h:i A') : 'Recently',
+                        'suspended_by' => $member->suspender?->name ?? 'Gym Administration',
+                    ];
+                });
+
+            $membershipAlerts = $suspendedMembers->concat($expiringSoonSubscriptions)->concat($expiredSubscriptions)->concat($inactiveMembers)->values();
 
             // -------------------------------------------------------------------------
             // 4. Today's Front-Desk Activities (Chronological Real Feed)
@@ -395,35 +426,167 @@ class ReceptionDashboardController extends Controller
                 ]);
             }
 
+            // E. Suspended members notification
+            if ($suspendedMembersCount > 0) {
+                $notifications->push([
+                    'id' => 'notif_suspended_members',
+                    'type' => 'error',
+                    'title' => 'Suspended Member Accounts',
+                    'message' => "{$suspendedMembersCount} member(s) are suspended by management. Check alerts tab for details and reasons.",
+                    'action_label' => 'View Suspended',
+                    'action_target' => 'notifications',
+                    'created_at' => $now->toIso8601String(),
+                    'read' => false,
+                ]);
+            }
+
             return [
                 'stats' => [
                     'active_members' => $activeMembersCount,
                     'today_check_ins' => $todayCheckInsCount,
                     'expected_members' => $expectedMembersCount,
                     'expiring_memberships' => $expiringMembershipsCount,
+                    'suspended_members' => $suspendedMembersCount,
                     'revenue_this_month' => $monthlyRevenue,
                     'signups_last_30_days' => $signupsCount,
                     'currently_inside' => $currentlyInside,
                     'capacity_limit' => $capacityLimit,
                 ],
-                'recent_check_ins' => $recentCheckIns,
-                'membership_alerts' => $membershipAlerts,
-                'today_activities' => $todayActivities,
-                'today_classes' => $todayClasses,
-                'notifications' => $notifications->values(),
+                'recent_check_ins' => $recentCheckIns->values()->all(),
+                'membership_alerts' => $membershipAlerts->values()->all(),
+                'today_activities' => $todayActivities->values()->all(),
+                'today_classes' => $todayClasses->values()->all(),
+                'notifications' => $notifications->values()->all(),
             ];
         });
 
         // Attach live user information to cached metrics
         $dashboardPayload['receptionist'] = [
             'name' => $user->name,
-            'role' => 'Receptionist',
+            'role' => $user->roles->first()?->display_name ?? 'Staff',
             'current_date' => $now->format('l, F j, Y'),
         ];
+
+        // -------------------------------------------------------------------------
+        // Role-Based Activity Notifications
+        // 1. All activity occurred by Receptionist are notified to Admin (and Owner)
+        // 2. All activity that takes place in Admin are notified to Owner
+        // -------------------------------------------------------------------------
+        $isOwner = $user->hasRole('owner');
+        $isAdmin = $user->hasRole('admin');
+        $activityNotifications = collect();
+
+        if ($isAdmin || $isOwner) {
+            // Receptionist activities for Admin and Owner
+            $receptionLogs = AuditLog::with('user:id,name')
+                ->whereHas('user', function ($q) {
+                    $q->role('receptionist');
+                })
+                ->where('action', 'not like', 'auth.%')
+                ->latest('id')
+                ->limit(25)
+                ->get();
+
+            foreach ($receptionLogs as $log) {
+                $activityNotifications->push([
+                    'id' => 'act_rec_'.$log->id,
+                    'type' => 'reception_activity',
+                    'badge' => 'Reception Activity',
+                    'title' => self::formatActivityTitle($log->action, $log->user?->name, 'receptionist'),
+                    'message' => $log->notes ?: "Performed {$log->action}",
+                    'actor_name' => $log->user?->name ?? 'Receptionist',
+                    'actor_role' => 'Receptionist',
+                    'action' => $log->action,
+                    'time' => $log->created_at?->diffForHumans() ?? 'Recent',
+                    'timestamp' => $log->created_at?->toIso8601String(),
+                    'view' => self::resolveActivityView($log->action),
+                ]);
+            }
+        }
+
+        if ($isOwner) {
+            // Admin activities exclusively for Owner
+            $adminLogs = AuditLog::with('user:id,name')
+                ->whereHas('user', function ($q) {
+                    $q->role('admin');
+                })
+                ->where('action', 'not like', 'auth.%')
+                ->latest('id')
+                ->limit(25)
+                ->get();
+
+            foreach ($adminLogs as $log) {
+                $activityNotifications->push([
+                    'id' => 'act_adm_'.$log->id,
+                    'type' => 'admin_activity',
+                    'badge' => 'Admin Activity',
+                    'title' => self::formatActivityTitle($log->action, $log->user?->name, 'admin'),
+                    'message' => $log->notes ?: "Performed {$log->action}",
+                    'actor_name' => $log->user?->name ?? 'Admin',
+                    'actor_role' => 'Admin',
+                    'action' => $log->action,
+                    'time' => $log->created_at?->diffForHumans() ?? 'Recent',
+                    'timestamp' => $log->created_at?->toIso8601String(),
+                    'view' => self::resolveActivityView($log->action),
+                ]);
+            }
+        }
+
+        $dashboardPayload['activity_notifications'] = $activityNotifications->sortByDesc('timestamp')->values()->all();
 
         return response()->json([
             'status' => 'success',
             'data' => $dashboardPayload,
         ]);
+    }
+
+    /**
+     * Build clear, informative activity notification titles.
+     */
+    protected static function formatActivityTitle(string $action, ?string $actorName, string $role): string
+    {
+        $actor = $actorName ?: ucfirst($role);
+
+        return match ($action) {
+            'attendance.check_in' => "{$actor} admitted member to gym floor",
+            'attendance.denied' => "{$actor} denied entry at front turnstile",
+            'attendance.anti_passback_alert' => "{$actor} flagged anti-passback violation",
+            'attendance.check_out' => "{$actor} checked out member",
+            'attendance.auto_checkout' => "Front desk auto-checked out overstay member",
+            'member.created' => "{$actor} registered a new gym member",
+            'member.updated' => "{$actor} modified member profile",
+            'member.deleted' => "{$actor} soft-deleted member record",
+            'member.suspended' => "{$actor} suspended member access",
+            'member.unsuspended' => "{$actor} restored member access",
+            'payment.recorded', 'payment.created' => "{$actor} recorded desk payment",
+            'payment.refund' => "{$actor} processed payment refund",
+            'subscription.created' => "{$actor} created membership subscription",
+            'subscription.renewed' => "{$actor} renewed membership subscription",
+            'subscription.frozen' => "{$actor} froze membership pass",
+            'subscription.unfrozen' => "{$actor} unfroze membership pass",
+            'subscription.cancelled' => "{$actor} cancelled membership subscription",
+            'user.created' => "{$actor} created staff user account",
+            'user.updated' => "{$actor} updated staff user account",
+            'user.deleted' => "{$actor} removed staff user account",
+            'membership_plan.created' => "{$actor} created membership package",
+            'membership_plan.updated' => "{$actor} modified membership package",
+            'expense.recorded' => "{$actor} recorded operating expense",
+            'expense.approved' => "{$actor} approved operating expense",
+            default => "{$actor} performed {$action}",
+        };
+    }
+
+    /**
+     * Map audit actions to frontend navigation views.
+     */
+    protected static function resolveActivityView(string $action): string
+    {
+        if (str_starts_with($action, 'attendance')) return 'attendance';
+        if (str_starts_with($action, 'payment')) return 'payments';
+        if (str_starts_with($action, 'subscription') || str_starts_with($action, 'membership_plan')) return 'memberships';
+        if (str_starts_with($action, 'member')) return 'members';
+        if (str_starts_with($action, 'expense')) return 'expenses';
+        if (str_starts_with($action, 'user') || str_starts_with($action, 'role')) return 'users';
+        return 'notifications';
     }
 }

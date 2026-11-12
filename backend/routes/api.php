@@ -55,8 +55,10 @@ Route::match(['get', 'post'], '/payments/chapa/callback', [PaymentController::cl
 Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Current user & authentication management
     Route::get('/user', [AuthController::class, 'me']);
+    Route::match(['post', 'put'], '/user/profile', [AuthController::class, 'updateProfile']);
     Route::prefix('auth')->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
+        Route::match(['post', 'put'], '/profile', [AuthController::class, 'updateProfile']);
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
     });
@@ -65,6 +67,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::get('/reception/dashboard', [ReceptionDashboardController::class, 'index'])->middleware('role:owner,admin,receptionist');
 
     // Module A: Member Management & Profiles
+    Route::get('/members/check-contact', [MemberController::class, 'checkContact']);
     Route::apiResource('members', MemberController::class);
     Route::post('/members/{member}/regenerate-qr', [MemberController::class, 'regenerateQr']);
     Route::post('/members/{member}/send-card-email', [MemberController::class, 'sendCardEmail']);

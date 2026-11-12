@@ -11,9 +11,11 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
 class UserController extends Controller
@@ -74,18 +76,48 @@ class UserController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+            'email' => ['required', 'string', 'email:rfc', 'max:255', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:30'],
             'password' => ['required', 'string', 'min:8'],
             'role' => ['required', 'string', 'exists:roles,name'],
             'status' => ['sometimes', 'string', 'in:active,inactive,suspended'],
+            // Staff specific credentials (receptionist, admin, trainer)
+            'work_shift' => ['nullable', 'string', 'max:60'],
+            'desk_station' => ['nullable', 'string', 'max:100'],
+            'emergency_contact' => ['nullable', 'string', 'max:100'],
+            'employee_id_number' => ['nullable', 'string', 'max:50'],
+            // Trainer specific credentials
+            'specialization' => ['nullable', 'string', 'max:150'],
+            'bio' => ['nullable', 'string', 'max:1000'],
+            'certifications' => ['nullable', 'string', 'max:500'],
+            'hourly_rate' => ['nullable', 'numeric', 'min:0'],
+        ], [
+            'name.required' => 'Full name is required.',
+            'email.required' => 'Email address is required.',
+            'email.email' => 'Please enter a valid email address.',
+            'email.unique' => 'The email address is already taken by another account.',
+            'password.required' => 'Password is required.',
+            'password.min' => 'Password must be at least 8 characters.',
         ]);
+
+        if (! empty($validated['phone'])) {
+            $existingPhoneUser = User::findUserByPhone($validated['phone']);
+            if ($existingPhoneUser) {
+                throw ValidationException::withMessages([
+                    'phone' => ["The phone number '{$validated['phone']}' is already registered to another user ({$existingPhoneUser->name})."],
+                ]);
+            }
+        }
 
         $user = DB::transaction(function () use ($validated, $request) {
             $user = User::create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
                 'phone' => $validated['phone'] ?? null,
+                'work_shift' => $validated['work_shift'] ?? null,
+                'desk_station' => $validated['desk_station'] ?? null,
+                'emergency_contact' => $validated['emergency_contact'] ?? null,
+                'employee_id_number' => $validated['employee_id_number'] ?? null,
                 'status' => $validated['status'] ?? 'active',
                 'password' => Hash::make($validated['password']),
             ]);
@@ -112,6 +144,10 @@ class UserController extends Controller
                 TrainerProfile::create([
                     'user_id' => $user->id,
                     'trainer_code' => $uniqueCode,
+                    'specialization' => $validated['specialization'] ?? null,
+                    'bio' => $validated['bio'] ?? null,
+                    'certifications' => $validated['certifications'] ?? null,
+                    'hourly_rate' => $validated['hourly_rate'] ?? 0.00,
                     'is_available' => true,
                     'joined_at' => now(),
                 ]);
@@ -160,15 +196,46 @@ class UserController extends Controller
 
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
-            'email' => ['sometimes', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
+            'email' => ['sometimes', 'string', 'email:rfc', 'max:255', 'unique:users,email,' . $user->id],
             'phone' => ['nullable', 'string', 'max:30'],
+            'work_shift' => ['nullable', 'string', 'max:60'],
+            'desk_station' => ['nullable', 'string', 'max:100'],
+            'emergency_contact' => ['nullable', 'string', 'max:100'],
+            'employee_id_number' => ['nullable', 'string', 'max:50'],
             'status' => ['sometimes', 'string', 'in:active,inactive,suspended'],
+            'suspension_reason' => ['nullable', 'string', 'max:1000'],
             'avatar' => ['nullable', 'string'],
+        ], [
+            'email.unique' => 'The email address is already taken by another account.',
+            'email.email' => 'Please enter a valid email address.',
         ]);
+
+        if (! empty($validated['phone'])) {
+            $existingPhoneUser = User::findUserByPhone($validated['phone'], $user->id);
+            if ($existingPhoneUser) {
+                throw ValidationException::withMessages([
+                    'phone' => ["The phone number '{$validated['phone']}' is already registered to another user ({$existingPhoneUser->name})."],
+                ]);
+            }
+        }
 
         // If status change is requested, check policy
         if (isset($validated['status']) && $validated['status'] !== $user->status) {
             $this->authorize('changeStatus', [$user, $validated['status']]);
+        }
+
+        if (isset($validated['status'])) {
+            if ($validated['status'] === 'suspended') {
+                $validated['suspension_reason'] = $request->input('suspension_reason') ?? $user->suspension_reason ?? 'Administrative suspension';
+                $validated['suspended_at'] = now();
+                $validated['suspended_by'] = $request->user()->id;
+            } elseif ($validated['status'] === 'active') {
+                $validated['suspension_reason'] = null;
+                $validated['suspended_at'] = null;
+                $validated['suspended_by'] = null;
+            }
+        } elseif (array_key_exists('suspension_reason', $validated)) {
+            $validated['suspension_reason'] = $validated['suspension_reason'];
         }
 
         $oldValues = $user->only(['name', 'email', 'phone', 'status', 'avatar']);
@@ -181,6 +248,9 @@ class UserController extends Controller
                 $user->tokens()->delete();
             }
         });
+
+        // Invalidate cached dashboard metrics so alerts show immediately
+        Cache::forget('reception_dashboard_stats_'.today()->toDateString());
 
         AuditLogger::log(
             action: 'user.updated',

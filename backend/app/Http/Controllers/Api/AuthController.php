@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
@@ -142,6 +143,126 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => new UserResource($user),
+        ], Response::HTTP_OK);
+    }
+
+    /**
+     * Update authenticated user's profile, avatar, and personal details.
+     */
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'email' => ['sometimes', 'required', 'string', 'email:rfc', 'max:255', 'unique:users,email,' . $user->id],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'avatar' => ['nullable'],
+            'remove_avatar' => ['sometimes', 'boolean'],
+
+            // Member-specific fields
+            'date_of_birth' => ['nullable', 'date'],
+            'gender' => ['nullable', 'string', 'in:male,female,other'],
+            'blood_type' => ['nullable', 'string', 'max:10'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'emergency_contact_name' => ['nullable', 'string', 'max:255'],
+            'emergency_contact_phone' => ['nullable', 'string', 'max:30'],
+            'emergency_contact_relationship' => ['nullable', 'string', 'max:100'],
+
+            // Trainer-specific fields
+            'specialization' => ['nullable', 'string', 'max:255'],
+            'bio' => ['nullable', 'string', 'max:1000'],
+            'certifications' => ['nullable', 'string', 'max:500'],
+        ], [
+            'name.required' => 'Full name is required.',
+            'email.required' => 'Email address is required.',
+            'email.email' => 'Please enter a valid email address.',
+            'email.unique' => 'This email address is already registered to another account.',
+        ]);
+
+        if (! empty($validated['phone'])) {
+            $existingPhoneUser = User::findUserByPhone($validated['phone'], $user->id);
+            if ($existingPhoneUser) {
+                throw ValidationException::withMessages([
+                    'phone' => ["The phone number '{$validated['phone']}' is already registered to another user ({$existingPhoneUser->name})."],
+                ]);
+            }
+        }
+
+        $oldValues = $user->only(['name', 'email', 'phone', 'avatar']);
+
+        // Handle Avatar removal or upload
+        if ($request->boolean('remove_avatar')) {
+            if ($user->avatar && str_starts_with($user->avatar, '/storage/avatars/')) {
+                $filePath = str_replace('/storage/', '', $user->avatar);
+                Storage::disk('public')->delete($filePath);
+            }
+            $user->avatar = null;
+        } elseif ($request->hasFile('avatar')) {
+            $request->validate([
+                'avatar' => ['image', 'mimes:jpeg,png,jpg,webp,gif', 'max:5120'],
+            ]);
+            $file = $request->file('avatar');
+            $filename = 'avatar_' . $user->id . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('avatars', $filename, 'public');
+            $user->avatar = '/storage/' . $path;
+        } elseif ($request->filled('avatar') && is_string($request->input('avatar'))) {
+            $avatarStr = $request->input('avatar');
+            if (str_starts_with($avatarStr, 'data:image')) {
+                $parts = explode(',', $avatarStr, 2);
+                if (count($parts) === 2) {
+                    $decoded = base64_decode($parts[1]);
+                    $ext = 'jpg';
+                    if (str_contains($parts[0], 'png')) $ext = 'png';
+                    elseif (str_contains($parts[0], 'webp')) $ext = 'webp';
+                    $filename = 'avatar_' . $user->id . '_' . time() . '.' . $ext;
+                    Storage::disk('public')->put('avatars/' . $filename, $decoded);
+                    $user->avatar = '/storage/avatars/' . $filename;
+                }
+            } else {
+                $user->avatar = $avatarStr;
+            }
+        }
+
+        if (isset($validated['name'])) $user->name = $validated['name'];
+        if (isset($validated['email'])) $user->email = $validated['email'];
+        if (array_key_exists('phone', $validated)) $user->phone = $validated['phone'];
+
+        $user->save();
+
+        // Update member profile if user has one
+        if ($user->memberProfile) {
+            $memberData = array_intersect_key($validated, array_flip([
+                'date_of_birth', 'gender', 'blood_type', 'address',
+                'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relationship',
+            ]));
+            if (! empty($memberData)) {
+                $user->memberProfile->update($memberData);
+            }
+        }
+
+        // Update trainer profile if user has one
+        if ($user->trainerProfile) {
+            $trainerData = array_intersect_key($validated, array_flip([
+                'specialization', 'bio', 'certifications',
+            ]));
+            if (! empty($trainerData)) {
+                $user->trainerProfile->update($trainerData);
+            }
+        }
+
+        AuditLogger::log(
+            action: 'auth.profile_updated',
+            auditable: $user,
+            oldValues: $oldValues,
+            newValues: $user->only(['name', 'email', 'phone', 'avatar']),
+            notes: 'User updated personal profile details',
+            userId: $user->id
+        );
+
+        return response()->json([
+            'message' => 'Profile updated successfully.',
+            'user' => new UserResource($user->fresh(['roles', 'memberProfile', 'trainerProfile'])),
         ], Response::HTTP_OK);
     }
 

@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
 class TrainerController extends Controller
@@ -79,14 +80,30 @@ class TrainerController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:150'],
-            'email' => ['required', 'email', 'unique:users,email'],
+            'email' => ['required', 'email:rfc', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:30'],
             'password' => ['nullable', 'string', 'min:8'],
             'specialization' => ['required', 'string', 'max:150'],
             'bio' => ['nullable', 'string', 'max:1000'],
             'certifications' => ['nullable', 'string', 'max:255'],
             'hourly_rate' => ['required', 'numeric', 'min:0'],
+        ], [
+            'name.required' => 'Trainer full name is required.',
+            'email.required' => 'Email address is required.',
+            'email.email' => 'Please enter a valid email address.',
+            'email.unique' => 'The email address is already taken by another account.',
+            'specialization.required' => 'Specialization is required.',
+            'hourly_rate.required' => 'Hourly rate is required.',
         ]);
+
+        if (! empty($validated['phone'])) {
+            $existingPhoneUser = User::findUserByPhone($validated['phone']);
+            if ($existingPhoneUser) {
+                throw ValidationException::withMessages([
+                    'phone' => ["The phone number '{$validated['phone']}' is already registered to another user ({$existingPhoneUser->name})."],
+                ]);
+            }
+        }
 
         $trainer = DB::transaction(function () use ($validated, $request) {
             $user = User::create([
