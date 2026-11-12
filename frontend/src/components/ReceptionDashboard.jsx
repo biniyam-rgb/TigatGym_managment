@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import apiClient from '../services/api';
 
 // Crisp Lucide-style SVG Icons matching the clean SaaS layout
@@ -46,9 +46,34 @@ const Icons = {
       <line x1="2" x2="22" y1="10" y2="10" />
     </svg>
   ),
+  ArrowUpRight: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="7" y1="17" x2="17" y2="7" />
+      <polyline points="7 7 17 7 17 17" />
+    </svg>
+  ),
+  X: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  ),
+  Check: ({ size = 14 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  ),
 };
 
 const RECEPTION_CACHE_KEY = 'gymcore_reception_cache';
+
+// Defensive conversion ensuring any non-array or object structure safely resolves to an Array
+function safeArray(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'object') return Object.values(val);
+  return [];
+}
 
 // High-fidelity fallback dataset matching reference image exactly
 const DEFAULT_METRICS = {
@@ -186,9 +211,14 @@ export default function ReceptionDashboard({ onNavigate }) {
     attendance_kpi: DEFAULT_METRICS.attendance_kpi,
   };
 
+  const todayClassesList = safeArray(data?.today_classes);
+  const recentCheckInsList = safeArray(data?.recent_check_ins);
+  const membershipAlertsList = safeArray(data?.membership_alerts);
+  const notificationsList = safeArray(data?.notifications);
+
   // Classes list mapping with live data fallback
-  const upcomingClasses = (data?.today_classes && data.today_classes.length >= 3)
-    ? data.today_classes.slice(0, 4).map((c) => ({
+  const upcomingClasses = (todayClassesList.length >= 3)
+    ? todayClassesList.slice(0, 4).map((c) => ({
         id: c.id,
         name: c.name,
         time_trainer: `${c.start_time || '09:00 AM'} - ${c.trainer_name || 'Coach'}`,
@@ -198,8 +228,8 @@ export default function ReceptionDashboard({ onNavigate }) {
     : DEFAULT_UPCOMING_CLASSES;
 
   // Recent members list mapping with live data fallback
-  const activeMembers = (data?.recent_check_ins && data.recent_check_ins.length >= 3)
-    ? data.recent_check_ins.slice(0, 4).map((m, idx) => ({
+  const activeMembers = (recentCheckInsList.length >= 3)
+    ? recentCheckInsList.slice(0, 4).map((m, idx) => ({
         id: m.id,
         name: m.member_name,
         checked_in: m.check_in_time ? `Checked in: ${m.check_in_time}` : DEFAULT_ACTIVE_MEMBERS[idx % 4].checked_in,
@@ -208,6 +238,128 @@ export default function ReceptionDashboard({ onNavigate }) {
       }))
     : DEFAULT_ACTIVE_MEMBERS;
 
+  // Seen Urgent Alert Tracking - Once seen on the overview dashboard, they do not show again
+  const [seenUrgentIds, setSeenUrgentIds] = useState(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem('tigat_seen_urgent_ids') || '[]'));
+    } catch {
+      return new Set();
+    }
+  });
+
+  const markUrgentAsSeen = (id) => {
+    setSeenUrgentIds((prev) => {
+      const next = new Set(prev).add(id);
+      localStorage.setItem('tigat_seen_urgent_ids', JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  const markAllUrgentAsSeen = (ids) => {
+    setSeenUrgentIds((prev) => {
+      const next = new Set([...prev, ...ids]);
+      localStorage.setItem('tigat_seen_urgent_ids', JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  // Strict urgent-only alerts for the dashboard (Turnstile locked, suspended, expired, overcapacity)
+  // All other routine operational notices belong in the Notifications view
+  const suspendedAlerts = membershipAlertsList.filter((a) => a && a.type === 'suspended');
+  const turnstileDenials = notificationsList.filter((n) => n && (n.id === 'notif_denied' || n.type === 'error'));
+  const expiredAlerts = membershipAlertsList.filter((a) => a && a.type === 'expired');
+  const capacityAlerts = notificationsList.filter((n) => n && n.id === 'notif_capacity');
+
+  const urgentAlerts = [
+    // 1. Suspended Members (Turnstile locked, administrative freeze)
+    ...suspendedAlerts.map((sub) => ({
+      id: `urgent_susp_${sub.id}`,
+      severity: 'danger',
+      badge: 'Account Suspended',
+      title: sub.member_name,
+      code: sub.member_code,
+      desc: `Reason: "${sub.reason || 'Administrative policy hold'}"`,
+      meta: `Suspended by ${sub.suspended_by || 'Management'} • ${sub.suspended_at || 'Recently'}`,
+      view: 'members',
+      actionText: 'Review Member',
+    })),
+    // 2. Turnstile Entry Denials Today (Anti-passback, inactive pass, security check)
+    ...turnstileDenials.map((denial) => ({
+      id: `urgent_${denial.id}_${denial.message || ''}`,
+      severity: 'danger',
+      badge: 'Turnstile Block',
+      title: denial.title,
+      code: 'SECURITY',
+      desc: denial.message,
+      meta: 'Turnstile entry denied today • Front-desk check required',
+      view: 'attendance',
+      actionText: 'Turnstile Logs',
+    })),
+    // 3. Expired Subscriptions (Turnstile blocked at door, renewal required)
+    ...expiredAlerts.map((exp) => ({
+      id: `urgent_exp_${exp.id}`,
+      severity: 'warning',
+      badge: 'Membership Expired',
+      title: exp.member_name,
+      code: exp.member_code,
+      desc: `${exp.plan_name || 'Membership'} has expired. Access denied at turnstile.`,
+      meta: `Expired: ${exp.expiration_date || 'Recently'}`,
+      view: 'memberships',
+      actionText: 'Renew Subscription',
+    })),
+    // 4. Floor Capacity Limit (>80% occupied)
+    ...capacityAlerts.map((cap) => ({
+      id: `urgent_${cap.id}_${cap.message || ''}`,
+      severity: 'warning',
+      badge: 'Capacity Alert',
+      title: cap.title,
+      code: 'FLOOR-LIMIT',
+      desc: cap.message,
+      meta: 'Admissions monitoring recommended',
+      view: 'attendance',
+      actionText: 'View Floor',
+    })),
+  ];
+
+  const unseenUrgentAlerts = urgentAlerts.filter((item) => !seenUrgentIds.has(item.id));
+  const unseenSuspended = suspendedAlerts.filter((s) => !seenUrgentIds.has(`urgent_susp_${s.id}`));
+  const unseenAlertIdsRef = useRef([]);
+
+  useEffect(() => {
+    unseenAlertIdsRef.current = unseenUrgentAlerts.map((a) => a.id);
+  }, [unseenUrgentAlerts]);
+
+  // Auto-mark as seen after viewing for 5 seconds or when leaving the overview dashboard
+  useEffect(() => {
+    if (unseenAlertIdsRef.current.length > 0) {
+      const timer = setTimeout(() => {
+        try {
+          const stored = new Set(JSON.parse(localStorage.getItem('tigat_seen_urgent_ids') || '[]'));
+          unseenAlertIdsRef.current.forEach((id) => stored.add(id));
+          localStorage.setItem('tigat_seen_urgent_ids', JSON.stringify([...stored]));
+        } catch {
+          // ignore localStorage access issues
+        }
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [unseenUrgentAlerts.length]);
+
+  useEffect(() => {
+    return () => {
+      if (unseenAlertIdsRef.current.length > 0) {
+        try {
+          const stored = new Set(JSON.parse(localStorage.getItem('tigat_seen_urgent_ids') || '[]'));
+          unseenAlertIdsRef.current.forEach((id) => stored.add(id));
+          localStorage.setItem('tigat_seen_urgent_ids', JSON.stringify([...stored]));
+        } catch {
+          // ignore localStorage access issues
+        }
+      }
+    };
+  }, []);
+
+  const totalFeedCount = safeArray(data?.recent_activities).length + membershipAlertsList.length + notificationsList.length;
 
   return (
     <div className="clean-reception-dashboard">
@@ -226,7 +378,27 @@ export default function ReceptionDashboard({ onNavigate }) {
           TOP ACTION BAR: "Dashboard Overview" + "Schedule Class" + "+ Add New Member"
           ========================================================================= */}
       <section className="clean-dash-header-row">
-        <h1 className="clean-dash-title">Dashboard Overview</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <h1 className="clean-dash-title" style={{ margin: 0 }}>Dashboard Overview</h1>
+          {unseenSuspended.length > 0 && (
+            <span
+              className="urgent-badge danger"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '4px 10px',
+                borderRadius: 20,
+                fontSize: 12,
+                cursor: 'pointer',
+              }}
+              onClick={() => onNavigate && onNavigate('members')}
+              title="View Suspended Members"
+            >
+              ⚠️ {unseenSuspended.length} Suspended Account{unseenSuspended.length > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
         <div className="clean-dash-actions">
           <button
             type="button"
@@ -247,6 +419,113 @@ export default function ReceptionDashboard({ onNavigate }) {
           </button>
         </div>
       </section>
+
+      {/* =========================================================================
+          URGENT OPERATIONAL & SECURITY ALERTS ONLY (ZERO CLUTTER ON DASHBOARD)
+          Seen notifications do not come to overview dashboard even if urgent
+          ========================================================================= */}
+      {unseenUrgentAlerts.length === 0 ? (
+        <div className="urgent-allclear-strip">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Icons.CheckCircle size={20} />
+            <div>
+              <div className="urgent-allclear-title">Security & Turnstile Access: All Normal</div>
+              <div className="urgent-allclear-desc">
+                0 active turnstile denials, 0 account suspensions, and no critical operational blocks.
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="urgent-alerts-viewall-btn"
+            onClick={() => onNavigate && onNavigate('notifications')}
+          >
+            <span>Notification Feed ({totalFeedCount})</span>
+            <Icons.ArrowUpRight size={13} />
+          </button>
+        </div>
+      ) : (
+        <div className="urgent-alerts-container" style={{ marginBottom: 20 }}>
+          <div className="urgent-alerts-panel">
+            <div className="urgent-alerts-topbar">
+              <div className="urgent-alerts-title-wrap">
+                <div className="urgent-alert-icon-pulse">
+                  <Icons.AlertTriangle size={18} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <h3 className="urgent-alerts-heading">Urgent Security & Operational Alerts</h3>
+                    <span className="urgent-badge danger">{unseenUrgentAlerts.length} Action Needed</span>
+                  </div>
+                  <p className="urgent-alerts-subtext">
+                    Critical turnstile access blocks, suspended accounts, and expired passes requiring staff action.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="urgent-markall-btn"
+                  onClick={() => markAllUrgentAsSeen(unseenUrgentAlerts.map((a) => a.id))}
+                  title="Mark all as seen so they do not show on overview dashboard"
+                >
+                  <Icons.Check size={13} />
+                  <span>Mark All as Seen</span>
+                </button>
+                <button
+                  type="button"
+                  className="urgent-alerts-viewall-btn"
+                  onClick={() => onNavigate && onNavigate('notifications')}
+                >
+                  <span>Full Notification Feed ({totalFeedCount})</span>
+                  <Icons.ArrowUpRight size={13} />
+                </button>
+              </div>
+            </div>
+
+            <div className="urgent-alerts-grid">
+              {unseenUrgentAlerts.map((item, idx) => (
+                <div key={item.id || `urgent_${idx}`} className={`urgent-item-card ${item.severity}`}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span className={`urgent-badge ${item.severity}`}>{item.badge}</span>
+                        <span className="urgent-member-name">{item.title}</span>
+                        {item.code && <span className="urgent-member-code">{item.code}</span>}
+                      </div>
+                      <div className="urgent-item-desc">{item.desc}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <div className="urgent-item-meta">{item.meta}</div>
+                    <button
+                      type="button"
+                      className={`urgent-action-btn ${item.severity}`}
+                      onClick={() => {
+                        markUrgentAsSeen(item.id);
+                        if (item.view && onNavigate) onNavigate(item.view);
+                      }}
+                    >
+                      {item.actionText} →
+                    </button>
+                    <button
+                      type="button"
+                      className="urgent-dismiss-btn"
+                      onClick={() => markUrgentAsSeen(item.id)}
+                      title="Mark as seen (dismiss from overview dashboard)"
+                      aria-label="Dismiss alert"
+                    >
+                      <Icons.X size={15} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =========================================================================
           ROW 1: 4 CLEAN KPI METRIC CARDS (Display Only - Not Buttons)

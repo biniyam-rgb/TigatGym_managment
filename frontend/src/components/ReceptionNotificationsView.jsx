@@ -37,6 +37,14 @@ const Icons = {
   ),
 };
 
+// Defensive conversion ensuring any non-array or object structure safely resolves to an Array
+function safeArray(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'object') return Object.values(val);
+  return [];
+}
+
 export default function ReceptionNotificationsView({ onNavigate }) {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -108,18 +116,54 @@ export default function ReceptionNotificationsView({ onNavigate }) {
     },
   ];
 
-  // Combine live notifications from API if available
-  const apiAlerts = (data?.membership_alerts || []).map((alert) => ({
-    id: `alert_${alert.id}`,
-    title: alert.type === 'expired' ? `Subscription Expired: ${alert.member_name}` : `Expiring Soon: ${alert.member_name}`,
-    message: alert.type === 'expired' ? 'Membership is inactive. Please record renewal payment.' : `Plan expires in ${alert.days_remaining ?? 3} days.`,
-    type: alert.type === 'expired' ? 'expired' : 'expiring',
-    date: 'Recent',
-    actionText: 'View Subscription',
-    actionView: 'memberships',
+  // Role-Based Activity Notifications (Receptionist activities for Admin, Admin activities for Owner)
+  const apiActivities = safeArray(data?.activity_notifications).map((act) => ({
+    id: act.id,
+    title: act.title,
+    message: act.message,
+    type: act.type, // 'reception_activity' | 'admin_activity'
+    badge: act.badge,
+    actor_name: act.actor_name,
+    actor_role: act.actor_role,
+    date: act.time || 'Recent',
+    actionText: act.view ? `Open ${act.view.charAt(0).toUpperCase() + act.view.slice(1)}` : 'View Details',
+    actionView: act.view || 'notifications',
   }));
 
-  const allList = apiAlerts.length > 0 ? apiAlerts : defaultNotifications;
+  // Combine live notifications from API if available
+  const apiAlerts = safeArray(data?.membership_alerts).map((alert) => ({
+    id: `alert_${alert.id}`,
+    title: alert.type === 'suspended'
+      ? `Member Suspended: ${alert.member_name} (${alert.member_code})`
+      : alert.type === 'expired'
+        ? `Subscription Expired: ${alert.member_name}`
+        : `Expiring Soon: ${alert.member_name}`,
+    message: alert.type === 'suspended'
+      ? `Reason: "${alert.reason || 'Administrative hold'}" — Suspended by ${alert.suspended_by || 'Management'}`
+      : alert.type === 'expired'
+        ? 'Membership is inactive. Please record renewal payment.'
+        : `Plan expires in ${alert.days_remaining ?? 3} days.`,
+    type: alert.type === 'suspended' ? 'suspended' : alert.type === 'expired' ? 'expired' : 'expiring',
+    date: alert.suspended_at || 'Recent',
+    actionText: alert.type === 'suspended' ? 'View Member' : 'View Subscription',
+    actionView: alert.type === 'suspended' ? 'members' : 'memberships',
+  }));
+
+  // System notifications (Turnstile entry denials, pending invoices, floor capacity)
+  const apiSystemNotifs = safeArray(data?.notifications).map((notif) => ({
+    id: notif.id,
+    title: notif.title,
+    message: notif.message,
+    type: notif.type === 'error' ? 'suspended' : 'general',
+    badge: notif.type === 'error' ? 'Security Alert' : 'System Notice',
+    date: 'Today',
+    actionText: notif.action_label || 'View Details',
+    actionView: notif.action_target || 'notifications',
+  }));
+
+  const allList = apiActivities.length > 0 || apiAlerts.length > 0 || apiSystemNotifs.length > 0
+    ? [...apiActivities, ...apiAlerts, ...apiSystemNotifs]
+    : defaultNotifications;
   const filteredList = allList.filter((item) => {
     if (dismissedIds.has(item.id)) return false;
     if (filter === 'all') return true;
@@ -145,25 +189,16 @@ export default function ReceptionNotificationsView({ onNavigate }) {
       {/* Header Bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Notifications & Alerts</h2>
-          <p style={{ margin: '4px 0 0', fontSize: 13.5, color: '#64748b' }}>
+          <h2 className="reception-notif-page-title">Notifications & Alerts</h2>
+          <p className="reception-notif-page-desc">
             Real-time membership expiration notices, front-desk reminders, and admissions alerts.
           </p>
         </div>
         {filteredList.length > 0 && (
           <button
             type="button"
+            className="reception-notif-dismissall-btn"
             onClick={handleDismissAll}
-            style={{
-              background: 'transparent',
-              border: '1px solid #e2e8f0',
-              borderRadius: 10,
-              padding: '8px 14px',
-              fontSize: 12.5,
-              fontWeight: 600,
-              color: '#64748b',
-              cursor: 'pointer',
-            }}
           >
             Mark All as Read
           </button>
@@ -171,28 +206,20 @@ export default function ReceptionNotificationsView({ onNavigate }) {
       </div>
 
       {/* Filter Tabs */}
-      <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid #e2e8f0', paddingBottom: 10 }}>
+      <div className="reception-notif-filter-bar">
         {[
-          { key: 'all', label: 'All Alerts' },
+          { key: 'all', label: 'All Alerts & Activity' },
+          { key: 'reception_activity', label: 'Reception Activities' },
+          { key: 'admin_activity', label: 'Admin Activities' },
+          { key: 'suspended', label: 'Suspended Accounts' },
           { key: 'expiring', label: 'Expiring Soon' },
           { key: 'expired', label: 'Expired' },
-          { key: 'general', label: 'Operations' },
         ].map((tab) => (
           <button
             key={tab.key}
             type="button"
+            className={`reception-notif-filter-btn ${filter === tab.key ? 'active' : ''}`}
             onClick={() => setFilter(tab.key)}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 8,
-              fontSize: 13,
-              fontWeight: 600,
-              border: 'none',
-              cursor: 'pointer',
-              background: filter === tab.key ? '#E67C00' : 'transparent',
-              color: filter === tab.key ? '#ffffff' : '#64748b',
-              transition: 'all 0.15s ease',
-            }}
           >
             {tab.label}
           </button>
@@ -204,92 +231,106 @@ export default function ReceptionNotificationsView({ onNavigate }) {
         {isLoading ? (
           <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Loading notifications...</div>
         ) : filteredList.length === 0 ? (
-          <div className="reception-notif-empty-card" style={{ padding: 48, textAlign: 'center', borderRadius: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          <div className="reception-notif-empty-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
             <Icons.CheckCircle size={36} color="#16a34a" />
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>All Caught Up!</h3>
-            <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>No pending alerts or notifications in this filter.</p>
+            <h3 className="reception-notif-item-title" style={{ fontSize: 16 }}>All Caught Up!</h3>
+            <p className="reception-notif-item-desc">No pending alerts or notifications in this filter.</p>
           </div>
         ) : (
-          filteredList.map((item) => (
-            <div
-              key={item.id}
-              className="reception-notif-item-card"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '16px 20px',
-                borderRadius: 14,
-                borderLeft: item.type === 'expired' ? '4px solid #ef4444' : item.type === 'expiring' ? '4px solid #E67C00' : '4px solid #3b82f6',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
-                gap: 16,
-                flexWrap: 'wrap',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    background: item.type === 'expired' ? 'rgba(239, 68, 68, 0.12)' : item.type === 'expiring' ? 'rgba(230, 124, 0, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                    color: item.type === 'expired' ? '#ef4444' : item.type === 'expiring' ? '#E67C00' : '#3b82f6',
-                  }}
-                >
-                  {item.type === 'expired' ? <Icons.AlertTriangle size={17} color="#ef4444" /> : item.type === 'expiring' ? <Icons.Clock size={17} color="#E67C00" /> : <Icons.Info size={17} color="#3b82f6" />}
-                </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <h4 className="reception-notif-item-title" style={{ margin: 0, fontSize: 14.5, fontWeight: 700 }}>{item.title}</h4>
-                    <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>{item.date}</span>
-                  </div>
-                  <p className="reception-notif-item-desc" style={{ margin: '4px 0 0', fontSize: 13 }}>{item.message}</p>
-                </div>
-              </div>
+          filteredList.map((item) => {
+            const isSuspended = item.type === 'suspended';
+            const isExpired = item.type === 'expired';
+            const isExpiring = item.type === 'expiring';
+            const isReceptionAct = item.type === 'reception_activity';
+            const isAdminAct = item.type === 'admin_activity';
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {item.actionText && (
-                  <button
-                    type="button"
-                    onClick={() => onNavigate(item.actionView)}
+            return (
+              <div
+                key={item.id}
+                className={`reception-notif-item-card ${item.type || 'general'}`}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                  <div
                     style={{
-                      padding: '7px 14px',
-                      borderRadius: 8,
-                      background: '#E67C00',
-                      color: '#ffffff',
-                      border: 'none',
-                      fontSize: 12.5,
-                      fontWeight: 600,
-                      cursor: 'pointer',
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      background: isSuspended ? 'rgba(220, 38, 38, 0.15)' : isExpired ? 'rgba(239, 68, 68, 0.12)' : isExpiring ? 'rgba(230, 124, 0, 0.15)' : isReceptionAct ? 'rgba(37, 99, 235, 0.15)' : isAdminAct ? 'rgba(124, 58, 237, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                      color: isSuspended ? '#dc2626' : isExpired ? '#ef4444' : isExpiring ? '#ea580c' : isReceptionAct ? '#2563eb' : isAdminAct ? '#7c3aed' : '#3b82f6',
                     }}
                   >
-                    {item.actionText}
+                    {isSuspended ? (
+                      <span style={{ fontSize: 18 }}>⛔</span>
+                    ) : isExpired ? (
+                      <Icons.AlertTriangle size={17} color="#ef4444" />
+                    ) : isExpiring ? (
+                      <Icons.Clock size={17} color="#ea580c" />
+                    ) : isReceptionAct ? (
+                      <span style={{ fontSize: 16 }}>🛎️</span>
+                    ) : isAdminAct ? (
+                      <span style={{ fontSize: 16 }}>🛡️</span>
+                    ) : (
+                      <Icons.Info size={17} color="#3b82f6" />
+                    )}
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <h4 className="reception-notif-item-title">{item.title}</h4>
+                      {item.badge && (
+                        <span className={`notif-role-badge ${isReceptionAct ? 'reception' : isAdminAct ? 'admin' : 'reception'}`}>
+                          {item.badge}
+                        </span>
+                      )}
+                      <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>{item.date}</span>
+                    </div>
+                    <p className="reception-notif-item-desc">{item.message}</p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {item.actionText && (
+                    <button
+                      type="button"
+                      onClick={() => onNavigate(item.actionView)}
+                      style={{
+                        padding: '7px 14px',
+                        borderRadius: 8,
+                        background: isSuspended ? '#dc2626' : '#ea580c',
+                        color: '#ffffff',
+                        border: 'none',
+                        fontSize: 12.5,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {item.actionText}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleDismiss(item.id)}
+                    title="Dismiss notification"
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#94a3b8',
+                      cursor: 'pointer',
+                      padding: 6,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Icons.X size={14} />
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => handleDismiss(item.id)}
-                  title="Dismiss notification"
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#94a3b8',
-                    cursor: 'pointer',
-                    padding: 6,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Icons.X size={14} />
-                </button>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
