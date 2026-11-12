@@ -66,6 +66,9 @@ class UserPolicy
             if ($targetRole === 'owner') {
                 return Response::deny('Admins cannot create owner accounts.');
             }
+            if ($targetRole === 'admin') {
+                return Response::deny('Only gym owners can create administrator accounts.');
+            }
             return Response::allow();
         }
 
@@ -181,6 +184,9 @@ class UserPolicy
             if ($target->isOwner()) {
                 return Response::deny('Admins cannot delete owner accounts.');
             }
+            if ($target->isAdmin()) {
+                return Response::deny('Only gym owners can delete administrator accounts.');
+            }
             return Response::allow();
         }
 
@@ -200,6 +206,11 @@ class UserPolicy
         // Only owners can assign or promote to the 'owner' role
         if ($roleName === 'owner' && ! $user->isOwner()) {
             return Response::deny('Only gym owners can grant the owner role.');
+        }
+
+        // Only owners can assign or promote to the 'admin' role
+        if ($roleName === 'admin' && ! $user->isOwner()) {
+            return Response::deny('Only gym owners can grant administrator privileges.');
         }
 
         // Non-owners cannot modify an owner's roles
@@ -223,6 +234,11 @@ class UserPolicy
         // Non-owners cannot remove roles from an owner
         if ($target->isOwner() && ! $user->isOwner()) {
             return Response::deny('Only gym owners can remove roles from an owner.');
+        }
+
+        // Non-owners cannot remove the 'admin' role
+        if ($roleName === 'admin' && ! $user->isOwner()) {
+            return Response::deny('Only gym owners can revoke administrator privileges.');
         }
 
         // If removing 'owner' role, check if target is the last active owner

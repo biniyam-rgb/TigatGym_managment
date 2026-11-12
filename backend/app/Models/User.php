@@ -7,6 +7,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -29,7 +30,14 @@ class User extends Authenticatable
         'name',
         'email',
         'phone',
+        'work_shift',
+        'desk_station',
+        'emergency_contact',
+        'employee_id_number',
         'status',
+        'suspension_reason',
+        'suspended_at',
+        'suspended_by',
         'avatar',
         'password',
     ];
@@ -53,6 +61,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'suspended_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
@@ -60,6 +69,11 @@ class User extends Authenticatable
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class)->withTimestamps();
+    }
+
+    public function suspender(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'suspended_by');
     }
 
     /**
@@ -221,6 +235,65 @@ class User extends Authenticatable
     public function attendanceRecords(): HasMany
     {
         return $this->hasMany(AttendanceRecord::class, 'member_id');
+    }
+
+    /**
+     * Normalize Ethiopian and international phone numbers to canonical format (+251... or clean digits).
+     */
+    public static function normalizePhone(?string $phone): ?string
+    {
+        if (empty($phone)) {
+            return null;
+        }
+
+        $phone = trim($phone);
+        $digits = preg_replace('/\D+/', '', $phone);
+        if (empty($digits)) {
+            return $phone;
+        }
+
+        // If it starts with 251 and has 12 digits (e.g. 251911234567 or 251711234567)
+        if (str_starts_with($digits, '251') && strlen($digits) === 12) {
+            return '+251' . substr($digits, 3);
+        }
+
+        // If it starts with 0 and has 10 digits (e.g. 0911234567 or 0711234567)
+        if (str_starts_with($digits, '0') && strlen($digits) === 10) {
+            return '+251' . substr($digits, 1);
+        }
+
+        // If it has 9 digits starting with 9 or 7 (e.g. 911234567 or 711234567)
+        if (strlen($digits) === 9 && in_array($digits[0], ['9', '7'])) {
+            return '+251' . $digits;
+        }
+
+        return str_starts_with($phone, '+') ? '+' . $digits : $digits;
+    }
+
+    /**
+     * Find an existing user matching the phone number across all Ethiopian format variants.
+     */
+    public static function findUserByPhone(?string $phone, ?int $excludeUserId = null): ?self
+    {
+        if (empty($phone)) {
+            return null;
+        }
+
+        $phone = trim($phone);
+        $normalized = self::normalizePhone($phone);
+        $digits = preg_replace('/\D+/', '', $phone);
+        $last9 = strlen($digits) >= 9 ? substr($digits, -9) : $digits;
+
+        return self::where(function ($q) use ($phone, $normalized, $last9) {
+            $q->where('phone', $phone)
+              ->orWhere('phone', $normalized)
+              ->orWhere('phone', '0' . $last9)
+              ->orWhere('phone', '+251' . $last9)
+              ->orWhere('phone', '251' . $last9)
+              ->orWhere('phone', $last9);
+        })
+        ->when($excludeUserId, fn($q) => $q->where('id', '!=', $excludeUserId))
+        ->first();
     }
 
     /**
