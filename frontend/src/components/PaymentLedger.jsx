@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import apiClient from '../services/api';
 import { useAuth } from '../context/useAuth';
+import useDebounce from '../hooks/useDebounce';
 import BrandLogo from './BrandLogo';
 import QRCodeDisplay from './QRCodeDisplay';
 
@@ -56,19 +57,28 @@ const Icons = {
   ),
 };
 
-export default function PaymentLedger({ initialOpenRecordPayment = false }) {
+export default function PaymentLedger({ initialTab = 'payments', initialOpenRecordPayment = false }) {
   const { user, hasRole } = useAuth();
   const isStaff = hasRole('owner') || hasRole('admin') || hasRole('receptionist');
   const isOwnerOrAdmin = hasRole('owner') || hasRole('admin');
   const isOwner = hasRole('owner');
 
   // Main active tab: 'payments' | 'expenses'
-  const [activeTab, setActiveTab] = useState('payments');
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setTimeout(() => {
+        setActiveTab(initialTab);
+      }, 0);
+    }
+  }, [initialTab]);
 
   // Payments State
   const [payments, setPayments] = useState([]);
   const [isLoadingPayments, setIsLoadingPayments] = useState(true);
   const [paymentsSearch, setPaymentsSearch] = useState('');
+  const debouncedPaymentsSearch = useDebounce(paymentsSearch, 250);
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('');
   const [paymentTypeFilter, setPaymentTypeFilter] = useState('');
@@ -83,6 +93,7 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
   const [expenses, setExpenses] = useState([]);
   const [isLoadingExpenses, setIsLoadingExpenses] = useState(false);
   const [expensesSearch, setExpensesSearch] = useState('');
+  const debouncedExpensesSearch = useDebounce(expensesSearch, 250);
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState('');
   const [expenseStatusFilter, setExpenseStatusFilter] = useState('');
   const [expensesPage, setExpensesPage] = useState(1);
@@ -199,7 +210,7 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
         page: paymentsPage,
         per_page: 15,
       };
-      if (paymentsSearch.trim()) params.search = paymentsSearch.trim();
+      if (debouncedPaymentsSearch.trim()) params.search = debouncedPaymentsSearch.trim();
       if (paymentStatusFilter) params.status = paymentStatusFilter;
       if (paymentMethodFilter) params.payment_method = paymentMethodFilter;
       if (paymentTypeFilter) params.payment_type = paymentTypeFilter;
@@ -212,7 +223,7 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
     } finally {
       setIsLoadingPayments(false);
     }
-  }, [paymentsPage, paymentsSearch, paymentStatusFilter, paymentMethodFilter, paymentTypeFilter]);
+  }, [paymentsPage, debouncedPaymentsSearch, paymentStatusFilter, paymentMethodFilter, paymentTypeFilter]);
 
   // Fetch Expenses List
   const fetchExpenses = useCallback(async () => {
@@ -223,7 +234,7 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
         page: expensesPage,
         per_page: 15,
       };
-      if (expensesSearch.trim()) params.search = expensesSearch.trim();
+      if (debouncedExpensesSearch.trim()) params.search = debouncedExpensesSearch.trim();
       if (expenseCategoryFilter) params.category = expenseCategoryFilter;
       if (expenseStatusFilter) params.status = expenseStatusFilter;
 
@@ -235,35 +246,11 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
     } finally {
       setIsLoadingExpenses(false);
     }
-  }, [isStaff, expensesPage, expensesSearch, expenseCategoryFilter, expenseStatusFilter]);
+  }, [isStaff, expensesPage, debouncedExpensesSearch, expenseCategoryFilter, expenseStatusFilter]);
 
-  // Initial data loading using async promises to avoid synchronous cascading renders
+  // Initial reference & summary data loading once on mount
   useEffect(() => {
     let ignore = false;
-
-    const paymentParams = {
-      page: paymentsPage,
-      per_page: 15,
-    };
-    if (paymentsSearch.trim()) paymentParams.search = paymentsSearch.trim();
-    if (paymentStatusFilter) paymentParams.status = paymentStatusFilter;
-    if (paymentMethodFilter) paymentParams.payment_method = paymentMethodFilter;
-    if (paymentTypeFilter) paymentParams.payment_type = paymentTypeFilter;
-
-    apiClient.getPayments(paymentParams)
-      .then(res => {
-        if (!ignore && res) {
-          setPayments(res.data || []);
-          if (res.meta) setPaymentsMeta(res.meta);
-          setIsLoadingPayments(false);
-        }
-      })
-      .catch(err => {
-        if (!ignore) {
-          showNotification('error', err.message || 'Failed to load payments ledger');
-          setIsLoadingPayments(false);
-        }
-      });
 
     apiClient.getPaymentSummary()
       .then(res => {
@@ -274,29 +261,6 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
       .catch(err => console.error('Failed to load payment summary:', err));
 
     if (isStaff) {
-      const expenseParams = {
-        page: expensesPage,
-        per_page: 15,
-      };
-      if (expensesSearch.trim()) expenseParams.search = expensesSearch.trim();
-      if (expenseCategoryFilter) expenseParams.category = expenseCategoryFilter;
-      if (expenseStatusFilter) expenseParams.status = expenseStatusFilter;
-
-      apiClient.getExpenses(expenseParams)
-        .then(res => {
-          if (!ignore && res) {
-            setExpenses(res.data || []);
-            if (res.meta) setExpensesMeta(res.meta);
-            setIsLoadingExpenses(false);
-          }
-        })
-        .catch(err => {
-          if (!ignore) {
-            showNotification('error', err.message || 'Failed to load expenses');
-            setIsLoadingExpenses(false);
-          }
-        });
-
       apiClient.getExpenseSummary()
         .then(res => {
           if (!ignore && res?.data) {
@@ -325,11 +289,79 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
     return () => {
       ignore = true;
     };
-  }, [
-    paymentsPage, paymentsSearch, paymentStatusFilter, paymentMethodFilter, paymentTypeFilter,
-    expensesPage, expensesSearch, expenseCategoryFilter, expenseStatusFilter,
-    isStaff
-  ]);
+  }, [isStaff]);
+
+  // Payments data loading (triggered only on payment pagination/search/filters)
+  useEffect(() => {
+    let ignore = false;
+    setTimeout(() => {
+      if (!ignore) setIsLoadingPayments(true);
+    }, 0);
+
+    const paymentParams = {
+      page: paymentsPage,
+      per_page: 15,
+    };
+    if (debouncedPaymentsSearch.trim()) paymentParams.search = debouncedPaymentsSearch.trim();
+    if (paymentStatusFilter) paymentParams.status = paymentStatusFilter;
+    if (paymentMethodFilter) paymentParams.payment_method = paymentMethodFilter;
+    if (paymentTypeFilter) paymentParams.payment_type = paymentTypeFilter;
+
+    apiClient.getPayments(paymentParams)
+      .then(res => {
+        if (!ignore && res) {
+          setPayments(res.data || []);
+          if (res.meta) setPaymentsMeta(res.meta);
+          setIsLoadingPayments(false);
+        }
+      })
+      .catch(err => {
+        if (!ignore) {
+          showNotification('error', err.message || 'Failed to load payments ledger');
+          setIsLoadingPayments(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [paymentsPage, debouncedPaymentsSearch, paymentStatusFilter, paymentMethodFilter, paymentTypeFilter]);
+
+  // Expenses data loading (triggered only on expense pagination/search/filters)
+  useEffect(() => {
+    if (!isStaff) return;
+    let ignore = false;
+    setTimeout(() => {
+      if (!ignore) setIsLoadingExpenses(true);
+    }, 0);
+
+    const expenseParams = {
+      page: expensesPage,
+      per_page: 15,
+    };
+    if (debouncedExpensesSearch.trim()) expenseParams.search = debouncedExpensesSearch.trim();
+    if (expenseCategoryFilter) expenseParams.category = expenseCategoryFilter;
+    if (expenseStatusFilter) expenseParams.status = expenseStatusFilter;
+
+    apiClient.getExpenses(expenseParams)
+      .then(res => {
+        if (!ignore && res) {
+          setExpenses(res.data || []);
+          if (res.meta) setExpensesMeta(res.meta);
+          setIsLoadingExpenses(false);
+        }
+      })
+      .catch(err => {
+        if (!ignore) {
+          showNotification('error', err.message || 'Failed to load expenses');
+          setIsLoadingExpenses(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [isStaff, expensesPage, debouncedExpensesSearch, expenseCategoryFilter, expenseStatusFilter]);
 
   // Format currency in ETB
   const formatETB = (amount) => {
@@ -847,25 +879,6 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
         </div>
       </div>
 
-      {/* Main Tab Switcher */}
-      {isStaff && (
-        <div className="auth-mode-tabs" style={{ marginBottom: 20 }}>
-          <button
-            type="button"
-            className={`auth-tab-btn ${activeTab === 'payments' ? 'active' : ''}`}
-            onClick={() => setActiveTab('payments')}
-          >
-            💳 Payments & Receipts Ledger
-          </button>
-          <button
-            type="button"
-            className={`auth-tab-btn ${activeTab === 'expenses' ? 'active' : ''}`}
-            onClick={() => setActiveTab('expenses')}
-          >
-            📉 Operating Expenditures ({expenses.length})
-          </button>
-        </div>
-      )}
 
       {/* ==================== TAB 1: PAYMENTS LEDGER ==================== */}
       {activeTab === 'payments' && (
@@ -933,7 +946,7 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                 }}
                 style={{
                   paddingLeft: 36,
-                  paddingRight: 14,
+                  paddingRight: paymentsSearch ? 34 : 14,
                   width: '100%',
                   height: 42,
                   minHeight: 42,
@@ -942,6 +955,29 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                   borderRadius: 8,
                 }}
               />
+              {paymentsSearch && (
+                <button
+                  type="button"
+                  onClick={() => { setPaymentsSearch(''); setPaymentsPage(1); }}
+                  style={{
+                    position: 'absolute',
+                    right: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--gym-text-muted, #94a3b8)',
+                    fontSize: 15,
+                    padding: '4px 6px',
+                    borderRadius: 4,
+                    lineHeight: 1,
+                  }}
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
               <span
                 className="search-bar-icon"
                 style={{
@@ -1046,16 +1082,11 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
 
                     return (
                       <tr key={p.id}>
-                        {/* Receipt & Payment Code */}
-                        <td style={{ minWidth: 170 }}>
+                        {/* Receipt Code */}
+                        <td style={{ minWidth: 150 }}>
                           <div style={{ fontWeight: 700, color: '#ff8a00', fontFamily: 'monospace', fontSize: 13.5 }}>
                             {p.receipt_number || p.payment_number}
                           </div>
-                          {p.receipt_number && (
-                            <div style={{ fontSize: 11, color: 'var(--gym-text-muted, #94a3b8)', fontFamily: 'monospace', marginTop: 2 }}>
-                              Ref: {p.payment_number}
-                            </div>
-                          )}
                         </td>
 
                         {/* Member */}
@@ -1224,21 +1255,13 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                             >
                               Receipt
                             </button>
-
-                            {/* Refund (Owner/Admin only) */}
-                            {isOwnerOrAdmin && isCompleted && (
+                            {isOwnerOrAdmin && p.status === 'completed' && (
                               <button
                                 type="button"
-                                className="btn btn-sm"
+                                className="btn btn-secondary btn-sm"
                                 onClick={() => handleOpenRefund(p)}
                                 title="Issue Audited Refund"
-                                style={{
-                                  padding: '4px 8px',
-                                  fontSize: 12,
-                                  background: 'rgba(239, 68, 68, 0.15)',
-                                  color: '#ef4444',
-                                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                                }}
+                                style={{ padding: '4px 8px', fontSize: 12, color: '#ef4444' }}
                               >
                                 Refund
                               </button>
@@ -1343,7 +1366,7 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                 }}
                 style={{
                   paddingLeft: 36,
-                  paddingRight: 14,
+                  paddingRight: expensesSearch ? 34 : 14,
                   width: '100%',
                   height: 42,
                   minHeight: 42,
@@ -1352,6 +1375,29 @@ export default function PaymentLedger({ initialOpenRecordPayment = false }) {
                   borderRadius: 8,
                 }}
               />
+              {expensesSearch && (
+                <button
+                  type="button"
+                  onClick={() => { setExpensesSearch(''); setExpensesPage(1); }}
+                  style={{
+                    position: 'absolute',
+                    right: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--gym-text-muted, #94a3b8)',
+                    fontSize: 15,
+                    padding: '4px 6px',
+                    borderRadius: 4,
+                    lineHeight: 1,
+                  }}
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
               <span
                 className="search-bar-icon"
                 style={{
