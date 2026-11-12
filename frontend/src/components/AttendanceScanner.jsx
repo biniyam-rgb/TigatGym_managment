@@ -501,6 +501,9 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
         type: isAntiPassback ? 'alert' : 'denied',
         message: denialMsg,
         data: err.data?.data,
+        suspension_reason: err.data?.suspension_reason,
+        suspended_at: err.data?.suspended_at,
+        suspended_by: err.data?.suspended_by,
       });
 
       fetchSummary();
@@ -949,6 +952,22 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                   <div style={{ fontSize: 13, color: '#f5f5f5', marginTop: 2 }}>
                     {scanResult.message}
                   </div>
+                  {scanResult.suspension_reason && (
+                    <div style={{
+                      marginTop: 8,
+                      padding: '6px 12px',
+                      background: 'rgba(239, 68, 68, 0.25)',
+                      border: '1px solid rgba(239, 68, 68, 0.5)',
+                      borderRadius: 6,
+                      fontSize: 12.5,
+                      color: '#fee2e2',
+                      fontWeight: 600,
+                      lineHeight: 1.4,
+                    }}>
+                      ⛔ <strong>Suspension Reason:</strong> {scanResult.suspension_reason}
+                      {scanResult.suspended_by && <span style={{ marginLeft: 6, opacity: 0.85 }}>({scanResult.suspended_by})</span>}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1638,9 +1657,6 @@ export default function AttendanceScanner({ onNavigateToMemberships }) {
                               <div style={{ fontSize: 11, color: 'var(--gym-text-muted, #94a3b8)' }}>Package / Plan</div>
                               <div style={{ fontSize: 14, fontWeight: 700, color: '#ff7a00', marginTop: 2 }}>
                                 {detailMember.active_subscription.plan_name || 'Standard Plan'}
-                              </div>
-                              <div style={{ fontSize: 10.5, color: 'var(--gym-text-muted, #94a3b8)', fontFamily: 'monospace' }}>
-                                Ref: {detailMember.active_subscription.subscription_number}
                               </div>
                             </div>
                             <div>
