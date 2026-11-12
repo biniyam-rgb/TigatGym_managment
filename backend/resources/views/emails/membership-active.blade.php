@@ -12,19 +12,19 @@
         <!-- Main Container -->
         <table role="presentation" width="100%" style="max-width: 580px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); border: 1px solid #e2e8f0;" cellspacing="0" cellpadding="0">
           
-          <!-- Header Banner -->
+          <!-- Header Banner (Clean Pure White with Orange Brand Bar) -->
           <tr>
-            <td style="background: linear-gradient(135deg, #0b0f17 0%, #1a2234 100%); padding: 26px 30px; text-align: center;">
+            <td style="background-color: #ffffff; border-bottom: 2px solid #ff7a00; padding: 24px 30px; text-align: center;">
               <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
                 <tr>
                   <td style="background: linear-gradient(135deg, #ff7a00 0%, #ea580c 100%); width: 38px; height: 38px; border-radius: 8px; text-align: center; vertical-align: middle;">
                     <span style="font-size: 20px; color: #ffffff; line-height: 38px; display: inline-block;">🏋️</span>
                   </td>
                   <td style="padding-left: 12px; text-align: left;">
-                    <div style="font-size: 22px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; color: #ffffff;">
+                    <div style="font-size: 22px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: #0f172a;">
                       TIGAT <span style="color: #ff7a00;">GYM</span>
                     </div>
-                    <div style="font-size: 9.5pt; font-weight: 700; color: #94a3b8; letter-spacing: 0.1em; text-transform: uppercase;">
+                    <div style="font-size: 10px; font-weight: 700; color: #ea580c; letter-spacing: 0.08em; text-transform: uppercase;">
                       Fitness For Life • Build Your Best Self
                     </div>
                   </td>
@@ -101,16 +101,16 @@
           <!-- Turnstile Access Instructions -->
           <tr>
             <td style="padding: 0 32px 24px 32px;">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #0b0f17; border-radius: 12px; padding: 18px 22px; color: #ffffff;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 18px 22px; color: #0f172a;">
                 <tr>
                   <td width="30" valign="top">
                     <span style="font-size: 22px;">📲</span>
                   </td>
                   <td style="padding-left: 12px;">
-                    <div style="font-size: 13px; font-weight: 800; color: #ff7a00; text-transform: uppercase; letter-spacing: 0.5px;">
+                    <div style="font-size: 13px; font-weight: 800; color: #ea580c; text-transform: uppercase; letter-spacing: 0.5px;">
                       How To Access The Gym
                     </div>
-                    <div style="font-size: 12px; color: #cbd5e1; line-height: 1.5; margin-top: 4px;">
+                    <div style="font-size: 12.5px; color: #475569; line-height: 1.5; margin-top: 4px;">
                       Save the attached Membership Card PDF on your phone or open it from this email. Simply present the QR code to the turnstile reader or reception scanner at the gym door to enter.
                     </div>
                   </td>

@@ -5,7 +5,7 @@
   <title>Tigat Gym - Official Payment Receipt</title>
   <style>
     @page {
-      margin: 15mm;
+      margin: 14mm 16mm;
       size: A4 portrait;
     }
     * {
@@ -17,19 +17,19 @@
     body {
       background-color: #ffffff;
       color: #0f172a;
-      font-size: 10pt;
-      line-height: 1.5;
+      font-size: 9.5pt;
+      line-height: 1.45;
     }
     .header-table {
       width: 100%;
       border-bottom: 2px solid #ff7a00;
-      padding-bottom: 8mm;
-      margin-bottom: 8mm;
+      padding-bottom: 6mm;
+      margin-bottom: 7mm;
     }
     .brand-title {
-      font-size: 24pt;
+      font-size: 22pt;
       font-weight: 900;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
       color: #0f172a;
       text-transform: uppercase;
     }
@@ -40,9 +40,14 @@
       font-size: 8pt;
       font-weight: 700;
       color: #64748b;
-      letter-spacing: 1px;
+      letter-spacing: 0.8px;
       text-transform: uppercase;
-      margin-top: 2px;
+      margin-top: 1mm;
+    }
+    .brand-contact {
+      font-size: 7.8pt;
+      color: #94a3b8;
+      margin-top: 2mm;
     }
     .receipt-title-box {
       text-align: right;
@@ -50,50 +55,59 @@
     .receipt-title {
       font-size: 16pt;
       font-weight: 900;
-      color: #ff7a00;
+      color: #ea580c;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
     .receipt-number {
       font-size: 11pt;
       font-weight: 800;
-      font-family: 'Courier New', Courier, monospace;
       color: #0f172a;
-      margin-top: 2px;
+      margin-top: 1.5mm;
     }
     .paid-badge {
       display: inline-block;
-      background: #16a34a;
-      color: #ffffff;
-      font-size: 9pt;
-      font-weight: 900;
-      padding: 2mm 5mm;
-      border-radius: 3mm;
-      letter-spacing: 1px;
-      margin-top: 3mm;
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #86efac;
+      font-size: 8.5pt;
+      font-weight: 800;
+      padding: 1.5mm 4mm;
+      border-radius: 2mm;
+      letter-spacing: 0.5px;
+      margin-top: 2.5mm;
       text-transform: uppercase;
     }
     .meta-table {
       width: 100%;
-      margin-bottom: 8mm;
+      margin-bottom: 7mm;
     }
-    .meta-box {
-      background: #f8fafc;
+    .meta-card {
+      background: #ffffff;
       border: 1px solid #e2e8f0;
-      border-radius: 4mm;
+      border-radius: 3mm;
       padding: 4mm 5mm;
     }
     .meta-label {
-      font-size: 7.5pt;
-      font-weight: 700;
-      color: #64748b;
+      font-size: 7.2pt;
+      font-weight: 800;
+      color: #ea580c;
       text-transform: uppercase;
-      margin-bottom: 1.5mm;
+      letter-spacing: 0.5px;
+      margin-bottom: 2mm;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 1mm;
     }
-    .meta-value {
-      font-size: 10.5pt;
+    .meta-name {
+      font-size: 11pt;
       font-weight: 800;
       color: #0f172a;
+      margin-bottom: 1mm;
+    }
+    .meta-row {
+      font-size: 8.5pt;
+      color: #475569;
+      margin-bottom: 0.8mm;
     }
     .items-table {
       width: 100%;
@@ -101,8 +115,10 @@
       margin-bottom: 8mm;
     }
     .items-table th {
-      background: #0f172a;
-      color: #ffffff;
+      background: #f8fafc;
+      border-top: 1.5px solid #e2e8f0;
+      border-bottom: 1.5px solid #cbd5e1;
+      color: #475569;
       font-size: 8pt;
       font-weight: 800;
       text-transform: uppercase;
@@ -111,6 +127,7 @@
       text-align: left;
     }
     .items-table td {
+      background: #ffffff;
       border-bottom: 1px solid #e2e8f0;
       padding: 4mm;
       font-size: 9.5pt;
@@ -118,40 +135,44 @@
     }
     .total-box {
       width: 100%;
-      margin-bottom: 10mm;
+      margin-bottom: 8mm;
     }
     .total-card {
       background: #f0fdf4;
       border: 1.5px solid #86efac;
-      border-radius: 4mm;
+      border-radius: 3mm;
       padding: 4mm 6mm;
       float: right;
-      width: 70mm;
+      width: 72mm;
+      text-align: right;
     }
     .total-label {
       font-size: 8pt;
       font-weight: 800;
       color: #166534;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     .total-amount {
-      font-size: 18pt;
+      font-size: 19pt;
       font-weight: 900;
       color: #15803d;
       margin-top: 1mm;
     }
     .qr-verification-section {
       clear: both;
-      border-top: 1px dashed #cbd5e1;
-      padding-top: 6mm;
-      margin-top: 10mm;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 3mm;
+      padding: 4mm 5mm;
+      margin-top: 8mm;
     }
     .footer-note {
       text-align: center;
-      font-size: 8pt;
+      font-size: 7.8pt;
       color: #94a3b8;
       margin-top: 10mm;
-      border-top: 1px solid #e2e8f0;
+      border-top: 1px solid #f1f5f9;
       padding-top: 4mm;
     }
   </style>
@@ -163,9 +184,9 @@
     <tr>
       <td width="60%" valign="top">
         <div class="brand-title">TIGAT <span class="brand-orange">GYM</span></div>
-        <div class="brand-sub">Fitness & Performance Center • Addis Ababa, Ethiopia</div>
-        <div style="font-size: 8pt; color: #64748b; margin-top: 2mm;">
-          Phone: +251 911 234567 • Email: support@tigatgym.com
+        <div class="brand-sub">Fitness &amp; Performance Center &bull; Addis Ababa, Ethiopia</div>
+        <div class="brand-contact">
+          Phone: +251 911 234567 &bull; Email: support@tigatgym.com
         </div>
       </td>
       <td width="40%" valign="top" class="receipt-title-box">
@@ -176,45 +197,44 @@
     </tr>
   </table>
 
-  <!-- Meta Information (Member & Transaction details) -->
+  <!-- Meta Information -->
   <table class="meta-table" cellspacing="0" cellpadding="0">
     <tr>
       <td width="48%" valign="top">
-        <div class="meta-box">
+        <div class="meta-card">
           <div class="meta-label">Billed To (Member Details)</div>
-          <div class="meta-value">{{ $user->name }}</div>
-          <div style="font-size: 8.5pt; color: #64748b; margin-top: 1mm;">
+          <div class="meta-name">{{ $user->name }}</div>
+          <div class="meta-row">
             Member ID: <strong style="color: #ff7a00;">{{ $memberCode }}</strong>
           </div>
           @if(!empty($user->email))
-          <div style="font-size: 8.5pt; color: #64748b;">
-            Email: {{ $user->email }}
-          </div>
+          <div class="meta-row">Email: {{ $user->email }}</div>
           @endif
           @if(!empty($user->phone))
-          <div style="font-size: 8.5pt; color: #64748b;">
-            Phone: {{ $user->phone }}
-          </div>
+          <div class="meta-row">Phone: {{ $user->phone }}</div>
           @endif
         </div>
       </td>
       <td width="4%"></td>
       <td width="48%" valign="top">
-        <div class="meta-box">
-          <div class="meta-label">Payment & Security References</div>
-          <div style="font-size: 9pt; color: #0f172a; margin-bottom: 1mm;">
-            Payment Ref: <strong style="font-family: monospace;">{{ $payment->payment_number }}</strong>
+        <div class="meta-card">
+          <div class="meta-label">Payment &amp; Security References</div>
+          <div class="meta-row" style="margin-top: 1mm;">
+            Payment Ref: <strong style="color: #0f172a;">{{ $payment->payment_number }}</strong>
           </div>
           @if(!empty($chapaReference))
-          <div style="font-size: 8.5pt; color: #0f172a; margin-bottom: 1mm;">
-            Chapa Ref: <strong style="font-family: monospace;">{{ $chapaReference }}</strong>
+          <div class="meta-row">
+            Chapa Ref: <strong style="color: #0f172a;">{{ $chapaReference }}</strong>
           </div>
           @endif
-          <div style="font-size: 8.5pt; color: #64748b;">
-            Date: {{ $paymentDateFormatted }}
+          <div class="meta-row">
+            Date &amp; Time: <strong>{{ $paymentDateFormatted }}</strong>
           </div>
-          <div style="font-size: 8.5pt; color: #64748b;">
-            Method: <strong style="text-transform: uppercase;">{{ str_replace('_', ' ', $payment->payment_method) }}</strong>
+          <div class="meta-row">
+            Payment Method: <strong style="text-transform: uppercase;">{{ str_replace('_', ' ', $payment->payment_method) }}</strong>
+          </div>
+          <div class="meta-row">
+            Status: <strong style="color: #16a34a;">CONFIRMED &amp; VERIFIED</strong>
           </div>
         </div>
       </td>
@@ -225,23 +245,23 @@
   <table class="items-table">
     <thead>
       <tr>
-        <th width="50%">Description / Package</th>
-        <th width="30%">Validity Period</th>
+        <th width="48%">Description / Package</th>
+        <th width="32%">Validity Period</th>
         <th width="20%" style="text-align: right;">Amount (ETB)</th>
       </tr>
     </thead>
     <tbody>
       <tr>
         <td>
-          <strong style="color: #0f172a;">{{ $planName }}</strong>
+          <strong style="color: #0f172a; font-size: 10pt;">{{ $planName }}</strong>
           <div style="font-size: 8pt; color: #64748b; margin-top: 1mm;">
-            Official Tigat Gym membership package with turnstile access & facility usage.
+            Official Tigat Gym membership package with turnstile access &amp; facility usage.
           </div>
         </td>
-        <td style="font-size: 8.5pt; color: #059669; font-weight: 700;">
+        <td style="font-size: 9pt; color: #059669; font-weight: 700;">
           {{ $validityPeriod ?? 'Immediate Activation' }}
         </td>
-        <td style="text-align: right; font-weight: 800; font-size: 10.5pt; color: #0f172a;">
+        <td style="text-align: right; font-weight: 800; font-size: 11pt; color: #0f172a;">
           {{ number_format($payment->amount, 2) }} ETB
         </td>
       </tr>
@@ -254,26 +274,26 @@
       <div class="total-label">Total Amount Paid</div>
       <div class="total-amount">{{ number_format($payment->amount, 2) }} ETB</div>
       <div style="font-size: 7.5pt; color: #166534; margin-top: 1mm; font-weight: 700;">
-        STATUS: CONFIRMED & VERIFIED
+        STATUS: CONFIRMED &amp; VERIFIED
       </div>
     </div>
   </div>
 
-  <!-- QR Verification & Turnstile info -->
+  <!-- QR Verification Section -->
   <div class="qr-verification-section">
     <table width="100%" cellspacing="0" cellpadding="0">
       <tr>
-        <td width="70" valign="middle">
+        <td width="66" valign="middle">
           @if(!empty($qrCodeDataUri))
-            <img src="{{ $qrCodeDataUri }}" width="64" height="64" style="display:block; border: 1px solid #cbd5e1; border-radius: 4px;" alt="QR" />
+            <img src="{{ $qrCodeDataUri }}" width="60" height="60" style="display:block; border: 1.2px solid #ff7a00; border-radius: 4px; padding: 2px;" alt="QR" />
           @endif
         </td>
         <td style="padding-left: 5mm;" valign="middle">
-          <div style="font-size: 9pt; font-weight: 800; color: #0f172a; text-transform: uppercase;">
-            Turnstile & Digital Verification Pass
+          <div style="font-size: 9.5pt; font-weight: 800; color: #0f172a; text-transform: uppercase;">
+            Turnstile &amp; Digital Verification Pass
           </div>
-          <div style="font-size: 8pt; color: #64748b; margin-top: 1mm;">
-            This QR code verifies your payment of <strong>{{ number_format($payment->amount, 2) }} ETB</strong> and grants active turnstile access for member <strong>{{ $memberCode }}</strong>.
+          <div style="font-size: 8.2pt; color: #64748b; margin-top: 1.5mm; line-height: 1.4;">
+            This verified receipt confirms payment of <strong>{{ number_format($payment->amount, 2) }} ETB</strong>. The embedded optical QR code grants active turnstile admission for member <strong>{{ $memberCode }}</strong>.
           </div>
         </td>
       </tr>
@@ -281,7 +301,7 @@
   </div>
 
   <div class="footer-note">
-    Thank you for training with TIGAT GYM! Stay strong and build your best self. • This is an automated official digital tax receipt generated by GymCore.
+    Thank you for training with TIGAT GYM! Stay strong and build your best self. &bull; Official Digital Tax Receipt generated by GymCore.
   </div>
 
 </body>

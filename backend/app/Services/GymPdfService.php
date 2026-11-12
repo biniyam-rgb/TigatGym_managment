@@ -60,6 +60,7 @@ class GymPdfService
 
         $planName = $subscription?->plan?->name ?? 'OFFICIAL MEMBERSHIP PASS';
         $status = $subscription?->status ?? 'ACTIVE';
+        $phone = $user->phone ?? ($profile?->emergency_contact_phone ?? 'N/A');
 
         $data = [
             'user' => $user,
@@ -68,6 +69,7 @@ class GymPdfService
             'memberCode' => $memberCode,
             'planName' => $planName,
             'status' => $status,
+            'phone' => $phone,
             'startDateFormatted' => self::formatDate($startDate),
             'endDateFormatted' => self::formatDate($endDate),
             'qrCodeDataUri' => $qrCodeDataUri,
