@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../services/api';
 import { useAuth } from '../context/useAuth';
+import useDebounce from '../hooks/useDebounce';
 
 const Icons = {
   Search: ({ size = 15 }) => (
@@ -17,6 +18,7 @@ export default function UserManagement() {
   const [roles, setRoles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 250);
   const [selectedRole, setSelectedRole] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [page, setPage] = useState(1);
@@ -42,11 +44,25 @@ export default function UserManagement() {
   const [roleModalUser, setRoleModalUser] = useState(null);
   const [roleToAssign, setRoleToAssign] = useState('');
 
+  // Suspension Reason Modal state
+  const [suspendModalUser, setSuspendModalUser] = useState(null);
+  const [suspensionReason, setSuspensionReason] = useState('');
+  const [isSuspending, setIsSuspending] = useState(false);
+
+  const PRESET_SUSPENSION_REASONS = [
+    'Facility Rule Violation',
+    'Payment Dispute / Outstanding Fees',
+    'Misconduct / Conduct Incident',
+    'Equipment Misuse or Damage',
+    'Gym Safety Policy Breach',
+    'Temporary Medical Hold',
+  ];
+
   const fetchUsers = useCallback(async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
     try {
       const res = await apiClient.getUsers({
-        search,
+        search: debouncedSearch,
         role: selectedRole,
         status: selectedStatus,
         page,
@@ -63,50 +79,57 @@ export default function UserManagement() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, selectedRole, selectedStatus, page]);
+  }, [debouncedSearch, selectedRole, selectedStatus, page]);
 
+  // Load roles once on mount
   useEffect(() => {
     let ignore = false;
-
-    async function loadData() {
-      try {
-        const rolesRes = await apiClient.getRoles();
+    apiClient.getRoles()
+      .then((rolesRes) => {
         if (!ignore && rolesRes?.roles) {
           setRoles(rolesRes.roles);
         }
-      } catch (err) {
-        console.warn('Could not fetch roles list:', err.message);
-      }
-
-      try {
-        const usersRes = await apiClient.getUsers({
-          search,
-          role: selectedRole,
-          status: selectedStatus,
-          page,
-          per_page: 10,
-        });
-
-        if (!ignore && usersRes?.data) {
-          setUsers(usersRes.data);
-          setTotalPages(usersRes.last_page || 1);
-          setTotalCount(usersRes.total || 0);
-        }
-      } catch (err) {
-        if (!ignore) {
-          setNotification({ type: 'danger', message: err.message || 'Failed to load users' });
-        }
-      } finally {
-        if (!ignore) setIsLoading(false);
-      }
-    }
-
-    loadData();
+      })
+      .catch((err) => console.warn('Could not fetch roles list:', err.message));
 
     return () => {
       ignore = true;
     };
-  }, [search, selectedRole, selectedStatus, page]);
+  }, []);
+
+  // Load users when search, role, status, or page changes
+  useEffect(() => {
+    let ignore = false;
+    setTimeout(() => {
+      if (!ignore) setIsLoading(true);
+    }, 0);
+
+    apiClient.getUsers({
+      search: debouncedSearch,
+      role: selectedRole,
+      status: selectedStatus,
+      page,
+      per_page: 10,
+    })
+      .then((usersRes) => {
+        if (!ignore && usersRes?.data) {
+          setUsers(usersRes.data);
+          setTotalPages(usersRes.last_page || 1);
+          setTotalCount(usersRes.total || 0);
+          setIsLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!ignore) {
+          setNotification({ type: 'danger', message: err.message || 'Failed to load users' });
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [debouncedSearch, selectedRole, selectedStatus, page]);
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
@@ -124,6 +147,7 @@ export default function UserManagement() {
         status: 'active',
       });
       fetchUsers();
+      window.dispatchEvent(new CustomEvent('gymcore:refresh'));
     } catch (err) {
       setNotification({ type: 'danger', message: err.message || 'Failed to create user.' });
     } finally {
@@ -132,15 +156,56 @@ export default function UserManagement() {
   };
 
   const handleStatusChange = async (targetUser, newStatus) => {
+    if (newStatus === 'suspended') {
+      setSuspendModalUser(targetUser);
+      setSuspensionReason(targetUser.suspension_reason || '');
+      return;
+    }
+
     try {
       await apiClient.updateUser(targetUser.id, { status: newStatus });
       setNotification({
         type: 'success',
-        message: `Account status for "${targetUser.name}" changed to ${newStatus}.`,
+        message: newStatus === 'active'
+          ? `Account for "${targetUser.name}" reactivated successfully.`
+          : `Account status for "${targetUser.name}" changed to ${newStatus}.`,
       });
       fetchUsers();
+      window.dispatchEvent(new CustomEvent('gymcore:refresh'));
     } catch (err) {
       setNotification({ type: 'danger', message: err.message || 'Status change rejected.' });
+    }
+  };
+
+  const handleConfirmSuspension = async (e) => {
+    e?.preventDefault();
+    if (!suspendModalUser) return;
+    if (!suspensionReason.trim()) {
+      setNotification({
+        type: 'danger',
+        message: 'Please provide a clear reason for suspension so the front desk can explain it to the user.',
+      });
+      return;
+    }
+
+    setIsSuspending(true);
+    try {
+      await apiClient.updateUser(suspendModalUser.id, {
+        status: 'suspended',
+        suspension_reason: suspensionReason.trim(),
+      });
+      setNotification({
+        type: 'success',
+        message: `Account for "${suspendModalUser.name}" suspended. Reason logged for Reception dashboard.`,
+      });
+      setSuspendModalUser(null);
+      setSuspensionReason('');
+      fetchUsers();
+      window.dispatchEvent(new CustomEvent('gymcore:refresh'));
+    } catch (err) {
+      setNotification({ type: 'danger', message: err.message || 'Failed to suspend user.' });
+    } finally {
+      setIsSuspending(false);
     }
   };
 
@@ -152,6 +217,7 @@ export default function UserManagement() {
       await apiClient.deleteUser(targetUser.id);
       setNotification({ type: 'success', message: `Account "${targetUser.name}" deleted.` });
       fetchUsers();
+      window.dispatchEvent(new CustomEvent('gymcore:refresh'));
     } catch (err) {
       setNotification({ type: 'danger', message: err.message || 'Could not delete user.' });
     }
@@ -170,6 +236,7 @@ export default function UserManagement() {
       setRoleModalUser(null);
       setRoleToAssign('');
       fetchUsers();
+      window.dispatchEvent(new CustomEvent('gymcore:refresh'));
     } catch (err) {
       setNotification({ type: 'danger', message: err.message || 'Role assignment failed.' });
     }
@@ -186,6 +253,7 @@ export default function UserManagement() {
         message: `Role "${roleName}" revoked from ${targetUser.name}.`,
       });
       fetchUsers();
+      window.dispatchEvent(new CustomEvent('gymcore:refresh'));
     } catch (err) {
       setNotification({ type: 'danger', message: err.message || 'Role removal failed.' });
     }
@@ -240,7 +308,7 @@ export default function UserManagement() {
             }}
             style={{
               paddingLeft: 36,
-              paddingRight: 14,
+              paddingRight: search ? 34 : 14,
               width: '100%',
               height: 42,
               minHeight: 42,
@@ -249,6 +317,29 @@ export default function UserManagement() {
               borderRadius: 8,
             }}
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => { setSearch(''); setPage(1); }}
+              style={{
+                position: 'absolute',
+                right: 10,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--gym-text-muted, #94a3b8)',
+                fontSize: 15,
+                padding: '4px 6px',
+                borderRadius: 4,
+                lineHeight: 1,
+              }}
+              title="Clear search"
+            >
+              ✕
+            </button>
+          )}
           <span
             className="search-bar-icon"
             style={{
@@ -381,6 +472,24 @@ export default function UserManagement() {
                       <span className={`status-tag status-${u.status}`}>
                         {u.status}
                       </span>
+                      {u.status === 'suspended' && u.suspension_reason && (
+                        <span
+                          style={{
+                            display: 'block',
+                            fontSize: 11,
+                            color: '#ef4444',
+                            fontWeight: 600,
+                            marginTop: 3,
+                            maxWidth: 160,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                          title={`Reason: ${u.suspension_reason}`}
+                        >
+                          ⚠️ {u.suspension_reason}
+                        </span>
+                      )}
                     </td>
                     <td className="text-sm text-muted">
                       {u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}
@@ -613,6 +722,111 @@ export default function UserManagement() {
                   disabled={!roleToAssign}
                 >
                   Confirm Assignment
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Suspension Reason Definition Modal */}
+      {suspendModalUser && (
+        <div className="modal-backdrop">
+          <div className="modal-dialog" style={{ maxWidth: 520, borderRadius: 16, overflow: 'hidden' }}>
+            <div style={{ background: '#fef2f2', borderBottom: '1px solid #fee2e2', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 22 }}>⛔</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#991b1b' }}>Suspend Account</h3>
+                  <div style={{ fontSize: 12.5, color: '#b91c1c', marginTop: 2 }}>{suspendModalUser.name} ({suspendModalUser.email})</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setSuspendModalUser(null)}
+                style={{ background: 'transparent', border: 'none', fontSize: 20, color: '#991b1b', cursor: 'pointer' }}
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmSuspension} style={{ padding: 20 }}>
+              <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12.5, color: '#9a3412', lineHeight: 1.4 }}>
+                ℹ️ <strong>Receptionist Visibility:</strong> The reason specified below will immediately sync to the <strong>Reception Dashboard</strong> and <strong>Alerts</strong> feed so front-desk staff know why access is blocked.
+              </div>
+
+              {/* Quick Presets */}
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                  Quick Preset Reasons:
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {PRESET_SUSPENSION_REASONS.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setSuspensionReason(preset)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: 6,
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                        border: '1px solid #e2e8f0',
+                        background: suspensionReason === preset ? '#fee2e2' : '#f8fafc',
+                        color: suspensionReason === preset ? '#991b1b' : '#475569',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Textarea Reason */}
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                  Reason for Suspension <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  className="form-control"
+                  value={suspensionReason}
+                  onChange={(e) => setSuspensionReason(e.target.value)}
+                  placeholder="Clearly explain the reason for suspension (e.g. Failure to comply with gym rules, payment dispute, misconduct)..."
+                  style={{ width: '100%', borderRadius: 8, border: '1px solid #cbd5e1', padding: 10, fontSize: 13, boxSizing: 'border-box', background: '#fff' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setSuspendModalUser(null)}
+                  disabled={isSuspending}
+                  style={{ height: 38, padding: '0 16px', borderRadius: 8, background: '#f1f5f9', border: '1px solid #e2e8f0', color: '#475569', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSuspending || !suspensionReason.trim()}
+                  style={{
+                    height: 38,
+                    padding: '0 20px',
+                    borderRadius: 8,
+                    background: isSuspending || !suspensionReason.trim() ? '#fca5a5' : '#dc2626',
+                    border: 'none',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: isSuspending || !suspensionReason.trim() ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 2px 8px rgba(220, 38, 38, 0.25)',
+                  }}
+                >
+                  {isSuspending ? 'Suspending...' : 'Confirm Suspension'}
                 </button>
               </div>
             </form>

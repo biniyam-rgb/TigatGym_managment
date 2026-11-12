@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import apiClient from '../services/api';
 import { useAuth } from '../context/useAuth';
+import useDebounce from '../hooks/useDebounce';
 
 const Icons = {
   Refresh: ({ size = 14 }) => (
@@ -131,6 +132,7 @@ export default function SubscriptionManagement() {
   const [subscriptions, setSubscriptions] = useState([]);
   const [isLoadingSubs, setIsLoadingSubs] = useState(true);
   const [subsSearch, setSubsSearch] = useState('');
+  const debouncedSubsSearch = useDebounce(subsSearch, 250);
   const [subsStatusFilter, setSubsStatusFilter] = useState('');
   const [subsPlanFilter, setSubsPlanFilter] = useState('');
   const [subsPage, setSubsPage] = useState(1);
@@ -242,6 +244,7 @@ export default function SubscriptionManagement() {
     }
   }, [subsPage, subsSearch, subsStatusFilter, subsPlanFilter]);
 
+  // Load plans & members once on mount
   useEffect(() => {
     let ignore = false;
 
@@ -259,11 +262,31 @@ export default function SubscriptionManagement() {
         }
       });
 
+    if (isStaff) {
+      apiClient.getMembers({ per_page: 100 })
+        .then((res) => {
+          if (!ignore) setMembersList(res.data || []);
+        })
+        .catch(console.error);
+    }
+
+    return () => {
+      ignore = true;
+    };
+  }, [isStaff]);
+
+  // Load subscriptions on search / filter / page changes
+  useEffect(() => {
+    let ignore = false;
+    setTimeout(() => {
+      if (!ignore) setIsLoadingSubs(true);
+    }, 0);
+
     const params = {
       page: subsPage,
       per_page: 10,
     };
-    if (subsSearch) params.search = subsSearch;
+    if (debouncedSubsSearch) params.search = debouncedSubsSearch;
     if (subsStatusFilter) params.status = subsStatusFilter;
     if (subsPlanFilter) params.plan_id = subsPlanFilter;
 
@@ -282,18 +305,10 @@ export default function SubscriptionManagement() {
         }
       });
 
-    if (isStaff) {
-      apiClient.getMembers({ per_page: 100 })
-        .then((res) => {
-          if (!ignore) setMembersList(res.data || []);
-        })
-        .catch(console.error);
-    }
-
     return () => {
       ignore = true;
     };
-  }, [subsPage, subsSearch, subsStatusFilter, subsPlanFilter, isStaff]);
+  }, [subsPage, debouncedSubsSearch, subsStatusFilter, subsPlanFilter]);
 
   // Selected plan calculation helper for Assign Modal
   const selectedAssignPlan = useMemo(() => {
@@ -481,7 +496,7 @@ export default function SubscriptionManagement() {
       await apiClient.freezeSubscription(selectedSub.id, freezeForm);
       showNotification(
         'success',
-        `❄️ Pass ${selectedSub.subscription_number} for ${selectedSub.member?.name || 'Member'} frozen until ${freezeForm.frozen_until}. Expiration extended!`
+        `❄️ Membership pass for ${selectedSub.member?.name || 'Member'} (${selectedSub.member?.member_code || 'ID'}) frozen until ${freezeForm.frozen_until}. Expiration extended!`
       );
       setIsFreezeModalOpen(false);
       fetchSubscriptions();
@@ -504,7 +519,7 @@ export default function SubscriptionManagement() {
       await apiClient.unfreezeSubscription(sub.id);
       showNotification(
         'success',
-        `✓ Pass ${sub.subscription_number} for ${sub.member?.name || 'Member'} (${sub.member?.member_code || 'ID'}) has been unfrozen and reactivated!`
+        `✓ Membership pass for ${sub.member?.name || 'Member'} (${sub.member?.member_code || 'ID'}) has been unfrozen and reactivated!`
       );
       fetchSubscriptions();
     } catch (err) {
@@ -757,7 +772,7 @@ export default function SubscriptionManagement() {
                 }}
                 style={{
                   paddingLeft: 36,
-                  paddingRight: 14,
+                  paddingRight: subsSearch ? 34 : 14,
                   width: '100%',
                   height: 42,
                   minHeight: 42,
@@ -766,6 +781,29 @@ export default function SubscriptionManagement() {
                   borderRadius: 8,
                 }}
               />
+              {subsSearch && (
+                <button
+                  type="button"
+                  onClick={() => { setSubsSearch(''); setSubsPage(1); }}
+                  style={{
+                    position: 'absolute',
+                    right: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--gym-text-muted, #94a3b8)',
+                    fontSize: 15,
+                    padding: '4px 6px',
+                    borderRadius: 4,
+                    lineHeight: 1,
+                  }}
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
               <span
                 className="search-bar-icon"
                 style={{
@@ -863,7 +901,7 @@ export default function SubscriptionManagement() {
                   <tr>
                     <th style={{ width: '115px' }}>
                       Member ID
-                      <span className="subs-th-sub">Gym ID & Pass #</span>
+                      <span className="subs-th-sub">Permanent Code</span>
                     </th>
                     <th style={{ width: '150px' }}>
                       Member Name
@@ -925,18 +963,11 @@ export default function SubscriptionManagement() {
 
                       return (
                         <tr key={sub.id}>
-                          {/* Member ID & Pass # */}
+                          {/* Member ID */}
                           <td>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                              <span className="subs-pass-id-badge">
-                                {sub.member?.member_code || (sub.member?.id ? `TG-${String(sub.member.id).padStart(4, '0')}` : '—')}
-                              </span>
-                              {sub.subscription_number && (
-                                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.02em' }}>
-                                  {sub.subscription_number}
-                                </span>
-                              )}
-                            </div>
+                            <span className="subs-pass-id-badge">
+                              {sub.member?.member_code || (sub.member?.id ? `TG-${String(sub.member.id).padStart(4, '0')}` : '—')}
+                            </span>
                           </td>
 
                           {/* Member Name (Only member's name) */}
@@ -1446,7 +1477,7 @@ export default function SubscriptionManagement() {
           <div className="modal-card" style={{ maxWidth: 500 }}>
             <div className="modal-header">
               <h3 style={{ fontSize: 18, fontWeight: 700 }}>
-                Renew Pass: {selectedSub.subscription_number}
+                Renew Membership: {selectedSub.member?.name || 'Member'} ({selectedSub.member?.member_code || 'ID'})
               </h3>
               <button
                 type="button"
@@ -1537,7 +1568,7 @@ export default function SubscriptionManagement() {
                 <div>
                   <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0 }}>Freeze Membership Pass</h3>
                   <div style={{ fontSize: 11, color: '#64748b' }}>
-                    Pass {selectedSub.subscription_number} • Temporary Suspension
+                    {selectedSub.member?.name || 'Member'} ({selectedSub.member?.member_code || 'ID'}) • Temporary Suspension
                   </div>
                 </div>
               </div>
