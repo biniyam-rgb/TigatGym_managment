@@ -1633,6 +1633,109 @@ class PaymentController extends Controller
     }
 
     /**
+     * Monthly revenue & expense series for the admin dashboard chart.
+     * Returns the last 8 months of revenue (completed payments) and expenses.
+     * Accessible by owner and admin only.
+     */
+    public function monthlySummary(Request $request): JsonResponse
+    {
+        $currentUser = $request->user();
+        if (! $currentUser->hasAnyRole('owner', 'admin')) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized.',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $months = [];
+        for ($i = 7; $i >= 0; $i--) {
+            $date = Carbon::now()->subMonths($i)->startOfMonth();
+            $months[] = [
+                'year'  => (int) $date->format('Y'),
+                'month' => (int) $date->format('n'),
+                'label' => $date->format('M'),
+            ];
+        }
+
+        // Revenue per month (completed payments)
+        $revenueRows = Payment::where('status', 'completed')
+            ->selectRaw('YEAR(paid_at) as yr, MONTH(paid_at) as mo, SUM(amount) as total')
+            ->where('paid_at', '>=', Carbon::now()->subMonths(7)->startOfMonth())
+            ->groupByRaw('YEAR(paid_at), MONTH(paid_at)')
+            ->get()
+            ->keyBy(fn($r) => "{$r->yr}-{$r->mo}");
+
+        // Expense per month (approved or paid expenses)
+        $expenseRows = \App\Models\Expense::whereIn('status', ['approved', 'paid'])
+            ->selectRaw('YEAR(expense_date) as yr, MONTH(expense_date) as mo, SUM(amount) as total')
+            ->where('expense_date', '>=', Carbon::now()->subMonths(7)->startOfMonth()->toDateString())
+            ->groupByRaw('YEAR(expense_date), MONTH(expense_date)')
+            ->get()
+            ->keyBy(fn($r) => "{$r->yr}-{$r->mo}");
+
+        // Previous month totals for trend calculation
+        $prevMonthStart = Carbon::now()->subMonth()->startOfMonth();
+        $prevMonthEnd   = Carbon::now()->subMonth()->endOfMonth();
+        $prevRevenue    = Payment::where('status', 'completed')
+            ->whereBetween('paid_at', [$prevMonthStart, $prevMonthEnd])
+            ->sum('amount');
+        $prevExpenses   = \App\Models\Expense::whereIn('status', ['approved', 'paid'])
+            ->whereBetween('expense_date', [$prevMonthStart->toDateString(), $prevMonthEnd->toDateString()])
+            ->sum('amount');
+
+        // Current month
+        $currMonthStart = Carbon::now()->startOfMonth();
+        $currRevenue    = Payment::where('status', 'completed')
+            ->where('paid_at', '>=', $currMonthStart)
+            ->sum('amount');
+        $currExpenses   = \App\Models\Expense::whereIn('status', ['approved', 'paid'])
+            ->where('expense_date', '>=', $currMonthStart->toDateString())
+            ->sum('amount');
+
+        // Yesterday vs today check-ins trend
+        $today         = Carbon::today();
+        $yesterday     = Carbon::yesterday();
+        $todayCheckIns = \App\Models\AttendanceRecord::where('status', 'admitted')
+            ->whereDate('check_in_time', $today)->count();
+        $yesterdayCheckIns = \App\Models\AttendanceRecord::where('status', 'admitted')
+            ->whereDate('check_in_time', $yesterday)->count();
+
+        // Members: last 30 days vs prior 30 days for sign-up trend
+        $thirtyDaysAgo  = Carbon::today()->subDays(30);
+        $sixtyDaysAgo   = Carbon::today()->subDays(60);
+        $recentSignups  = \App\Models\User::role('member')->where('created_at', '>=', $thirtyDaysAgo)->count();
+        $priorSignups   = \App\Models\User::role('member')
+            ->whereBetween('created_at', [$sixtyDaysAgo, $thirtyDaysAgo])->count();
+
+        $series = array_map(function ($m) use ($revenueRows, $expenseRows) {
+            $key = "{$m['year']}-{$m['month']}";
+            return [
+                'month' => $m['label'],
+                'rev'   => (float) ($revenueRows[$key]->total ?? 0),
+                'exp'   => (float) ($expenseRows[$key]->total ?? 0),
+            ];
+        }, $months);
+
+        // Safe percentage change helper (avoids divide-by-zero)
+        $pct = fn($curr, $prev) => $prev > 0
+            ? round((($curr - $prev) / $prev) * 100, 1)
+            : ($curr > 0 ? 100.0 : 0.0);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'series'   => $series,
+                'trends'   => [
+                    'revenue_vs_last_month'  => $pct($currRevenue, $prevRevenue),
+                    'expenses_vs_last_month' => $pct($currExpenses, $prevExpenses),
+                    'checkins_vs_yesterday'  => $pct($todayCheckIns, $yesterdayCheckIns),
+                    'signups_vs_prior_30d'   => $pct($recentSignups, $priorSignups),
+                ],
+            ],
+        ]);
+    }
+
+    /**
      * Send or resend payment receipt to member registered email.
      */
     public function sendReceiptEmail(Payment $payment): JsonResponse

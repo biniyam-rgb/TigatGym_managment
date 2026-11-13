@@ -418,6 +418,10 @@ export const apiClient = {
     return this.get('/payments/summary');
   },
 
+  getPaymentMonthlySummary() {
+    return this.get('/payments/monthly-summary');
+  },
+
   initializeChapa(payload) {
     return this.post('/payments/chapa/initialize', payload);
   },

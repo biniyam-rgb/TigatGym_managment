@@ -17771,3 +17771,228 @@ body.theme-dark .reg-tab-btn,
 .reg-receipt-sheet .receipt-border {
   border-color: #e2e8f0 !important;
 }
+
+/* ==========================================================================
+   DASHBOARD NEW FEATURES — Activity Feed, Class Schedule, Trend Badge
+   Added: Occupancy bar, Net Profit card, Expiring, Sign-ups KPI cards
+   ========================================================================== */
+
+/* ── Trend Badge neutral state ── */
+.kpi-trend.trend-neutral {
+  color: #94a3b8;
+}
+
+/* ── KPI second row: 3 columns on large screens, 2 on tablet, 1 on mobile ── */
+@media (max-width: 1080px) {
+  section.clean-kpi-grid[style*="repeat(3, 1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+@media (max-width: 600px) {
+  section.clean-kpi-grid[style*="repeat(3, 1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── Revenue chart + schedule side-by-side: stack on tablet ── */
+@media (max-width: 960px) {
+  div[style*="grid-template-columns: 1fr 340px"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── Activity Feed ── */
+.dash-activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.dash-activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+.dash-activity-item:last-child {
+  border-bottom: none;
+}
+
+body.theme-dark .dash-activity-item,
+[data-theme="dark"] .dash-activity-item {
+  border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.dash-activity-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.dash-activity-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-activity-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.3;
+}
+
+body.theme-dark .dash-activity-title,
+[data-theme="dark"] .dash-activity-title {
+  color: #f1f5f9 !important;
+}
+
+.dash-activity-desc {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 1px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.theme-dark .dash-activity-desc,
+[data-theme="dark"] .dash-activity-desc {
+  color: #94a3b8 !important;
+}
+
+.dash-activity-time {
+  font-size: 11px;
+  color: #94a3b8;
+  white-space: nowrap;
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+/* ── Class Schedule ── */
+.dash-class-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.dash-class-item {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  align-items: flex-start;
+}
+.dash-class-item:last-child {
+  border-bottom: none;
+}
+
+body.theme-dark .dash-class-item,
+[data-theme="dark"] .dash-class-item {
+  border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.dash-class-time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 46px;
+  flex-shrink: 0;
+}
+
+.dash-class-time-start {
+  font-size: 12px;
+  font-weight: 700;
+  color: #f59e0b;
+  line-height: 1.2;
+}
+
+.dash-class-time-end {
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.2;
+}
+
+.dash-class-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-class-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.theme-dark .dash-class-name,
+[data-theme="dark"] .dash-class-name {
+  color: #f1f5f9 !important;
+}
+
+.dash-class-meta {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 1px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-class-sep {
+  color: #cbd5e1;
+}
+
+.dash-class-capacity-bar {
+  height: 4px;
+  background: rgba(0, 0, 0, 0.07);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+body.theme-dark .dash-class-capacity-bar,
+[data-theme="dark"] .dash-class-capacity-bar {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dash-class-capacity-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.dash-class-capacity-label {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 3px;
+}
+
+.dash-class-full-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 4px;
+}
+
+/* ── Light theme overrides for occupancy bar track ── */
+body.theme-light .iron-card-panel div[style*="rgba(0,0,0,0.08)"],
+[data-theme="light"] .iron-card-panel div[style*="rgba(0,0,0,0.08)"] {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}

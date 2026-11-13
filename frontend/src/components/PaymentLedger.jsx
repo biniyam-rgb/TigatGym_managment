@@ -1255,17 +1255,7 @@ export default function PaymentLedger({ initialTab = 'payments', initialOpenReco
                             >
                               Receipt
                             </button>
-                            {isOwnerOrAdmin && p.status === 'completed' && (
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => handleOpenRefund(p)}
-                                title="Issue Audited Refund"
-                                style={{ padding: '4px 8px', fontSize: 12, color: '#ef4444' }}
-                              >
-                                Refund
-                              </button>
-                            )}
+
                           </div>
                         </td>
                       </tr>

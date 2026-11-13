@@ -82,6 +82,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
 
     // Module D: Payments & Financial Ledger
     Route::get('/payments/summary', [PaymentController::class, 'summary']);
+    Route::get('/payments/monthly-summary', [PaymentController::class, 'monthlySummary'])->middleware('role:owner,admin');
     Route::post('/payments/chapa/initialize', [PaymentController::class, 'initializeChapa']);
     Route::match(['get', 'post'], '/payments/chapa/verify/{reference?}', [PaymentController::class, 'verifyChapa']);
     Route::apiResource('payments', PaymentController::class)->except(['update', 'destroy']);
