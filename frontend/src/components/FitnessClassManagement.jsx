@@ -56,7 +56,7 @@ const Icons = {
   ),
 };
 
-export default function FitnessClassManagement() {
+export default function FitnessClassManagement({ initialOpenSchedule = false }) {
   const { user, hasRole } = useAuth();
   const canSchedule = hasRole('owner') || hasRole('admin');
   const canBookForOthers = hasRole('owner') || hasRole('admin') || hasRole('receptionist');
@@ -73,7 +73,14 @@ export default function FitnessClassManagement() {
   const [dateFilter, setDateFilter] = useState('');
 
   // Modals
-  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [isScheduleOpen, setIsScheduleOpen] = useState(initialOpenSchedule);
+  const [prevInitialOpenSchedule, setPrevInitialOpenSchedule] = useState(initialOpenSchedule);
+  if (initialOpenSchedule !== prevInitialOpenSchedule) {
+    setPrevInitialOpenSchedule(initialOpenSchedule);
+    if (initialOpenSchedule) {
+      setIsScheduleOpen(true);
+    }
+  }
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [targetClass, setTargetClass] = useState(null);
   const [selectedMemberId, setSelectedMemberId] = useState('');
