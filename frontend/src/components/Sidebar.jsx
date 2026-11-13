@@ -178,7 +178,7 @@ export default function Sidebar({
   // Specific Receptionist navigation with the 8 requested menu items:
   // 1. Dashboard, 2. Attendance, 3. Members, 4. Memberships, 5. Payments, 6. Classes, 7. Notifications, 8. My Profile
   const receptionNavItems = [
-    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'dashboard', label: 'overview' },
     { id: 'attendance', label: 'Attendance' },
     { id: 'members', label: 'Members' },
     { id: 'memberships', label: 'Memberships' },
