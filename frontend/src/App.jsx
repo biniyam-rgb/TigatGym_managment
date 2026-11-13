@@ -185,7 +185,11 @@ function GymCoreApp() {
             )
           )}
           {activeView === 'trainers' && <TrainerManagement />}
-          {activeView === 'classes' && <FitnessClassManagement />}
+          {activeView === 'classes' && (
+            <FitnessClassManagement
+              initialOpenSchedule={Boolean(navParams?.openSchedule)}
+            />
+          )}
           {activeView === 'notifications' && (
             <ReceptionNotificationsView onNavigate={handleNavigate} />
           )}
