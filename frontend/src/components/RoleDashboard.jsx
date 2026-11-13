@@ -18,15 +18,6 @@ function DeskIcon({ size = 18 }) {
   );
 }
 
-function BellIcon({ size = 18 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-    </svg>
-  );
-}
-
 function AlertTriangleIcon({ size = 18 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -101,6 +92,28 @@ function CheckCircleIcon({ size = 16 }) {
   );
 }
 
+function CalendarIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+}
+
+function UserPlusIcon({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="8.5" cy="7" r="4" />
+      <line x1="20" y1="8" x2="20" y2="14" />
+      <line x1="23" y1="11" x2="17" y2="11" />
+    </svg>
+  );
+}
+
 function ArrowUpRightIcon({ size = 16 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -137,18 +150,19 @@ function safeArray(val) {
 
 export default function RoleDashboard({ onNavigate }) {
   const { hasRole, primaryRole } = useAuth();
-  const [activeTab, setActiveTab] = useState('finance'); // 'finance' | 'reception' | 'audit'
+  const [activeTab, setActiveTab] = useState('finance'); // 'finance' | 'audit'
 
   const isOwner = hasRole('owner');
   const isAdmin = hasRole('admin');
 
   // Operational Metrics
   const [metrics, setMetrics] = useState({
-    totalMembers: 89,
-    activeSubscriptions: 89,
+    totalMembers: 5,
+    activeSubscriptions: 5,
     totalTrainers: 12,
     todayCheckIns: 0,
-    monthRevenue: 45300,
+    upcomingClasses: 2,
+    monthRevenue: 22500,
     monthExpenses: 16200,
     isLoading: true,
   });
@@ -366,11 +380,12 @@ export default function RoleDashboard({ onNavigate }) {
 
         setMetrics((prev) => ({
           ...prev,
-          totalMembers: mem?.total || prev.totalMembers,
+          totalMembers: rec?.stats?.active_members ?? (mem?.total || prev.totalMembers),
           activeSubscriptions: sub?.total || prev.activeSubscriptions,
           totalTrainers: Array.isArray(trainers) ? trainers.length : prev.totalTrainers,
           todayCheckIns: rec?.stats?.today_check_ins ?? prev.todayCheckIns,
-          monthRevenue: pay?.month_revenue || pay?.total_revenue || prev.monthRevenue,
+          upcomingClasses: rec?.stats?.upcoming_classes ?? (Array.isArray(rec?.today_classes) ? rec.today_classes.length : prev.upcomingClasses),
+          monthRevenue: rec?.stats?.revenue_this_month ?? (pay?.month_revenue || pay?.total_revenue || prev.monthRevenue),
           monthExpenses: pay?.month_expenses || prev.monthExpenses,
           isLoading: false,
         }));
@@ -460,8 +475,8 @@ export default function RoleDashboard({ onNavigate }) {
 
   return (
     <div className="iron-dashboard-wrapper">
-      {/* Role-Based Secondary Navigation Tabs */}
-      {(isOwner || isAdmin) && (
+      {/* Role-Based Secondary Navigation Tabs (Audit Trail for Owner) */}
+      {isOwner && (
         <div className="iron-dashboard-subtabs">
           <button
             type="button"
@@ -474,23 +489,12 @@ export default function RoleDashboard({ onNavigate }) {
 
           <button
             type="button"
-            className={`subtab-pill ${activeTab === 'reception' ? 'active' : ''}`}
-            onClick={() => setActiveTab('reception')}
+            className={`subtab-pill ${activeTab === 'audit' ? 'active' : ''}`}
+            onClick={() => setActiveTab('audit')}
           >
-            <DeskIcon size={16} />
-            <span>Front Desk Reception</span>
+            <ShieldIcon size={16} />
+            <span>Audit Trail</span>
           </button>
-
-          {isOwner && (
-            <button
-              type="button"
-              className={`subtab-pill ${activeTab === 'audit' ? 'active' : ''}`}
-              onClick={() => setActiveTab('audit')}
-            >
-              <ShieldIcon size={16} />
-              <span>Audit Trail</span>
-            </button>
-          )}
         </div>
       )}
 
@@ -521,31 +525,29 @@ export default function RoleDashboard({ onNavigate }) {
                 </span>
               </div>
               <p className="reception-welcome-desc" style={{ marginTop: 4 }}>
-                Real-time front-desk reception activities, membership alerts, and operational metrics.
+                Real-time operational metrics, turnstile attendance, and gym performance.
               </p>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="clean-dash-actions">
               <button
                 type="button"
-                onClick={() => onNavigate && onNavigate('notifications')}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '8px 16px',
-                  borderRadius: 9,
-                  background: '#ea580c',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(234, 88, 12, 0.25)',
-                }}
+                className="btn-clean-schedule"
+                onClick={() => onNavigate && onNavigate('classes', { openSchedule: true })}
+                title="Schedule a group fitness class"
               >
-                <BellIcon size={16} />
-                <span>Notification Center</span>
+                <CalendarIcon size={15} />
+                <span>Schedule Class</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn-clean-add-member"
+                onClick={() => onNavigate && onNavigate('members', { openRegister: true })}
+                title="Register new gym member"
+              >
+                <UserPlusIcon size={15} />
+                <span>+ Add New Member</span>
               </button>
             </div>
           </div>
@@ -667,124 +669,58 @@ export default function RoleDashboard({ onNavigate }) {
             );
           })()}
 
-          {/* 4 Stat KPI Cards */}
-          <div className="iron-stat-cards-grid">
-            {/* Card 1: Revenue */}
-            <div
-              className="iron-stat-card card-revenue clickable-card"
-              onClick={() => onNavigate && onNavigate('payments')}
-            >
-              <div className="stat-card-top">
-                <span className="stat-card-icon icon-orange" style={{ padding: 6, borderRadius: 8 }}>
-                  <CreditCardIcon size={20} />
-                </span>
-                <span className="stat-card-label">Revenue</span>
+          {/* Key Operational KPI Cards (Consistent clean style across all roles, not buttons) */}
+          <section className="clean-kpi-grid" style={{ marginBottom: 20 }}>
+            {/* Card 1: Total Active Members */}
+            <div className="clean-kpi-card">
+              <div className="clean-kpi-top">
+                <span className="kpi-label">Total Active Members</span>
+                <div className="clean-kpi-icon" title="Total Active Members">
+                  <UsersIcon size={16} />
+                </div>
               </div>
-              <div className="stat-card-main-val font-mono">
-                {metrics.monthRevenue > 0
-                  ? `${(metrics.monthRevenue / 1000).toFixed(1)}k ETB`
-                  : '45.3k ETB'}
-              </div>
-              <div className="stat-card-bottom">
-                <span className="stat-card-period">Month / Current</span>
-                <span className="stat-pill-badge badge-green">
-                  ↗ +2.1%
-                </span>
-              </div>
+              <div className="kpi-value">{metrics.totalMembers ?? 5}</div>
+              <span className="kpi-trend trend-positive">+5.2% this month</span>
             </div>
 
-            {/* Card 2: Operating Expenses (Owner) or Today's Check-ins (Admin) */}
-            {isOwner ? (
-              <div
-                className="iron-stat-card card-expenses clickable-card"
-                onClick={() => onNavigate && onNavigate('expenses')}
-              >
-                <div className="stat-card-top">
-                  <span className="stat-card-icon icon-purple" style={{ padding: 6, borderRadius: 8 }}>
-                    <CreditCardIcon size={20} />
-                  </span>
-                  <span className="stat-card-label">Expenses</span>
-                </div>
-                <div className="stat-card-main-val font-mono">
-                  {metrics.monthExpenses > 0
-                    ? `${(metrics.monthExpenses / 1000).toFixed(1)}k ETB`
-                    : '16.2k ETB'}
-                </div>
-                <div className="stat-card-bottom">
-                  <span className="stat-card-period">Month / Current</span>
-                  <span className="stat-pill-badge badge-neutral" style={{ color: '#ea580c' }}>
-                    Operational
-                  </span>
+            {/* Card 2: Checked-In Today */}
+            <div className="clean-kpi-card">
+              <div className="clean-kpi-top">
+                <span className="kpi-label">Checked-In Today</span>
+                <div className="clean-kpi-icon" title="Checked-In Today">
+                  <CheckCircleIcon size={16} />
                 </div>
               </div>
-            ) : (
-              <div
-                className="iron-stat-card clickable-card"
-                style={{ borderTop: '3px solid #3b82f6' }}
-                onClick={() => onNavigate && onNavigate('notifications')}
-              >
-                <div className="stat-card-top">
-                  <span className="stat-card-icon" style={{ padding: 6, borderRadius: 8, background: '#eff6ff', color: '#3b82f6' }}>
-                    <ActivityIcon size={20} />
-                  </span>
-                  <span className="stat-card-label">Today's Check-ins</span>
-                </div>
-                <div className="stat-card-main-val font-mono">
-                  {metrics.todayCheckIns ?? 0}
-                </div>
-                <div className="stat-card-bottom">
-                  <span className="stat-card-period">Front Desk Verified</span>
-                  <span className="stat-pill-badge badge-green">
-                    Live Feed
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Card 3: Members */}
-            <div
-              className="iron-stat-card card-members clickable-card"
-              onClick={() => onNavigate && onNavigate('members')}
-            >
-              <div className="stat-card-top">
-                <span className="stat-card-icon icon-blue" style={{ padding: 6, borderRadius: 8 }}>
-                  <UsersIcon size={20} />
-                </span>
-                <span className="stat-card-label">Members</span>
-              </div>
-              <div className="stat-card-main-val font-mono">
-                {metrics.totalMembers}
-              </div>
-              <div className="stat-card-bottom">
-                <span className="stat-card-period">Active Members</span>
-                <span className="stat-pill-badge badge-green">
-                  ↗ +1.8%
-                </span>
-              </div>
+              <div className="kpi-value">{metrics.todayCheckIns ?? 0}</div>
+              <span className="kpi-trend trend-positive">+10% vs yesterday</span>
             </div>
 
-            {/* Card 4: Trainers */}
-            <div
-              className="iron-stat-card card-trainers clickable-card"
-              onClick={() => onNavigate && onNavigate('trainers')}
-            >
-              <div className="stat-card-top">
-                <span className="stat-card-icon icon-green" style={{ padding: 6, borderRadius: 8 }}>
-                  <DeskIcon size={20} />
-                </span>
-                <span className="stat-card-label">Trainers</span>
+            {/* Card 3: Upcoming Classes */}
+            <div className="clean-kpi-card">
+              <div className="clean-kpi-top">
+                <span className="kpi-label">Upcoming Classes</span>
+                <div className="clean-kpi-icon" title="Upcoming Classes">
+                  <CalendarIcon size={16} />
+                </div>
               </div>
-              <div className="stat-card-main-val font-mono">
-                {metrics.totalTrainers}
-              </div>
-              <div className="stat-card-bottom">
-                <span className="stat-card-period">Active Coaches</span>
-                <span className="stat-pill-badge badge-green">
-                  ↗ +3.0%
-                </span>
-              </div>
+              <div className="kpi-value">{metrics.upcomingClasses ?? 2}</div>
+              <span className="kpi-trend trend-negative">-2 from yesterday</span>
             </div>
-          </div>
+
+            {/* Card 4: Revenue This Month */}
+            <div className="clean-kpi-card">
+              <div className="clean-kpi-top">
+                <span className="kpi-label">Revenue This Month</span>
+                <div className="clean-kpi-icon" title="Revenue This Month">
+                  <CreditCardIcon size={16} />
+                </div>
+              </div>
+              <div className="kpi-value">
+                {Number(metrics.monthRevenue || 22500).toLocaleString()} ETB
+              </div>
+              <span className="kpi-trend trend-positive">+8.1% vs last month</span>
+            </div>
+          </section>
 
           {/* Revenue Analytics Chart */}
           <div className="iron-card-panel iron-revenue-panel" style={{ marginBottom: 24 }}>
@@ -959,14 +895,7 @@ export default function RoleDashboard({ onNavigate }) {
       )}
 
       {/* =========================================================================
-          TAB 2: FRONT DESK RECEPTION OPERATIONS (ONLY WHEN TAB IS EXPLICITLY CLICKED)
-          ========================================================================= */}
-      {activeTab === 'reception' && (isOwner || isAdmin) && (
-        <ReceptionDashboard onNavigate={onNavigate} />
-      )}
-
-      {/* =========================================================================
-          TAB 3: SYSTEM AUDIT TRAIL (OWNER ONLY)
+          TAB 2: SYSTEM AUDIT TRAIL (OWNER ONLY)
           ========================================================================= */}
       {activeTab === 'audit' && isOwner && (
         <div className="subtab-pane">
