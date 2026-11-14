@@ -227,16 +227,14 @@ export default function ReceptionDashboard({ onNavigate }) {
       }))
     : DEFAULT_UPCOMING_CLASSES;
 
-  // Recent members list mapping with live data fallback
-  const activeMembers = (recentCheckInsList.length >= 3)
-    ? recentCheckInsList.slice(0, 4).map((m, idx) => ({
-        id: m.id,
-        name: m.member_name,
-        checked_in: m.check_in_time ? `Checked in: ${m.check_in_time}` : DEFAULT_ACTIVE_MEMBERS[idx % 4].checked_in,
-        avatar: DEFAULT_ACTIVE_MEMBERS[idx % 4].avatar,
-        color: DEFAULT_ACTIVE_MEMBERS[idx % 4].color,
-      }))
-    : DEFAULT_ACTIVE_MEMBERS;
+  // Recent members list mapping with live data
+  const activeMembers = recentCheckInsList.slice(0, 5).map((m, idx) => ({
+    id: m.id,
+    name: m.member_name,
+    checked_in: m.check_in_time ? `Checked in: ${m.check_in_time}` : 'Checked in today',
+    avatar: m.avatar || DEFAULT_ACTIVE_MEMBERS[idx % DEFAULT_ACTIVE_MEMBERS.length]?.avatar,
+    color: DEFAULT_ACTIVE_MEMBERS[idx % DEFAULT_ACTIVE_MEMBERS.length]?.color || '#ff7a00',
+  }));
 
   // Seen Urgent Alert Tracking - Once seen on the overview dashboard, they do not show again
   const [seenUrgentIds, setSeenUrgentIds] = useState(() => {
@@ -748,31 +746,38 @@ export default function ReceptionDashboard({ onNavigate }) {
           </div>
 
           <div className="clean-list-items-wrap">
-            {activeMembers.map((member) => (
-              <div key={member.id} className="clean-member-row">
-                <div className="member-row-profile">
-                  <img
-                    src={member.avatar}
-                    alt={member.name}
-                    className="member-avatar-img"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      if (e.target.nextSibling) {
-                        e.target.nextSibling.style.display = 'flex';
-                      }
-                    }}
-                  />
-                  <div
-                    className="member-avatar-fallback"
-                    style={{ backgroundColor: member.color, display: 'none' }}
-                  >
-                    {member.name.charAt(0)}
+            {activeMembers.length > 0 ? (
+              activeMembers.map((member) => (
+                <div key={member.id} className="clean-member-row">
+                  <div className="member-row-profile">
+                    <img
+                      src={member.avatar}
+                      alt={member.name}
+                      className="member-avatar-img"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        if (e.target.nextSibling) {
+                          e.target.nextSibling.style.display = 'flex';
+                        }
+                      }}
+                    />
+                    <div
+                      className="member-avatar-fallback"
+                      style={{ backgroundColor: member.color, display: 'none' }}
+                    >
+                      {member.name.charAt(0)}
+                    </div>
+                    <span className="member-profile-name">{member.name}</span>
                   </div>
-                  <span className="member-profile-name">{member.name}</span>
+                  <span className="member-checkin-time">{member.checked_in}</span>
                 </div>
-                <span className="member-checkin-time">{member.checked_in}</span>
+              ))
+            ) : (
+              <div style={{ textAlign: 'center', padding: '24px 12px', color: '#94a3b8', fontSize: 13 }}>
+                <p style={{ margin: '0 0 4px', fontWeight: 600 }}>No check-ins recorded yet today</p>
+                <span style={{ fontSize: 11.5 }}>Active members will appear here as they scan in</span>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </section>
