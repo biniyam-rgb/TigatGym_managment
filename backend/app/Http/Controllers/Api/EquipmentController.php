@@ -133,8 +133,8 @@ class EquipmentController extends Controller
      */
     public function destroy(Request $request, Equipment $equipment): JsonResponse
     {
-        if (! $request->user()->hasRole('owner')) {
-            return response()->json(['message' => 'Only the gym owner can remove equipment assets.'], Response::HTTP_FORBIDDEN);
+        if (! $request->user()->hasAnyRole('owner', 'admin')) {
+            return response()->json(['message' => 'Unauthorized. Only management can remove equipment assets.'], Response::HTTP_FORBIDDEN);
         }
 
         $code = $equipment->equipment_code;
