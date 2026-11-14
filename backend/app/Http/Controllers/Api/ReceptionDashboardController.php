@@ -52,6 +52,7 @@ class ReceptionDashboardController extends Controller
 
             // Card 1: Active Members (Total members with currently active subscriptions)
             $activeMembersCount = Subscription::where('status', 'active')
+                ->whereHas('member')
                 ->where('end_date', '>=', $today->toDateString())
                 ->distinct('member_id')
                 ->count('member_id');
@@ -87,6 +88,7 @@ class ReceptionDashboardController extends Controller
 
             // Card 4: Expiring Memberships (Expiring within the next 7 days)
             $expiringMembershipsCount = Subscription::where('status', 'active')
+                ->whereHas('member')
                 ->whereBetween('end_date', [$today->toDateString(), $nextSevenDays->toDateString()])
                 ->count();
 
@@ -117,6 +119,7 @@ class ReceptionDashboardController extends Controller
                 'subscription:id,membership_plan_id,status,end_date',
                 'subscription.plan:id,name',
             ])
+                ->whereHas('member')
                 ->latest('check_in_time')
                 ->limit(10)
                 ->get()
@@ -162,6 +165,7 @@ class ReceptionDashboardController extends Controller
                 'member.memberProfile:id,user_id,member_code',
                 'plan:id,name',
             ])
+                ->whereHas('member')
                 ->where('status', 'active')
                 ->whereBetween('end_date', [$today->toDateString(), $nextSevenDays->toDateString()])
                 ->orderBy('end_date')
@@ -190,6 +194,7 @@ class ReceptionDashboardController extends Controller
                 'member.memberProfile:id,user_id,member_code',
                 'plan:id,name',
             ])
+                ->whereHas('member')
                 ->where(function ($query) use ($today) {
                     $query->where('status', 'expired')
                         ->orWhere(function ($q) use ($today) {
@@ -440,6 +445,29 @@ class ReceptionDashboardController extends Controller
                 ]);
             }
 
+            // F. Deleted members notice today
+            $deletedTodayLogs = AuditLog::with('user:id,name')
+                ->where('action', 'member.deleted')
+                ->whereBetween('created_at', [$startOfDay, $endOfDay])
+                ->latest('id')
+                ->limit(5)
+                ->get();
+
+            if ($deletedTodayLogs->isNotEmpty()) {
+                $deletedCount = $deletedTodayLogs->count();
+                $lastLog = $deletedTodayLogs->first();
+                $notifications->push([
+                    'id' => 'notif_member_deleted_'.$lastLog->id,
+                    'type' => 'warning',
+                    'title' => 'Member Record Removed',
+                    'message' => "{$deletedCount} member record(s) removed today by management ({$lastLog->notes}).",
+                    'action_label' => 'View Directory',
+                    'action_target' => 'members',
+                    'created_at' => $lastLog->created_at?->toIso8601String() ?? $now->toIso8601String(),
+                    'read' => false,
+                ]);
+            }
+
             return [
                 'stats' => [
                     'active_members' => $activeMembersCount,
@@ -474,7 +502,48 @@ class ReceptionDashboardController extends Controller
         // -------------------------------------------------------------------------
         $isOwner = $user->hasRole('owner');
         $isAdmin = $user->hasRole('admin');
+        $isReceptionist = $user->hasRole('receptionist');
         $activityNotifications = collect();
+
+        if ($isReceptionist) {
+            // Admin management activities relevant to front desk (member created, deleted, suspended, etc.)
+            $adminLogsForReception = AuditLog::with('user:id,name')
+                ->whereHas('user', function ($q) {
+                    $q->role('admin')->orWhere(function ($oq) {
+                        $oq->role('owner');
+                    });
+                })
+                ->whereIn('action', [
+                    'member.created',
+                    'member.updated',
+                    'member.deleted',
+                    'member.suspended',
+                    'member.unsuspended',
+                    'subscription.created',
+                    'subscription.renewed',
+                    'subscription.frozen',
+                    'subscription.unfrozen',
+                ])
+                ->latest('id')
+                ->limit(25)
+                ->get();
+
+            foreach ($adminLogsForReception as $log) {
+                $activityNotifications->push([
+                    'id' => 'act_mgr_'.$log->id,
+                    'type' => 'admin_activity',
+                    'badge' => 'Management Update',
+                    'title' => self::formatActivityTitle($log->action, $log->user?->name, 'admin'),
+                    'message' => $log->notes ?: "Performed {$log->action}",
+                    'actor_name' => $log->user?->name ?? 'Management',
+                    'actor_role' => 'Admin',
+                    'action' => $log->action,
+                    'time' => $log->created_at?->diffForHumans() ?? 'Recent',
+                    'timestamp' => $log->created_at?->toIso8601String(),
+                    'view' => self::resolveActivityView($log->action),
+                ]);
+            }
+        }
 
         if ($isAdmin || $isOwner) {
             // Receptionist activities for Admin and Owner
@@ -555,7 +624,7 @@ class ReceptionDashboardController extends Controller
             'attendance.auto_checkout' => "Front desk auto-checked out overstay member",
             'member.created' => "{$actor} registered a new gym member",
             'member.updated' => "{$actor} modified member profile",
-            'member.deleted' => "{$actor} soft-deleted member record",
+            'member.deleted' => "{$actor} deleted member record",
             'member.suspended' => "{$actor} suspended member access",
             'member.unsuspended' => "{$actor} restored member access",
             'payment.recorded', 'payment.created' => "{$actor} recorded desk payment",
