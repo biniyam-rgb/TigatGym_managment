@@ -3,7 +3,6 @@ import { useAuth } from '../context/useAuth';
 import apiClient from '../services/api';
 import AuditLogViewer from './AuditLogViewer';
 import ReceptionDashboard from './ReceptionDashboard';
-import PaymentLedger from './PaymentLedger';
 
 // ─── SVG Icon Library ────────────────────────────────────────────────────────
 
@@ -31,15 +30,6 @@ function ChartIcon({ size = 18 }) {
       <line x1="18" y1="20" x2="18" y2="10" />
       <line x1="12" y1="20" x2="12" y2="4" />
       <line x1="6" y1="20" x2="6" y2="14" />
-    </svg>
-  );
-}
-
-function PaymentsTabIcon({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="5" width="20" height="14" rx="2" />
-      <line x1="2" y1="10" x2="22" y2="10" />
     </svg>
   );
 }
@@ -627,29 +617,14 @@ export default function RoleDashboard({ onNavigate }) {
   return (
     <div className="iron-dashboard-wrapper">
 
-      {/* ── Tabs (Owner only) ── */}
+      {/* ── Tabs (Owner only: Revenue & Analytics / Audit Trail) ── */}
       {isOwner && (
         <div className="iron-dashboard-subtabs">
           <button type="button" className={`subtab-pill ${activeTab === 'finance' ? 'active' : ''}`} onClick={() => setActiveTab('finance')}>
             <ChartIcon size={16} /><span>Revenue & Analytics</span>
           </button>
-          <button type="button" className={`subtab-pill ${activeTab === 'payments' ? 'active' : ''}`} onClick={() => setActiveTab('payments')}>
-            <PaymentsTabIcon size={16} /><span>Payments</span>
-          </button>
           <button type="button" className={`subtab-pill ${activeTab === 'audit' ? 'active' : ''}`} onClick={() => setActiveTab('audit')}>
             <ShieldIcon size={16} /><span>Audit Trail</span>
-          </button>
-        </div>
-      )}
-
-      {/* Admin-only tab bar (no audit trail) */}
-      {!isOwner && isAdmin && (
-        <div className="iron-dashboard-subtabs">
-          <button type="button" className={`subtab-pill ${activeTab === 'finance' ? 'active' : ''}`} onClick={() => setActiveTab('finance')}>
-            <ChartIcon size={16} /><span>Revenue & Analytics</span>
-          </button>
-          <button type="button" className={`subtab-pill ${activeTab === 'payments' ? 'active' : ''}`} onClick={() => setActiveTab('payments')}>
-            <PaymentsTabIcon size={16} /><span>Payments</span>
           </button>
         </div>
       )}
@@ -1085,13 +1060,6 @@ export default function RoleDashboard({ onNavigate }) {
             </div>
           </div>
         </>
-      )}
-
-      {/* ── Payments Tab ── */}
-      {activeTab === 'payments' && (isOwner || isAdmin) && (
-        <div className="subtab-pane">
-          <PaymentLedger initialTab="payments" />
-        </div>
       )}
 
       {/* ── Audit Trail Tab ── */}
