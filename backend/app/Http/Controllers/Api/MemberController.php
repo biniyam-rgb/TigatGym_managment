@@ -428,16 +428,25 @@ class MemberController extends Controller
             $user = $member->user;
             if ($user) {
                 $user->tokens()->delete();
+                $user->subscriptions()->update(['status' => 'cancelled']);
+                $user->attendanceRecords()->delete();
+                \App\Models\ClassBooking::where('member_id', $user->id)->update(['status' => 'cancelled']);
                 $user->delete();
             }
             $member->delete();
+
+            // Clear Reception and Admin Dashboard Caches so deleted member is reflected immediately
+            Cache::forget('reception_dashboard_stats_'.today()->toDateString());
+            Cache::forget('reception_dashboard_stats');
+            Cache::forget('admin_dashboard_stats');
+            Cache::forget('admin_dashboard_stats_'.today()->toDateString());
 
             AuditLogger::log(
                 action: 'member.deleted',
                 auditable: $member,
                 oldValues: ['member_code' => $member->member_code],
                 newValues: null,
-                notes: "Member {$member->member_code} soft-deleted"
+                notes: "Member {$member->member_code} deleted"
             );
         });
 
