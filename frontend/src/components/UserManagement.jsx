@@ -574,7 +574,7 @@ export default function UserManagement() {
                   type="text"
                   required
                   className="form-control"
-                  placeholder="e.g. Almaz Bekele"
+                  placeholder="Enter staff full name"
                   value={createForm.name}
                   onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
                 />
@@ -586,7 +586,7 @@ export default function UserManagement() {
                   type="email"
                   required
                   className="form-control"
-                  placeholder="e.g. almaz@tigatgym.com"
+                  placeholder="Enter staff email address"
                   value={createForm.email}
                   onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
                 />
@@ -597,7 +597,7 @@ export default function UserManagement() {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="+2519..."
+                  placeholder="Enter phone number (optional)"
                   value={createForm.phone}
                   onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
                 />
