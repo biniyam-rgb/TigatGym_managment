@@ -178,34 +178,20 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
   // Notifications
   const [notification, setNotification] = useState(null);
 
-  // Modals state
-  const [isRegisterOpen, setIsRegisterOpen] = useState(initialOpenRegister);
-  const [prevInitialOpen, setPrevInitialOpen] = useState(initialOpenRegister);
-  if (initialOpenRegister !== prevInitialOpen) {
-    setPrevInitialOpen(initialOpenRegister);
-    if (initialOpenRegister) {
-      setIsRegisterOpen(true);
-    }
-  }
-  const [selectedMember, setSelectedMember] = useState(null);
-  const [editingMember, setEditingMember] = useState(null);
-  const [registeredMemberPass, setRegisteredMemberPass] = useState(null);
-  const [passModalTab, setPassModalTab] = useState('receipt'); // 'receipt' | 'pass' | 'both'
-  const [membershipPlans, setMembershipPlans] = useState([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formErrors, setFormErrors] = useState({});
-  const [registerError, setRegisterError] = useState('');
+  // Auto-dismiss floating toast notifications after 4.5 seconds
+  useEffect(() => {
+    if (!notification) return;
+    const timer = setTimeout(() => {
+      setNotification(null);
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [notification]);
 
-  // Date boundaries for calendar choosers
-  const maxDobString = new Date().toISOString().split('T')[0];
-  const minStartDate = new Date();
-  minStartDate.setDate(minStartDate.getDate() - 30);
-  const minStartDateString = minStartDate.toISOString().split('T')[0];
-  const maxStartDate = new Date();
-  maxStartDate.setDate(maxStartDate.getDate() + 90);
-  const maxStartDateString = maxStartDate.toISOString().split('T')[0];
+  // Delete Confirmation Modal State
+  const [deleteConfirmMember, setDeleteConfirmMember] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Form state
+  // Form state default template
   const initialFormData = {
     name: '',
     phone: '',
@@ -225,7 +211,61 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
     payment_amount: '',
     start_date: new Date().toISOString().split('T')[0],
   };
+
+  // Modals state
+  const [isRegisterOpen, setIsRegisterOpen] = useState(initialOpenRegister);
+  const [prevInitialOpen, setPrevInitialOpen] = useState(initialOpenRegister);
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [editingMember, setEditingMember] = useState(null);
+  const [registeredMemberPass, setRegisteredMemberPass] = useState(null);
+  const [passModalTab, setPassModalTab] = useState('receipt'); // 'receipt' | 'pass' | 'both'
+  const [membershipPlans, setMembershipPlans] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+  const [registerError, setRegisterError] = useState('');
   const [formData, setFormData] = useState(initialFormData);
+
+  if (initialOpenRegister !== prevInitialOpen) {
+    setPrevInitialOpen(initialOpenRegister);
+    if (initialOpenRegister) {
+      setFormData(initialFormData);
+      setFormErrors({});
+      setRegisterError('');
+      setIsRegisterOpen(true);
+    }
+  }
+
+  // Date boundaries for calendar choosers
+  const maxDobString = new Date().toISOString().split('T')[0];
+  const minStartDate = new Date();
+  minStartDate.setDate(minStartDate.getDate() - 30);
+  const minStartDateString = minStartDate.toISOString().split('T')[0];
+  const maxStartDate = new Date();
+  maxStartDate.setDate(maxStartDate.getDate() + 90);
+  const maxStartDateString = maxStartDate.toISOString().split('T')[0];
+
+  // Helper functions for opening and closing registration modal with clean blank state
+  const handleOpenRegisterModal = () => {
+    setFormData(initialFormData);
+    setFormErrors({});
+    setRegisterError('');
+    setChapaStatus('idle');
+    setChapaTxRef('');
+    setChapaCheckoutUrl('');
+    setChapaPayerPhone('');
+    setIsRegisterOpen(true);
+  };
+
+  const handleCloseRegisterModal = () => {
+    setFormData(initialFormData);
+    setFormErrors({});
+    setRegisterError('');
+    setChapaStatus('idle');
+    setChapaTxRef('');
+    setChapaCheckoutUrl('');
+    setChapaPayerPhone('');
+    setIsRegisterOpen(false);
+  };
 
   // Chapa Direct Mobile Money State (Automated Push / PIN Detection Flow)
   const [chapaProvider, setChapaProvider] = useState('telebirr');
@@ -884,16 +924,23 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
     }
   };
 
-  const handleDeleteMember = async (m) => {
-    if (!window.confirm(`Are you sure you want to remove member "${m.name}" (${m.member_code})?`)) {
-      return;
-    }
+  const handlePromptDeleteMember = (m) => {
+    setDeleteConfirmMember(m);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmMember) return;
+    setIsDeleting(true);
     try {
-      const res = await apiClient.deleteMember(m.id);
-      setNotification({ type: 'success', message: res.message || 'Member removed.' });
+      const res = await apiClient.deleteMember(deleteConfirmMember.id);
+      setNotification({ type: 'success', message: res.message || `Member "${deleteConfirmMember.name}" removed successfully.` });
+      setDeleteConfirmMember(null);
       fetchMembers();
+      window.dispatchEvent(new CustomEvent('gymcore:refresh'));
     } catch (err) {
       setNotification({ type: 'danger', message: err.message || 'Failed to delete member.' });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -1306,7 +1353,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
             <button
               type="button"
               className="btn-clean-add-member"
-              onClick={() => setIsRegisterOpen(true)}
+              onClick={handleOpenRegisterModal}
               title="Register a new member at reception desk"
             >
               <Icons.UserPlus size={15} />
@@ -1367,12 +1414,24 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
         </div>
       </div>
 
-      {/* Notifications */}
+      {/* Notifications: Modern Floating Toast */}
       {notification && (
-        <div className={`alert alert-${notification.type}`} role="alert" style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-          {notification.type === 'danger' ? <Icons.AlertTriangle size={16} /> : <Icons.CheckCircle size={16} />}
-          <span>{notification.message}</span>
-          <button type="button" className="btn-dismiss" onClick={() => setNotification(null)}>×</button>
+        <div className={`gymflow-floating-toast toast-${notification.type}`} role="alert">
+          {notification.type === 'danger' ? (
+            <Icons.AlertTriangle size={18} style={{ color: '#ef4444', flexShrink: 0 }} />
+          ) : (
+            <Icons.CheckCircle size={18} style={{ color: '#10b981', flexShrink: 0 }} />
+          )}
+          <span style={{ flex: 1, lineHeight: 1.35 }}>{notification.message}</span>
+          <button
+            type="button"
+            className="btn-dismiss"
+            onClick={() => setNotification(null)}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '0 2px', opacity: 0.7 }}
+            title="Dismiss notification"
+          >
+            ×
+          </button>
         </div>
       )}
 
@@ -1878,7 +1937,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                                       className="dropdown-item dropdown-item-danger"
                                       onClick={() => {
                                         setOpenMenuMemberId(null);
-                                        handleDeleteMember(m);
+                                        handlePromptDeleteMember(m);
                                       }}
                                     >
                                       <Icons.Trash size={14} />
@@ -1965,8 +2024,9 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                     <button
                       type="button"
                       className="btn-action-icon btn-danger-icon"
-                      onClick={() => handleDeleteMember(m)}
+                      onClick={() => handlePromptDeleteMember(m)}
                       title="Delete member record"
+                      aria-label="Delete member record"
                     >
                       <Icons.Trash size={14} />
                     </button>
@@ -2015,7 +2075,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                   <span style={{ fontSize: 10.5, color: '#64748b' }}>Front-desk digital registration & instant pass issuance</span>
                 </div>
               </div>
-              <button type="button" className="btn-close" onClick={() => setIsRegisterOpen(false)}>×</button>
+              <button type="button" className="btn-close" onClick={handleCloseRegisterModal}>×</button>
             </div>
 
             <form onSubmit={handleRegisterSubmit} noValidate style={{ margin: 0 }}>
@@ -2063,7 +2123,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                         type="text"
                         required
                         className={`reg-control ${formErrors.name ? 'input-error' : ''}`}
-                        placeholder="e.g. Abebe Bikila"
+                        placeholder="Enter full name"
                         value={formData.name}
                         onChange={(e) => handleFieldChange('name', e.target.value)}
                         onBlur={() => handleFieldBlur('name')}
@@ -2077,7 +2137,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                         type="text"
                         required
                         className={`reg-control ${formErrors.phone ? 'input-error' : ''}`}
-                        placeholder="09... or +2519..."
+                        placeholder="Enter phone number (09... or +251...)"
                         value={formData.phone}
                         onChange={(e) => handleFieldChange('phone', e.target.value)}
                         onBlur={() => handleFieldBlur('phone')}
@@ -2093,7 +2153,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                       <input
                         type="email"
                         className={`reg-control ${formErrors.email ? 'input-error' : ''}`}
-                        placeholder="member@email.com"
+                        placeholder="Enter email address (optional)"
                         value={formData.email}
                         onChange={(e) => handleFieldChange('email', e.target.value)}
                         onBlur={() => handleFieldBlur('email')}
@@ -2146,7 +2206,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                       <input
                         type="text"
                         className="reg-control"
-                        placeholder="e.g. Bole, Addis Ababa"
+                        placeholder="Enter residential address"
                         value={formData.address}
                         onChange={(e) => handleFieldChange('address', e.target.value)}
                       />
@@ -2163,7 +2223,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                       <input
                         type="text"
                         className="reg-control"
-                        placeholder="e.g. Almaz Bekele"
+                        placeholder="Enter emergency contact name"
                         value={formData.emergency_contact_name}
                         onChange={(e) => handleFieldChange('emergency_contact_name', e.target.value)}
                       />
@@ -2173,7 +2233,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                       <input
                         type="text"
                         className={`reg-control ${formErrors.emergency_contact_phone ? 'input-error' : ''}`}
-                        placeholder="09... or +251..."
+                        placeholder="Enter contact phone number"
                         value={formData.emergency_contact_phone}
                         onChange={(e) => handleFieldChange('emergency_contact_phone', e.target.value)}
                         onBlur={() => handleFieldBlur('emergency_contact_phone')}
@@ -2185,7 +2245,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                       <input
                         type="text"
                         className="reg-control"
-                        placeholder="e.g. Spouse, Parent"
+                        placeholder="Relationship (e.g. Spouse, Parent)"
                         value={formData.emergency_contact_relationship}
                         onChange={(e) => handleFieldChange('emergency_contact_relationship', e.target.value)}
                       />
@@ -2202,7 +2262,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                       <input
                         type="text"
                         className="reg-control"
-                        placeholder="e.g. Fat loss, muscle hypertrophy"
+                        placeholder="Fitness goals (e.g. Weight loss, Strength)"
                         value={formData.fitness_goals}
                         onChange={(e) => handleFieldChange('fitness_goals', e.target.value)}
                       />
@@ -2212,7 +2272,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                       <input
                         type="text"
                         className="reg-control"
-                        placeholder="e.g. Knee injury, asthma (confidential)"
+                        placeholder="Medical restrictions / health conditions (optional)"
                         value={formData.health_conditions}
                         onChange={(e) => handleFieldChange('health_conditions', e.target.value)}
                       />
@@ -2692,7 +2752,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                                 <input
                                   type="text"
                                   className={`reg-control ${formErrors.payment_reference ? 'input-error' : ''}`}
-                                  placeholder="e.g. CHP-tx-123456"
+                                  placeholder="Enter payment reference code"
                                   value={formData.payment_reference}
                                   onChange={(e) => handleFieldChange('payment_reference', e.target.value)}
                                   style={{ height: 30, fontSize: 11 }}
@@ -2730,7 +2790,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                     <button
                       type="button"
                       className="btn btn-secondary"
-                      onClick={() => setIsRegisterOpen(false)}
+                      onClick={handleCloseRegisterModal}
                       disabled={isSubmitting}
                       style={{ height: 32, padding: '0 14px', fontSize: 12 }}
                     >
@@ -3444,9 +3504,23 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
 
       {/* Modal 4: Official 1-Year Permanent Member Card */}
       {selectedMember && (
-        <div className="modal-backdrop">
-          <div className="modal-card" style={{ maxWidth: 520, overflow: 'hidden' }}>
-            <div className="modal-header">
+        <div className="modal-backdrop" onClick={() => setSelectedMember(null)}>
+          <div
+            className="modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 530,
+              width: '100%',
+              maxHeight: '92vh',
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '18px 22px 20px',
+              boxSizing: 'border-box',
+              margin: 'auto',
+            }}
+          >
+            <div className="modal-header" style={{ marginBottom: 10 }}>
               <div>
                 <h3 style={{ margin: 0, color: 'var(--gym-text-primary, #ffffff)' }}>TIGAT GYM — Permanent Member Card</h3>
                 <span style={{ fontSize: 11, color: '#ea580c', fontWeight: 700 }}>
@@ -3456,7 +3530,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
               <button type="button" className="btn-close" onClick={() => setSelectedMember(null)}>×</button>
             </div>
 
-            <div className="digital-card-container" style={{ padding: '6px 0' }}>
+            <div className="digital-card-container" style={{ padding: '2px 0 6px', overflow: 'visible' }}>
               <PermanentMemberCard
                 member={selectedMember}
                 membershipTitle="PREMIUM MEMBER"
@@ -3466,7 +3540,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
 
             {/* High-Contrast Phone & Emergency Contact Strip */}
             {(selectedMember.phone || selectedMember.emergency_contact_phone) && (
-              <div className="member-pass-phone-strip">
+              <div className="member-pass-phone-strip" style={{ marginTop: 8, marginBottom: 14 }}>
                 {selectedMember.phone && (
                   <div className="phone-strip-item">
                     <span className="strip-label">Member Phone:</span>
@@ -3483,6 +3557,18 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                 )}
               </div>
             )}
+
+            {/* Modal Bottom Actions / Close Button */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 10, borderTop: '1px solid rgba(148, 163, 184, 0.2)' }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setSelectedMember(null)}
+                style={{ minWidth: 90, fontWeight: 700 }}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -3595,6 +3681,154 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 6: Delete Member In-App Confirmation Modal */}
+      {deleteConfirmMember && (
+        <div className="modal-backdrop" onClick={() => !isDeleting && setDeleteConfirmMember(null)}>
+          <div
+            className="modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 440,
+              width: '100%',
+              borderRadius: 16,
+              padding: 0,
+              overflow: 'hidden',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              margin: 'auto',
+              boxShadow: '0 24px 48px rgba(0, 0, 0, 0.25)',
+            }}
+          >
+            {/* Header with Danger Accent */}
+            <div style={{
+              background: '#fef2f2',
+              borderBottom: '1px solid #fee2e2',
+              padding: '16px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: '#fee2e2',
+                  color: '#dc2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid #fca5a5',
+                  flexShrink: 0,
+                }}>
+                  <Icons.Trash size={18} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 15.5, fontWeight: 800, color: '#991b1b' }}>
+                    Delete Member Record
+                  </h3>
+                  <div style={{ fontSize: 11.5, color: '#b91c1c', marginTop: 1 }}>
+                    Permanent removal confirmation
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn-close"
+                disabled={isDeleting}
+                onClick={() => setDeleteConfirmMember(null)}
+                style={{ background: 'transparent', border: 'none', fontSize: 20, color: '#991b1b', cursor: 'pointer', lineHeight: 1 }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '20px' }}>
+              <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--gym-text-primary, #334155)', lineHeight: 1.5 }}>
+                Are you sure you want to permanently delete member <strong style={{ color: '#0f172a' }}>"{deleteConfirmMember.name}"</strong>?
+              </p>
+
+              {/* Member Summary Card */}
+              <div style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: 8,
+                padding: '10px 14px',
+                marginBottom: 14,
+                fontSize: 12,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                  <span style={{ color: '#64748b' }}>Member ID:</span>
+                  <strong style={{ color: '#0f172a', fontFamily: 'monospace' }}>{deleteConfirmMember.member_code}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                  <span style={{ color: '#64748b' }}>Phone:</span>
+                  <strong style={{ color: '#0f172a' }}>{deleteConfirmMember.phone || 'N/A'}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Status:</span>
+                  <strong style={{ textTransform: 'uppercase', color: deleteConfirmMember.status === 'active' ? '#16a34a' : '#ea580c' }}>
+                    {deleteConfirmMember.status || 'Active'}
+                  </strong>
+                </div>
+              </div>
+
+              {/* Consequence Warning Notice */}
+              <div style={{
+                background: '#fff7ed',
+                border: '1px solid #fed7aa',
+                borderRadius: 8,
+                padding: '9px 12px',
+                fontSize: 11.5,
+                color: '#9a3412',
+                lineHeight: 1.4,
+                marginBottom: 18,
+              }}>
+                ⚠️ <strong>Notice:</strong> This action will erase this member profile and deactivate their turnstile QR access credentials.
+              </div>
+
+              {/* Actions Footer */}
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={isDeleting}
+                  onClick={() => setDeleteConfirmMember(null)}
+                  style={{ minWidth: 85, height: 34, fontSize: 12.5 }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  disabled={isDeleting}
+                  onClick={handleConfirmDelete}
+                  style={{
+                    minWidth: 125,
+                    height: 34,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    background: '#dc2626',
+                    borderColor: '#dc2626',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                  }}
+                >
+                  {isDeleting ? 'Deleting...' : (
+                    <>
+                      <Icons.Trash size={14} />
+                      <span>Delete Member</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
