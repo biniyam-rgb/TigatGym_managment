@@ -524,8 +524,8 @@ export default function PermanentMemberCard({
 
       {/* Action Buttons */}
       {showActions && (
-        <div className="no-print" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginTop: 4 }}>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <div className="no-print" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginTop: 4, width: '100%' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
             <button
               type="button"
               className="btn btn-primary"
@@ -533,13 +533,13 @@ export default function PermanentMemberCard({
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 6,
-                fontSize: 12.5,
+                gap: 5,
+                fontSize: 12,
                 fontWeight: 700,
-                padding: '8px 16px',
+                padding: '7px 14px',
               }}
             >
-              <CardIcons.Printer size={15} />
+              <CardIcons.Printer size={14} />
               <span>Print Permanent Card</span>
             </button>
 
@@ -551,13 +551,13 @@ export default function PermanentMemberCard({
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 6,
-                fontSize: 12.5,
+                gap: 5,
+                fontSize: 12,
                 fontWeight: 700,
-                padding: '8px 14px',
+                padding: '7px 12px',
               }}
             >
-              <CardIcons.Mail size={15} />
+              <CardIcons.Mail size={14} />
               <span>{isSendingEmail ? 'Sending...' : 'Email Card'}</span>
             </button>
 
@@ -568,18 +568,16 @@ export default function PermanentMemberCard({
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 6,
-                fontSize: 12.5,
+                gap: 5,
+                fontSize: 12,
                 fontWeight: 700,
-                padding: '8px 14px',
+                padding: '7px 12px',
               }}
               title="Toggle between Front Cover and Member ID & QR"
             >
-              <CardIcons.Rotate size={14} />
+              <CardIcons.Rotate size={13} />
               <span>{cardSide === 'back' ? 'Flip to Front Cover' : 'Flip to Member ID & QR'}</span>
             </button>
-
-
           </div>
 
           {emailStatus && (
