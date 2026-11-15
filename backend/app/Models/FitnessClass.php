@@ -18,6 +18,7 @@ class FitnessClass extends Model
         'description',
         'trainer_id',
         'room',
+        'image_url',
         'capacity',
         'start_time',
         'end_time',

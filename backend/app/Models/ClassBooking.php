@@ -23,6 +23,8 @@ class ClassBooking extends Model
     protected function casts(): array
     {
         return [
+            'fitness_class_id' => 'integer',
+            'member_id' => 'integer',
             'booking_time' => 'datetime',
             'cancelled_at' => 'datetime',
         ];

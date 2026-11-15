@@ -14,6 +14,7 @@ class Equipment extends Model
         'equipment_code',
         'name',
         'category',
+        'image_url',
         'brand',
         'model_number',
         'serial_number',
