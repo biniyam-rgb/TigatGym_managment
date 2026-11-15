@@ -116,8 +116,15 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::post('/trainers/sessions', [TrainerController::class, 'storeSession']);
 
     // Module G: Fitness Classes & Bookings
+    Route::get('/classes/stats', [FitnessClassController::class, 'stats']);
     Route::get('/classes', [FitnessClassController::class, 'index']);
     Route::post('/classes', [FitnessClassController::class, 'store']);
+    Route::get('/classes/{fitnessClass}', [FitnessClassController::class, 'show']);
+    Route::put('/classes/{fitnessClass}', [FitnessClassController::class, 'update']);
+    Route::delete('/classes/{fitnessClass}', [FitnessClassController::class, 'destroy']);
+    Route::get('/classes/{fitnessClass}/roster', [FitnessClassController::class, 'roster']);
+    Route::match(['patch', 'post'], '/classes/{fitnessClass}/bookings/{classBooking}/check-in', [FitnessClassController::class, 'checkInBooking']);
+    Route::delete('/classes/{fitnessClass}/bookings/{classBooking}', [FitnessClassController::class, 'removeBooking']);
     Route::post('/classes/{fitnessClass}/book', [FitnessClassController::class, 'book']);
     Route::post('/classes/{fitnessClass}/cancel-booking', [FitnessClassController::class, 'cancelBooking']);
 
