@@ -1,8 +1,14 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '../context/useAuth';
 import apiClient from '../services/api';
 
 const Icons = {
+  Camera: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+      <circle cx="12" cy="13" r="3"/>
+    </svg>
+  ),
   Dumbbell: ({ size = 18, color = 'currentColor' }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <path d="m6.5 6.5 11 11" />
@@ -138,146 +144,647 @@ const formatCategoryName = (category) => {
   }
 };
 
+// Safe ISO Date Formatter
+const formatIsoDate = (val, fallback = 'On Schedule') => {
+  if (!val) return fallback;
+  try {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+    }
+  } catch {
+    // fallback
+  }
+  return String(val);
+};
+
+// Category Icon Helper for Template Header
+const getCategoryIcon = (category = '') => {
+  switch ((category || '').toLowerCase()) {
+    case 'strength':
+      return '💪';
+    case 'cardio':
+      return '🏃';
+    case 'free_weights':
+      return '⚖️';
+    case 'recovery':
+    case 'accessories':
+      return '🧘';
+    case 'audio_visual':
+      return '📺';
+    default:
+      return '💪';
+  }
+};
+
+// Condition Name Formatter
+const formatConditionName = (cond = '') => {
+  const c = (cond || '').toLowerCase();
+  if (c === 'poor') return 'Poor';
+  if (c === 'fair') return 'Fair';
+  return 'Good';
+};
+
+// Status Name Formatter
+const formatStatusName = (status = '') => {
+  const s = (status || '').toLowerCase();
+  if (s === 'out_of_service') return 'Out of Service';
+  if (s === 'needs_maintenance') return 'Maintenance';
+  return 'Active';
+};
+
 // Pinterest Anatomical Visuals & Real Professional Equipment Asset Mapping
-const getEquipmentVisual = (name = '', category = '') => {
+const getEquipmentVisual = (name = '', category = '', allowFallback = false) => {
   const n = (name || '').toLowerCase();
   const c = (category || '').toLowerCase();
 
-  // 1. Ab Crunch Machine (Exact Pinterest anatomy diagram from user)
+  // 1. Olympic Weight Plate Set (Check before lat so 'plate' never triggers 'lat')
+  if (n.includes('plate')) {
+    return {
+      thumb: '/equipment/weight_plates.png',
+      hero: '/equipment/weight_plates.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/weight_plates.png',
+        '/equipment/barbell_set.png',
+        '/equipment/power_rack.png',
+      ],
+    };
+  }
+
+  // 2. Glute Kickback / Hip Abduction / Adduction
+  if (n.includes('glute') || n.includes('kickback') || n.includes('hip abduction') || n.includes('abduction') || n.includes('adduction') || n.includes('hip thrust')) {
+    return {
+      thumb: '/equipment/glute_kickback.jpg',
+      hero: '/equipment/glute_kickback.jpg',
+      badge: 'Standard Unit',
+      contain: false,
+      slides: [
+        '/equipment/glute_kickback.jpg',
+        '/equipment/anatomy_figure_3d.jpg',
+        '/equipment/leg_press.png',
+      ],
+    };
+  }
+
+  // 3. Ab Crunch Machine (Exact Pinterest anatomy diagram)
   if (n.includes('crunch') || n.includes('ab machine')) {
     return {
       thumb: '/equipment/ab_crunch_machine.png',
       hero: '/equipment/ab_crunch_machine.png',
-      badge: 'Pinterest Core Anatomy',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/ab_crunch_machine.png',
+        '/equipment/glute_kickback.jpg',
+        '/equipment/anatomy_figure_3d.jpg',
+      ],
     };
   }
 
-  // 2. Commercial Treadmill
+  // 4. Commercial Treadmill
   if (n.includes('treadmill')) {
     return {
       thumb: '/equipment/treadmill.png',
       hero: '/equipment/treadmill.png',
-      badge: 'Cardio Engine',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/treadmill.png',
+        '/equipment/elliptical.png',
+        '/equipment/exercise_bike.png',
+      ],
     };
   }
 
-  // 3. Exercise Bike / Assault Air Bike / Spin Bike
-  if (n.includes('bike') || n.includes('cycle') || n.includes('spin')) {
+  // 5. Elliptical Cross Trainer
+  if (n.includes('elliptical')) {
     return {
-      thumb: '/equipment/exercise_bike.png',
-      hero: '/equipment/exercise_bike.png',
-      badge: 'Metabolic Conditioning',
+      thumb: '/equipment/elliptical.png',
+      hero: '/equipment/elliptical.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/elliptical.png',
+        '/equipment/treadmill.png',
+        '/equipment/stair_climber.png',
+      ],
     };
   }
 
-  // 4. Bench Press & Utility Benches
-  if (n.includes('bench') || n.includes('incline bench') || n.includes('flat utility') || n.includes('power rack')) {
+  // 6. Stair Climber / StepMill
+  if (n.includes('stair') || n.includes('stepmill') || n.includes('climber')) {
     return {
-      thumb: '/equipment/bench_press.png',
-      hero: '/equipment/bench_press_anatomy.png', // Pinterest anatomy diagram
-      badge: 'Pinterest Pectoral Anatomy',
+      thumb: '/equipment/stair_climber.png',
+      hero: '/equipment/stair_climber.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/stair_climber.png',
+        '/equipment/treadmill.png',
+        '/equipment/elliptical.png',
+      ],
     };
   }
 
-  // 5. Dumbbells / Barbell / Curls
-  if (n.includes('dumbbell') || n.includes('barbell') || n.includes('curl') || n.includes('plate')) {
+  // 7. Ski Erg
+  if (n.includes('ski erg')) {
     return {
-      thumb: '/equipment/dumbbell_set.png',
-      hero: '/equipment/bicep_curl_anatomy.png', // Pinterest anatomy diagram
-      badge: 'Pinterest Biceps Anatomy',
+      thumb: '/equipment/ski_erg.png',
+      hero: '/equipment/ski_erg.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/ski_erg.png',
+        '/equipment/rowing_machine.png',
+        '/equipment/exercise_bike.png',
+      ],
     };
   }
 
-  // 6. Leg Press / Squat / Leg Curl / Extension
-  if (n.includes('leg press') || n.includes('hack squat') || n.includes('leg curl') || n.includes('leg extension') || n.includes('calf raise')) {
-    return {
-      thumb: '/equipment/leg_press.png',
-      hero: '/equipment/leg_press.png',
-      badge: 'Lower Body Kinetic Chain',
-    };
-  }
-
-  // 7. Lat Pulldown & Seated Rows
-  if (n.includes('lat') || n.includes('pulldown') || n.includes('row')) {
-    return {
-      thumb: '/equipment/lat_pulldown.png',
-      hero: '/equipment/lat_pulldown_anatomy.png', // Pinterest anatomy diagram
-      badge: 'Pinterest Latissimus Anatomy',
-    };
-  }
-
-  // 8. Rowing Machine / Concept2 / Ski Erg
-  if (n.includes('rowing') || n.includes('ski erg')) {
+  // 8. Rowing Machine Concept2
+  if (n.includes('rowing')) {
     return {
       thumb: '/equipment/rowing_machine.png',
       hero: '/equipment/rowing_machine.png',
-      badge: 'Full Body Aerobic Ergometer',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/rowing_machine.png',
+        '/equipment/ski_erg.png',
+        '/equipment/exercise_bike.png',
+      ],
     };
   }
 
-  // 9. Cable Crossover / Functional Trainer
-  if (n.includes('cable') || n.includes('crossover') || n.includes('functional trainer') || n.includes('pec deck') || n.includes('butterfly')) {
+  // 9. Exercise Bike / Assault Air Bike / Spin Bike
+  if (n.includes('air bike') || n.includes('assault') || n.includes('spin') || n.includes('bike') || n.includes('cycle')) {
+    return {
+      thumb: '/equipment/exercise_bike.png',
+      hero: '/equipment/exercise_bike.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/exercise_bike.png',
+        '/equipment/treadmill.png',
+        '/equipment/elliptical.png',
+      ],
+    };
+  }
+
+  // 10. Smith Machine
+  if (n.includes('smith')) {
+    return {
+      thumb: '/equipment/smith_machine.png',
+      hero: '/equipment/smith_machine.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/smith_machine.png',
+        '/equipment/power_rack.png',
+        '/equipment/bench_press.png',
+      ],
+    };
+  }
+
+  // 11. Olympic Power Rack
+  if (n.includes('power rack')) {
+    return {
+      thumb: '/equipment/power_rack.png',
+      hero: '/equipment/power_rack.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/power_rack.png',
+        '/equipment/smith_machine.png',
+        '/equipment/barbell_set.png',
+      ],
+    };
+  }
+
+  // 12. Adjustable Incline Bench
+  if (n.includes('incline bench') || n.includes('incline')) {
+    return {
+      thumb: '/equipment/incline_bench.png',
+      hero: '/equipment/incline_bench.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/incline_bench.png',
+        '/equipment/bench_press.png',
+        '/equipment/bench_press_anatomy.png',
+      ],
+    };
+  }
+
+  // 13. Flat Utility Bench / Bench Press
+  if (n.includes('flat utility') || n.includes('flat bench') || n.includes('bench')) {
+    return {
+      thumb: '/equipment/bench_press.png',
+      hero: '/equipment/bench_press.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/bench_press.png',
+        '/equipment/bench_press_anatomy.png',
+        '/equipment/incline_bench.png',
+      ],
+    };
+  }
+
+  // 14. Pec Deck / Butterfly Machine
+  if (n.includes('pec deck') || n.includes('butterfly')) {
+    return {
+      thumb: '/equipment/pec_deck.png',
+      hero: '/equipment/pec_deck.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/pec_deck.png',
+        '/equipment/cable_crossover.png',
+        '/equipment/bench_press_anatomy.png',
+      ],
+    };
+  }
+
+  // 15. Cable Crossover Station
+  if (n.includes('cable') || n.includes('crossover')) {
     return {
       thumb: '/equipment/cable_crossover.png',
       hero: '/equipment/cable_crossover.png',
-      badge: 'Multi-Vector Tension Station',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/cable_crossover.png',
+        '/equipment/lat_pulldown_anatomy.png',
+        '/equipment/lat_pulldown.png',
+      ],
     };
   }
 
-  // 10. Kettlebells
+  // 16. Shoulder Press Machine
+  if (n.includes('shoulder') || n.includes('overhead')) {
+    return {
+      thumb: '/equipment/shoulder_press.png',
+      hero: '/equipment/shoulder_press.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/shoulder_press.png',
+        '/equipment/cable_crossover.png',
+        '/equipment/dumbbell_set.png',
+      ],
+    };
+  }
+
+  // 17. Assisted Pull-Up / Dip Machine
+  if (n.includes('assisted pull-up') || n.includes('dip machine') || (n.includes('pull-up') && n.includes('machine'))) {
+    return {
+      thumb: '/equipment/pull_up_station.png',
+      hero: '/equipment/pull_up_station.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/pull_up_station.png',
+        '/equipment/lat_pulldown.png',
+        '/equipment/lat_pulldown_anatomy.png',
+      ],
+    };
+  }
+
+  // 18. Lat Pulldown & Seated Row Machine
+  if (n.includes('pulldown') || /\blat\b|\blats\b/.test(n) || (n.includes('row') && !n.includes('rowing') && !n.includes('rope'))) {
+    return {
+      thumb: '/equipment/lat_pulldown.png',
+      hero: '/equipment/lat_pulldown.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/lat_pulldown.png',
+        '/equipment/lat_pulldown_anatomy.png',
+        '/equipment/pull_up_station.png',
+      ],
+    };
+  }
+
+  // 19. Back Extension / Roman Chair
+  if (n.includes('back extension') || n.includes('roman chair') || n.includes('hyperextension')) {
+    return {
+      thumb: '/equipment/back_extension.png',
+      hero: '/equipment/back_extension.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/back_extension.png',
+        '/equipment/anatomy_figure_3d.jpg',
+        '/equipment/ab_crunch_machine.png',
+      ],
+    };
+  }
+
+  // 20. Leg Press / Hack Squat / Leg Curl / Leg Extension / Calf Raise
+  if (n.includes('leg press') || n.includes('hack squat') || n.includes('leg curl') || n.includes('leg extension') || n.includes('calf raise') || n.includes('squat')) {
+    return {
+      thumb: '/equipment/leg_press.png',
+      hero: '/equipment/leg_press.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/leg_press.png',
+        '/equipment/glute_kickback.jpg',
+        '/equipment/anatomy_figure_3d.jpg',
+      ],
+    };
+  }
+
+  // 21. Olympic Barbell & EZ Curl Bar
+  if (n.includes('barbell') || n.includes('ez curl')) {
+    return {
+      thumb: '/equipment/barbell_set.png',
+      hero: '/equipment/barbell_set.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/barbell_set.png',
+        '/equipment/weight_plates.png',
+        '/equipment/dumbbell_set.png',
+      ],
+    };
+  }
+
+  // 22. Dumbbell Rack Set
+  if (n.includes('dumbbell') || (n.includes('curl') && !n.includes('leg'))) {
+    return {
+      thumb: '/equipment/dumbbell_set.png',
+      hero: '/equipment/dumbbell_set.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/dumbbell_set.png',
+        '/equipment/bicep_curl_anatomy.png',
+        '/equipment/kettlebell.png',
+      ],
+    };
+  }
+
+  // 23. Kettlebells
   if (n.includes('kettlebell')) {
     return {
       thumb: '/equipment/kettlebell.png',
       hero: '/equipment/kettlebell.png',
-      badge: 'Dynamic Posterior Chain',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/kettlebell.png',
+        '/equipment/dumbbell_set.png',
+        '/equipment/battle_ropes.png',
+      ],
     };
   }
 
-  // 11. Yoga Mat / Foam Roller / Recovery
-  if (n.includes('mat') || n.includes('yoga') || n.includes('roller') || n.includes('massage') || n.includes('stretch') || c === 'recovery' || c === 'accessories') {
+  // 24. Battle Ropes
+  if (n.includes('battle rope') || (n.includes('rope') && !n.includes('rowing'))) {
+    return {
+      thumb: '/equipment/battle_ropes.png',
+      hero: '/equipment/battle_ropes.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/battle_ropes.png',
+        '/equipment/plyo_box.png',
+        '/equipment/trx_trainer.png',
+      ],
+    };
+  }
+
+  // 25. Plyo Box Set
+  if (n.includes('plyo') || n.includes('box set')) {
+    return {
+      thumb: '/equipment/plyo_box.png',
+      hero: '/equipment/plyo_box.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/plyo_box.png',
+        '/equipment/battle_ropes.png',
+        '/equipment/medicine_ball.png',
+      ],
+    };
+  }
+
+  // 26. Resistance Bands
+  if (n.includes('resistance band') || (n.includes('band') && !n.includes('brand'))) {
+    return {
+      thumb: '/equipment/resistance_bands.png',
+      hero: '/equipment/resistance_bands.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/resistance_bands.png',
+        '/equipment/trx_trainer.png',
+        '/equipment/yoga_mat.png',
+      ],
+    };
+  }
+
+  // 27. TRX Suspension Trainer
+  if (n.includes('trx') || n.includes('suspension')) {
+    return {
+      thumb: '/equipment/trx_trainer.png',
+      hero: '/equipment/trx_trainer.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/trx_trainer.png',
+        '/equipment/pull_up_station.png',
+        '/equipment/resistance_bands.png',
+      ],
+    };
+  }
+
+  // 28. Medicine Ball Set
+  if (n.includes('medicine ball') || n.includes('slam ball') || (n.includes('ball') && !n.includes('barbell'))) {
+    return {
+      thumb: '/equipment/medicine_ball.png',
+      hero: '/equipment/medicine_ball.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/medicine_ball.png',
+        '/equipment/kettlebell.png',
+        '/equipment/plyo_box.png',
+      ],
+    };
+  }
+
+  // 29. Foam Roller Set
+  if (n.includes('foam roller') || n.includes('roller')) {
+    return {
+      thumb: '/equipment/foam_roller.png',
+      hero: '/equipment/foam_roller.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/foam_roller.png',
+        '/equipment/massage_gun.png',
+        '/equipment/yoga_mat.png',
+      ],
+    };
+  }
+
+  // 30. Pull-Up Bar Wall Mount & Stretch Rack
+  if (n.includes('pull-up') || n.includes('stretch rack') || n.includes('chin-up')) {
+    return {
+      thumb: '/equipment/pull_up_station.png',
+      hero: '/equipment/pull_up_station.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/pull_up_station.png',
+        '/equipment/lat_pulldown.png',
+        '/equipment/back_extension.png',
+      ],
+    };
+  }
+
+  // 31. Massage Gun Percussive Therapy
+  if (n.includes('massage') || n.includes('percussive')) {
+    return {
+      thumb: '/equipment/massage_gun.png',
+      hero: '/equipment/massage_gun.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/massage_gun.png',
+        '/equipment/foam_roller.png',
+        '/equipment/yoga_mat.png',
+      ],
+    };
+  }
+
+  // 32. Yoga / Stretching Mats
+  if (n.includes('yoga') || n.includes('mat') || (n.includes('stretch') && !n.includes('rack'))) {
     return {
       thumb: '/equipment/yoga_mat.png',
       hero: '/equipment/yoga_mat.png',
-      badge: 'Myofascial & Mobility Floor',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/yoga_mat.png',
+        '/equipment/foam_roller.png',
+        '/equipment/resistance_bands.png',
+      ],
     };
   }
 
-  // 12. 75" Smart TV / Sound System (Audio Visual)
-  if (n.includes('tv') || n.includes('smart') || n.includes('sound') || c === 'audio_visual') {
+  // 33. Commercial Sound System
+  if (n.includes('sound') || n.includes('audio') || n.includes('speaker') || n.includes('jbl')) {
+    return {
+      thumb: '/equipment/sound_system.png',
+      hero: '/equipment/sound_system.png',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/sound_system.png',
+        '/equipment/smart_tv.png',
+      ],
+    };
+  }
+
+  // 34. 75" Smart TV
+  if (n.includes('tv') || n.includes('smart') || n.includes('television') || c === 'audio_visual') {
     return {
       thumb: '/equipment/smart_tv.png',
       hero: '/equipment/smart_tv.png',
-      badge: 'Commercial 4K Display',
+      badge: 'Standard Unit',
+      contain: true,
+      slides: [
+        '/equipment/smart_tv.png',
+        '/equipment/sound_system.png',
+      ],
     };
   }
 
-  // Default fallback
+  // Default fallback - only if explicitly allowed (never assign random photos by default)
+  if (!allowFallback) {
+    return null;
+  }
+
   return {
     thumb: '/equipment/ab_crunch_machine.png',
     hero: '/equipment/ab_crunch_machine.png',
-    badge: 'Standard Inventory Unit',
+    badge: 'Standard Unit',
+    contain: true,
+    slides: [
+      '/equipment/ab_crunch_machine.png',
+      '/equipment/glute_kickback.jpg',
+      '/equipment/anatomy_figure_3d.jpg',
+    ],
   };
 };
 
 // Thumbnail & Equipment Icon Component
-const EquipmentIllustration = ({ name = '', category = '' }) => {
-  const visual = getEquipmentVisual(name, category);
+const EquipmentIllustration = ({ name = '', category = '', imageUrl = null }) => {
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt={name}
+        className="equip-thumb-img"
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          borderRadius: 8,
+          filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.08))',
+        }}
+        onError={(e) => {
+          e.target.style.display = 'none';
+        }}
+      />
+    );
+  }
+
+  // Check matching visual preset - never force random photo
+  const visual = getEquipmentVisual(name, category, false);
+  if (visual && visual.thumb) {
+    return (
+      <img
+        src={visual.thumb}
+        alt={name}
+        className="equip-thumb-img"
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'contain',
+          borderRadius: 8,
+          filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.08))',
+        }}
+        onError={(e) => {
+          e.target.style.display = 'none';
+        }}
+      />
+    );
+  }
+
+  // Clean, neutral placeholder icon if no photo is attached
   return (
-    <img
-      src={visual.thumb}
-      alt={name}
-      className="equip-thumb-img"
+    <div
       style={{
         width: '100%',
         height: '100%',
-        objectFit: 'contain',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#f1f5f9',
         borderRadius: 8,
-        filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.08))',
+        color: '#94a3b8',
       }}
-      onError={(e) => {
-        e.target.style.display = 'none';
-      }}
-    />
+      title="No photo provided (Optional)"
+    >
+      <Icons.Dumbbell size={18} color="#94a3b8" />
+    </div>
   );
 };
 
@@ -292,11 +799,33 @@ const MuscleAnatomyFigure = ({ region = 'abs' }) => {
   const isBack = region === 'back';
   const isCalves = region === 'calves';
   const isCardio = region === 'cardio';
+  const isGlutes = region === 'glutes';
+  const isFullBody = region === 'full_body' || region === 'recovery';
+  const isFacility = region === 'facility';
 
-  const defaultFill = 'var(--gym-anatomy-base, #e2e8f0)';
+  if (isGlutes) {
+    return (
+      <img
+        src="/equipment/anatomy_figure_3d.jpg"
+        alt="Glute Muscles 3D Anatomy"
+        style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 8 }}
+      />
+    );
+  }
+
+  if (isFacility) {
+    return (
+      <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, color: '#ff7a00' }}>
+        <span style={{ fontSize: 32 }}>🔊</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--gym-anatomy-stroke, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Audio / Visual</span>
+      </div>
+    );
+  }
+
+  const defaultFill = 'var(--gym-anatomy-fill, #e2e8f0)';
   const defaultStroke = 'var(--gym-anatomy-stroke, #94a3b8)';
   const targetFill = 'url(#muscleOrangeGrad)';
-  const targetStroke = '#ea580c';
+  const targetStroke = '#ff7a00';
 
   return (
     <svg width="78" height="136" viewBox="0 0 120 220" fill="none">
@@ -314,39 +843,39 @@ const MuscleAnatomyFigure = ({ region = 'abs' }) => {
       <path d="M54 33 H66 L68 41 H52 Z" fill={defaultFill} stroke={defaultStroke} strokeWidth="1" />
 
       {/* Shoulders / Deltoids & Upper Back */}
-      <path d="M52 41 L30 47 L27 64 L41 64 L50 45 Z" fill={isShoulders || isBack ? targetFill : defaultFill} stroke={isShoulders || isBack ? targetStroke : defaultStroke} strokeWidth="1.2" />
-      <path d="M68 41 L90 47 L93 64 L79 64 L70 45 Z" fill={isShoulders || isBack ? targetFill : defaultFill} stroke={isShoulders || isBack ? targetStroke : defaultStroke} strokeWidth="1.2" />
+      <path d="M52 41 L30 47 L27 64 L41 64 L50 45 Z" fill={isShoulders || isBack || isFullBody ? targetFill : defaultFill} stroke={isShoulders || isBack || isFullBody ? targetStroke : defaultStroke} strokeWidth="1.2" />
+      <path d="M68 41 L90 47 L93 64 L79 64 L70 45 Z" fill={isShoulders || isBack || isFullBody ? targetFill : defaultFill} stroke={isShoulders || isBack || isFullBody ? targetStroke : defaultStroke} strokeWidth="1.2" />
 
       {/* Chest / Pectorals */}
-      <path d="M50 45 L41 64 L59 64 L59 45 Z" fill={isChest ? targetFill : defaultFill} stroke={isChest ? targetStroke : defaultStroke} strokeWidth="1.2" />
-      <path d="M70 45 L79 64 L61 64 L61 45 Z" fill={isChest ? targetFill : defaultFill} stroke={isChest ? targetStroke : defaultStroke} strokeWidth="1.2" />
+      <path d="M50 45 L41 64 L59 64 L59 45 Z" fill={isChest || isFullBody ? targetFill : defaultFill} stroke={isChest || isFullBody ? targetStroke : defaultStroke} strokeWidth="1.2" />
+      <path d="M70 45 L79 64 L61 64 L61 45 Z" fill={isChest || isFullBody ? targetFill : defaultFill} stroke={isChest || isFullBody ? targetStroke : defaultStroke} strokeWidth="1.2" />
 
       {/* Arms (Biceps & Forearms) */}
-      <path d="M27 64 L23 92 L33 92 L37 64 Z" fill={isArms ? targetFill : defaultFill} stroke={isArms ? targetStroke : defaultStroke} strokeWidth="1.2" />
-      <path d="M93 64 L97 92 L87 92 L83 64 Z" fill={isArms ? targetFill : defaultFill} stroke={isArms ? targetStroke : defaultStroke} strokeWidth="1.2" />
-      <path d="M23 92 L19 120 L27 120 L33 92 Z" fill={isArms ? targetFill : defaultFill} stroke={isArms ? targetStroke : defaultStroke} strokeWidth="1.2" />
-      <path d="M97 92 L101 120 L93 120 L87 92 Z" fill={isArms ? targetFill : defaultFill} stroke={isArms ? targetStroke : defaultStroke} strokeWidth="1.2" />
+      <path d="M27 64 L23 92 L33 92 L37 64 Z" fill={isArms || isFullBody ? targetFill : defaultFill} stroke={isArms || isFullBody ? targetStroke : defaultStroke} strokeWidth="1.2" />
+      <path d="M93 64 L97 92 L87 92 L83 64 Z" fill={isArms || isFullBody ? targetFill : defaultFill} stroke={isArms || isFullBody ? targetStroke : defaultStroke} strokeWidth="1.2" />
+      <path d="M23 92 L19 120 L27 120 L33 92 Z" fill={isArms || isFullBody ? targetFill : defaultFill} stroke={isArms || isFullBody ? targetStroke : defaultStroke} strokeWidth="1.2" />
+      <path d="M97 92 L101 120 L93 120 L87 92 Z" fill={isArms || isFullBody ? targetFill : defaultFill} stroke={isArms || isFullBody ? targetStroke : defaultStroke} strokeWidth="1.2" />
 
       {/* Abdominals / Core Section */}
-      <rect x="47" y="66" width="11" height="9" rx="1.5" fill={isAbs ? targetFill : defaultFill} stroke={isAbs ? targetStroke : defaultStroke} strokeWidth={isAbs ? 1.5 : 1} />
-      <rect x="62" y="66" width="11" height="9" rx="1.5" fill={isAbs ? targetFill : defaultFill} stroke={isAbs ? targetStroke : defaultStroke} strokeWidth={isAbs ? 1.5 : 1} />
-      <rect x="47" y="77" width="11" height="9" rx="1.5" fill={isAbs ? targetFill : defaultFill} stroke={isAbs ? targetStroke : defaultStroke} strokeWidth={isAbs ? 1.5 : 1} />
-      <rect x="62" y="77" width="11" height="9" rx="1.5" fill={isAbs ? targetFill : defaultFill} stroke={isAbs ? targetStroke : defaultStroke} strokeWidth={isAbs ? 1.5 : 1} />
-      <rect x="48" y="88" width="10" height="9" rx="1.5" fill={isAbs ? targetFill : defaultFill} stroke={isAbs ? targetStroke : defaultStroke} strokeWidth={isAbs ? 1.5 : 1} />
-      <rect x="62" y="88" width="10" height="9" rx="1.5" fill={isAbs ? targetFill : defaultFill} stroke={isAbs ? targetStroke : defaultStroke} strokeWidth={isAbs ? 1.5 : 1} />
-      <path d="M39 68 L45 68 L46 98 L36 94 Z" fill={isAbs ? targetFill : defaultFill} stroke={isAbs ? targetStroke : defaultStroke} strokeWidth="1" />
-      <path d="M81 68 L75 68 L74 98 L84 94 Z" fill={isAbs ? targetFill : defaultFill} stroke={isAbs ? targetStroke : defaultStroke} strokeWidth="1" />
+      <rect x="47" y="66" width="11" height="9" rx="1.5" fill={isAbs || isFullBody ? targetFill : defaultFill} stroke={isAbs || isFullBody ? targetStroke : defaultStroke} strokeWidth={isAbs || isFullBody ? 1.5 : 1} />
+      <rect x="62" y="66" width="11" height="9" rx="1.5" fill={isAbs || isFullBody ? targetFill : defaultFill} stroke={isAbs || isFullBody ? targetStroke : defaultStroke} strokeWidth={isAbs || isFullBody ? 1.5 : 1} />
+      <rect x="47" y="77" width="11" height="9" rx="1.5" fill={isAbs || isFullBody ? targetFill : defaultFill} stroke={isAbs || isFullBody ? targetStroke : defaultStroke} strokeWidth={isAbs || isFullBody ? 1.5 : 1} />
+      <rect x="62" y="77" width="11" height="9" rx="1.5" fill={isAbs || isFullBody ? targetFill : defaultFill} stroke={isAbs || isFullBody ? targetStroke : defaultStroke} strokeWidth={isAbs || isFullBody ? 1.5 : 1} />
+      <rect x="48" y="88" width="10" height="9" rx="1.5" fill={isAbs || isFullBody ? targetFill : defaultFill} stroke={isAbs || isFullBody ? targetStroke : defaultStroke} strokeWidth={isAbs || isFullBody ? 1.5 : 1} />
+      <rect x="62" y="88" width="10" height="9" rx="1.5" fill={isAbs || isFullBody ? targetFill : defaultFill} stroke={isAbs || isFullBody ? targetStroke : defaultStroke} strokeWidth={isAbs || isFullBody ? 1.5 : 1} />
+      <path d="M39 68 L45 68 L46 98 L36 94 Z" fill={isAbs || isFullBody ? targetFill : defaultFill} stroke={isAbs || isFullBody ? targetStroke : defaultStroke} strokeWidth="1" />
+      <path d="M81 68 L75 68 L74 98 L84 94 Z" fill={isAbs || isFullBody ? targetFill : defaultFill} stroke={isAbs || isFullBody ? targetStroke : defaultStroke} strokeWidth="1" />
 
       {/* Pelvis & Hips */}
       <path d="M36 98 L84 98 L76 116 L44 116 Z" fill={defaultFill} stroke={defaultStroke} strokeWidth="1" />
 
       {/* Quads, Hamstrings & Thighs */}
-      <path d="M44 116 L35 162 L48 162 L57 116 Z" fill={isQuads || isHamstrings || isCardio ? targetFill : defaultFill} stroke={isQuads || isHamstrings || isCardio ? targetStroke : defaultStroke} strokeWidth="1.2" />
-      <path d="M76 116 L85 162 L72 162 L63 116 Z" fill={isQuads || isHamstrings || isCardio ? targetFill : defaultFill} stroke={isQuads || isHamstrings || isCardio ? targetStroke : defaultStroke} strokeWidth="1.2" />
+      <path d="M44 116 L35 162 L48 162 L57 116 Z" fill={isQuads || isHamstrings || isCardio || isFullBody ? targetFill : defaultFill} stroke={isQuads || isHamstrings || isCardio || isFullBody ? targetStroke : defaultStroke} strokeWidth="1.2" />
+      <path d="M76 116 L85 162 L72 162 L63 116 Z" fill={isQuads || isHamstrings || isCardio || isFullBody ? targetFill : defaultFill} stroke={isQuads || isHamstrings || isCardio || isFullBody ? targetStroke : defaultStroke} strokeWidth="1.2" />
 
       {/* Calves & Lower Legs */}
-      <path d="M36 164 L40 204 L48 204 L48 164 Z" fill={isCalves || isCardio ? targetFill : defaultFill} stroke={isCalves || isCardio ? targetStroke : defaultStroke} strokeWidth="1.2" />
-      <path d="M84 164 L80 204 L72 204 L72 164 Z" fill={isCalves || isCardio ? targetFill : defaultFill} stroke={isCalves || isCardio ? targetStroke : defaultStroke} strokeWidth="1.2" />
+      <path d="M36 164 L40 204 L48 204 L48 164 Z" fill={isCalves || isCardio || isFullBody ? targetFill : defaultFill} stroke={isCalves || isCardio || isFullBody ? targetStroke : defaultStroke} strokeWidth="1.2" />
+      <path d="M84 164 L80 204 L72 204 L72 164 Z" fill={isCalves || isCardio || isFullBody ? targetFill : defaultFill} stroke={isCalves || isCardio || isFullBody ? targetStroke : defaultStroke} strokeWidth="1.2" />
 
       {/* Heart indicator for Cardio */}
       {isCardio && (
@@ -363,7 +892,20 @@ const getEquipmentMuscleData = (name = '', category = '') => {
   const n = (name || '').toLowerCase();
   const c = (category || '').toLowerCase();
 
-  // 1. Ab Crunch Machine
+  // 1. Glutes & Hip Complex (Glute Kickback, Hip Abduction/Adduction)
+  if (n.includes('glute') || n.includes('kickback') || n.includes('hip abduction') || n.includes('abduction') || n.includes('adduction') || n.includes('hip thrust')) {
+    return {
+      region: 'glutes',
+      regionName: 'Glutes & Hip Complex',
+      primary: 'Glute Muscles (Maximus, Medius)',
+      secondary: 'Hamstrings, Hip Abductors, Piriformis',
+      movementType: 'Isolation & Hip Extension',
+      tagline: 'Build stronger glutes and hips',
+      coachingTip: 'Keep torso braced and hips squared. Drive foot back using glutes, pausing at peak contraction.',
+    };
+  }
+
+  // 2. Ab Crunch & Core
   if (n.includes('crunch') || n.includes('ab machine')) {
     return {
       region: 'abs',
@@ -371,33 +913,25 @@ const getEquipmentMuscleData = (name = '', category = '') => {
       primary: 'Rectus Abdominis (Upper & Lower Abs)',
       secondary: 'Internal & External Obliques, Transverse Abdominis',
       movementType: 'Isolation • Torso Spinal Flexion',
+      tagline: 'Build stronger core and abdominals',
       coachingTip: 'Anchor feet under pads. Inhale to brace, exhale as you contract your abs to curl your torso forward. Squeeze at full flexion.',
     };
   }
 
-  // 2. Leg Press / Hack Squat / Leg Extension / Leg Curl
-  if (n.includes('leg press') || n.includes('hack squat')) {
+  // 3. Back Extension / Roman Chair
+  if (n.includes('back extension') || n.includes('roman chair') || n.includes('hyperextension')) {
     return {
-      region: 'quads',
-      regionName: 'Lower Body (Quads & Glutes)',
-      primary: 'Quadriceps Femoris, Gluteus Maximus',
-      secondary: 'Hamstrings, Adductors, Calves',
-      movementType: 'Compound • Lower Body Push',
-      coachingTip: 'Keep lower back firmly against pad. Lower sled until knees reach 90 degrees; do not lock knees at the peak.',
+      region: 'back',
+      regionName: 'Lower Back & Posterior Chain',
+      primary: 'Erector Spinae (Lower Back), Gluteus Maximus',
+      secondary: 'Hamstrings, Core Stabilizers',
+      movementType: 'Compound • Hip & Spinal Extension',
+      tagline: 'Reinforce lower back posture and spinal erectors',
+      coachingTip: 'Hinge from hips keeping spine neutral. Extend until torso aligns with legs, squeeze glutes at the top.',
     };
   }
 
-  if (n.includes('leg extension')) {
-    return {
-      region: 'quads',
-      regionName: 'Quadriceps Isolation',
-      primary: 'Rectus Femoris, Vastus Lateralis, Vastus Medialis',
-      secondary: 'Patellar Tendon Stabilizers',
-      movementType: 'Isolation • Knee Extension',
-      coachingTip: 'Align knee joint with machine pivot axis. Extend legs fully, hold 1 second at peak contraction, control descent.',
-    };
-  }
-
+  // 4. Seated Leg Curl
   if (n.includes('leg curl')) {
     return {
       region: 'hamstrings',
@@ -405,35 +939,101 @@ const getEquipmentMuscleData = (name = '', category = '') => {
       primary: 'Hamstrings (Biceps Femoris, Semitendinosus)',
       secondary: 'Gastrocnemius (Calves), Gracilis',
       movementType: 'Isolation • Knee Flexion',
+      tagline: 'Strengthen hamstrings and posterior knee stability',
       coachingTip: 'Keep thighs flat against pad. Flex knees to curl heels toward glutes without lifting hips off the seat.',
     };
   }
 
-  // 3. Bench Press / Chest Press / Pec Deck
-  if (n.includes('bench') || n.includes('pec deck') || n.includes('butterfly') || n.includes('chest')) {
+  // 5. Leg Extension
+  if (n.includes('leg extension')) {
+    return {
+      region: 'quads',
+      regionName: 'Quadriceps Isolation',
+      primary: 'Rectus Femoris, Vastus Lateralis, Vastus Medialis',
+      secondary: 'Patellar Tendon Stabilizers',
+      movementType: 'Isolation • Knee Extension',
+      tagline: 'Isolate and develop knee extension power',
+      coachingTip: 'Align knee joint with machine pivot axis. Extend legs fully, hold 1 second at peak contraction, control descent.',
+    };
+  }
+
+  // 6. Seated Calf Raise
+  if (n.includes('calf') || n.includes('calves')) {
+    return {
+      region: 'calves',
+      regionName: 'Lower Leg (Calves)',
+      primary: 'Soleus, Gastrocnemius',
+      secondary: 'Achilles Tendon, Tibialis Posterior',
+      movementType: 'Isolation • Ankle Plantar Flexion',
+      tagline: 'Isolate gastrocnemius and soleus lower leg power',
+      coachingTip: 'Lower heels below platform for full stretch, drive through balls of feet and hold at peak contraction.',
+    };
+  }
+
+  // 7. Leg Press / Hack Squat
+  if (n.includes('leg press') || n.includes('hack squat') || n.includes('squat')) {
+    return {
+      region: 'quads',
+      regionName: 'Lower Body (Quads & Glutes)',
+      primary: 'Quadriceps Femoris, Gluteus Maximus',
+      secondary: 'Hamstrings, Adductors, Calves',
+      movementType: 'Compound • Lower Body Push',
+      tagline: 'Build powerful quadriceps and lower body drive',
+      coachingTip: 'Keep lower back firmly against pad. Lower sled until knees reach 90 degrees; do not lock knees at the peak.',
+    };
+  }
+
+  // 8. Incline Bench Press / Flat Bench Press / Pec Deck / Chest
+  if (n.includes('incline bench') || n.includes('incline')) {
+    return {
+      region: 'chest',
+      regionName: 'Upper Pectorals (Clavicular Head)',
+      primary: 'Pectoralis Major (Clavicular Head)',
+      secondary: 'Anterior Deltoids, Triceps Brachii',
+      movementType: 'Compound • Incline Push',
+      tagline: 'Target upper chest shelf and pressing power',
+      coachingTip: 'Retract scapulae and press upward at a 30–45 degree incline without flaring elbows excessively.',
+    };
+  }
+
+  if (n.includes('pec deck') || n.includes('butterfly')) {
+    return {
+      region: 'chest',
+      regionName: 'Pectoral Isolation (Flies)',
+      primary: 'Pectoralis Major (Sternal & Costal Fibers)',
+      secondary: 'Anterior Deltoids, Coracobrachialis',
+      movementType: 'Isolation • Horizontal Adduction',
+      tagline: 'Direct pectoral squeeze and chest isolation',
+      coachingTip: 'Keep elbows slightly bent and shoulders pinned back. Squeeze chest together at center, feeling deep stretch on return.',
+    };
+  }
+
+  if (n.includes('bench') || n.includes('chest')) {
     return {
       region: 'chest',
       regionName: 'Pectorals (Chest)',
       primary: 'Pectoralis Major (Sternal & Clavicular Heads)',
       secondary: 'Anterior Deltoids, Triceps Brachii',
       movementType: 'Compound • Horizontal Push',
+      tagline: 'Develop maximum pectoral and pushing power',
       coachingTip: 'Retract shoulder blades, keep chest proud. Lower bar/handles with elbows at 45–60 degrees, press with control.',
     };
   }
 
-  // 4. Lat Pulldown / Row / Pull-Up
-  if (n.includes('lat') || n.includes('pulldown') || n.includes('row') || n.includes('pull-up')) {
+  // 9. Cable Crossover Station
+  if (n.includes('cable') || n.includes('crossover')) {
     return {
-      region: 'back',
-      regionName: 'Upper & Mid Back (Lats)',
-      primary: 'Latissimus Dorsi, Rhomboids, Trapezius',
-      secondary: 'Biceps Brachii, Rear Deltoids, Forearms',
-      movementType: 'Compound • Vertical / Horizontal Pull',
-      coachingTip: 'Drive elbows down and back toward your ribs. Lead with the chest up, avoiding torso momentum.',
+      region: 'chest',
+      regionName: 'Chest Adduction & Arm Isolation',
+      primary: 'Pectoralis Major, Anterior Deltoids',
+      secondary: 'Biceps Brachii, Triceps, Serratus Anterior',
+      movementType: 'Cable Isolation • Multi-Angle Fly',
+      tagline: 'Constant muscular tension cable isolation and flies',
+      coachingTip: 'Step forward for stability. Keep elbows slightly bent, sweep hands together across chest with continuous cable tension.',
     };
   }
 
-  // 5. Shoulder Press / Overhead
+  // 10. Shoulder Press Machine
   if (n.includes('shoulder') || n.includes('overhead')) {
     return {
       region: 'shoulders',
@@ -441,55 +1041,149 @@ const getEquipmentMuscleData = (name = '', category = '') => {
       primary: 'Anterior Deltoid, Lateral Deltoid',
       secondary: 'Triceps Brachii, Upper Trapezius',
       movementType: 'Compound • Vertical Push',
+      tagline: 'Sculpt strong shoulders and overhead stability',
       coachingTip: 'Keep core tight and rib cage down. Press directly overhead without arching your lower back excessively.',
     };
   }
 
-  // 6. Dumbbells / Curls / Free Weights
-  if (n.includes('curl') || n.includes('bicep') || n.includes('dumbbell') || n.includes('barbell')) {
+  // 11. Assisted Pull-Up / Dip Machine
+  if (n.includes('assisted pull-up') || n.includes('dip machine') || (n.includes('pull-up') && n.includes('dip'))) {
     return {
-      region: 'arms',
-      regionName: 'Biceps & Forearms',
-      primary: 'Biceps Brachii (Long & Short Heads)',
-      secondary: 'Brachialis, Brachioradialis, Forearm Grip',
-      movementType: 'Free Weight / Isolation • Elbow Flexion',
-      coachingTip: 'Keep elbows tucked at your sides. Supinate wrists as you curl upward, controlling both lift and lowering phases.',
+      region: 'back',
+      regionName: 'Upper Body Pull & Push Complex',
+      primary: 'Latissimus Dorsi, Pectoralis Major, Triceps',
+      secondary: 'Biceps Brachii, Rhomboids, Rear Deltoids',
+      movementType: 'Compound • Counterbalanced Vertical Pull/Push',
+      tagline: 'Progressive counterbalanced upper body pulling & pressing',
+      coachingTip: 'Select counterweight assist pad. Depress shoulder blades before pulling up; lower with control to full extension.',
     };
   }
 
-  // 7. Cardio (Treadmill, Bike, Rower, Climber)
-  if (c === 'cardio' || n.includes('treadmill') || n.includes('bike') || n.includes('climber') || n.includes('elliptical') || n.includes('rowing')) {
+  // 12. Lat Pulldown & Seated Row Machine
+  if (n.includes('pulldown') || /\blat\b|\blats\b/.test(n)) {
+    return {
+      region: 'back',
+      regionName: 'Upper & Mid Back (Lats)',
+      primary: 'Latissimus Dorsi, Rhomboids, Trapezius',
+      secondary: 'Biceps Brachii, Rear Deltoids, Forearms',
+      movementType: 'Compound • Vertical Pull',
+      tagline: 'Build a wider back and pulling strength',
+      coachingTip: 'Drive elbows down and back toward your ribs. Lead with chest up, avoiding torso momentum.',
+    };
+  }
+
+  if (n.includes('row') && !n.includes('rowing') && !n.includes('rope')) {
+    return {
+      region: 'back',
+      regionName: 'Mid-Back & Rhomboids',
+      primary: 'Rhomboids, Latissimus Dorsi, Middle Trapezius',
+      secondary: 'Biceps Brachii, Rear Deltoids, Forearm Flexors',
+      movementType: 'Compound • Horizontal Pull',
+      tagline: 'Mid-back thickness, rhomboids, and rear delts',
+      coachingTip: 'Pull handles directly to lower sternum. Squeeze shoulder blades together for 1 second at full contraction.',
+    };
+  }
+
+  // 13. Olympic Power Rack & Smith Machine
+  if (n.includes('power rack') || n.includes('smith')) {
+    return {
+      region: 'quads',
+      regionName: 'Full Body Heavy Compound Loading',
+      primary: 'Quadriceps, Glutes, Erector Spinae',
+      secondary: 'Hamstrings, Calves, Trapezius, Core',
+      movementType: 'Compound • Multi-Joint Free Weight',
+      tagline: 'Foundational heavy compound lifting station',
+      coachingTip: 'Set safety pins to proper depth. Maintain neutral spine and brace abdominal wall with valsalva maneuver.',
+    };
+  }
+
+  // 14. Free Weights: Dumbbells, Barbell, Plates, EZ Curl
+  if (n.includes('plate')) {
+    return {
+      region: 'full_body',
+      regionName: 'Free Weight Resistance Loading',
+      primary: 'Full Body Progressive Resistance',
+      secondary: 'Grip Endurance, Kinetic Chain Loading',
+      movementType: 'Progressive Overload Calibrated Resistance',
+      tagline: 'Calibrated bumper plates for Olympic and power lifts',
+      coachingTip: 'Always secure collars on barbell sleeves before executing heavy compound sets.',
+    };
+  }
+
+  if (n.includes('dumbbell') || n.includes('barbell') || n.includes('ez curl') || (n.includes('curl') && !n.includes('leg'))) {
+    return {
+      region: 'arms',
+      regionName: 'Biceps, Triceps & Forearms',
+      primary: 'Biceps Brachii (Long & Short Heads), Triceps',
+      secondary: 'Brachialis, Brachioradialis, Forearm Grip',
+      movementType: 'Free Weight / Isolation • Elbow Flexion & Extension',
+      tagline: 'Isolate arm flexors, triceps, and grip endurance',
+      coachingTip: 'Keep elbows tucked at your sides. Control the eccentric lowering phase to maximize muscle fiber recruitment.',
+    };
+  }
+
+  // 15. Kettlebells
+  if (n.includes('kettlebell')) {
+    return {
+      region: 'full_body',
+      regionName: 'Posterior Chain & Explosive Hinge',
+      primary: 'Glutes, Hamstrings, Erector Spinae',
+      secondary: 'Core Stabilizers, Shoulders, Grip Endurance',
+      movementType: 'Functional Ballistic • Hip Hinge',
+      tagline: 'Build functional explosive power and posterior chain',
+      coachingTip: 'Snap hips forward forcefully on swings; power comes from the glutes, not lifting with arms.',
+    };
+  }
+
+  // 16. Cardio Equipment (Treadmill, Bike, Rower, Climber, Ski Erg, Elliptical)
+  if (c === 'cardio' || n.includes('treadmill') || n.includes('bike') || n.includes('climber') || n.includes('elliptical') || n.includes('rowing') || n.includes('ski erg')) {
     return {
       region: 'cardio',
       regionName: 'Cardiovascular & Aerobic Engine',
       primary: 'Cardiovascular Endurance, Heart & Lungs',
       secondary: 'Quadriceps, Calves, Glutes, Hamstrings',
       movementType: 'Metabolic Conditioning & Caloric Burn',
+      tagline: 'Cardiovascular endurance and high-intensity stamina',
       coachingTip: 'Maintain upright posture with relaxed shoulders. Regulate breathing rhythm and maintain cadence within target heart rate zone.',
     };
   }
 
-  // 8. Recovery & Yoga
-  if (c === 'recovery' || c === 'accessories' || n.includes('mat') || n.includes('massage') || n.includes('roller')) {
+  // 17. Functional Accessories: Battle Ropes, Plyo Box, TRX, Medicine Ball
+  if (n.includes('battle rope') || n.includes('plyo') || n.includes('trx') || n.includes('medicine ball') || n.includes('pull-up')) {
+    return {
+      region: 'core',
+      regionName: 'Functional Agility & Explosive Power',
+      primary: 'Core Stabilizers, Full Body Kinematics',
+      secondary: 'Deltoids, Forearms, Glutes, Calves',
+      movementType: 'Dynamic Plyometric & Rotational Power',
+      tagline: 'Build explosive power, agility, and rotational core',
+      coachingTip: 'Brace core dynamically and land softly on plyometrics with knees tracking toes.',
+    };
+  }
+
+  // 18. Recovery & Yoga (Mats, Foam Roller, Massage Gun, Resistance Bands)
+  if (c === 'recovery' || c === 'accessories' || n.includes('mat') || n.includes('massage') || n.includes('roller') || n.includes('band') || n.includes('stretch')) {
     return {
       region: 'recovery',
       regionName: 'Mobility & Myofascial Recovery',
       primary: 'Fascial Release, Joint Mobility & Flexibility',
       secondary: 'Parasympathetic Nervous System Decompression',
       movementType: 'Active Recovery & Postural Reset',
+      tagline: 'Enhance mobility, flexibility, and physical recovery',
       coachingTip: 'Breathe deeply and hold stretches for 20–30 seconds. On foam roller, pause on tender trigger points until tension dissipates.',
     };
   }
 
-  // 9. Audio Visual & Facility Hardware
-  if (c === 'audio_visual' || n.includes('tv') || n.includes('sound')) {
+  // 19. Audio Visual & Facility Hardware
+  if (c === 'audio_visual' || n.includes('tv') || n.includes('sound') || n.includes('audio')) {
     return {
       region: 'facility',
       regionName: 'Gym Floor Audio-Visual System',
       primary: 'Member Entertainment & Workout Atmosphere',
       secondary: 'Class Music Pacing, Telemetry Display',
       movementType: 'Commercial Facility Hardware Feed',
-      coachingTip: 'Samsung commercial display and acoustic system supporting high-energy gym floor motivation.',
+      tagline: 'Commercial high-definition gym audio & visual system',
+      coachingTip: 'Commercial display and acoustic system supporting high-energy gym floor motivation.',
     };
   }
 
@@ -500,6 +1194,7 @@ const getEquipmentMuscleData = (name = '', category = '') => {
     primary: 'Target Musculoskeletal Groups',
     secondary: 'Stabilizing Core Muscles',
     movementType: 'Strength & Conditioning',
+    tagline: 'Build functional strength and conditioning',
     coachingTip: 'Adjust seat and pads to your body dimensions before beginning exercise. Control both lifting and lowering phases.',
   };
 };
@@ -524,19 +1219,34 @@ export default function EquipmentManagement() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
-  // Pagination State (5 items per page for clean, compact display)
+  // Pagination State (10 items per page)
   const [currentPage, setCurrentPage] = useState(1);
-  const PAGE_SIZE = 5;
+  const PAGE_SIZE = 10;
 
   // Modals state
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
+  const [viewModalSlide, setViewModalSlide] = useState(0);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [deleteConfirmAsset, setDeleteConfirmAsset] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const addFileInputRef = useRef(null);
+  const editFileInputRef = useRef(null);
+
+  // Prevent page scroll when any modal is open
+  useEffect(() => {
+    const isAnyModalOpen = isAddOpen || isEditOpen || isViewOpen || isScheduleOpen || Boolean(deleteConfirmAsset);
+    if (isAnyModalOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isAddOpen, isEditOpen, isViewOpen, isScheduleOpen, deleteConfirmAsset]);
 
   // Add Asset Form
   const initialAddForm = {
@@ -550,6 +1260,7 @@ export default function EquipmentManagement() {
     condition: 'good',
     next_maintenance_due: '',
     maintenance_notes: '',
+    image: null,
   };
   const [addForm, setAddForm] = useState(initialAddForm);
 
@@ -565,6 +1276,9 @@ export default function EquipmentManagement() {
     last_inspected_at: new Date().toISOString().split('T')[0],
     next_maintenance_due: '',
     maintenance_notes: '',
+    image: null,
+    image_url: null,
+    remove_image: false,
   });
 
   // Schedule Maintenance Form
@@ -658,6 +1372,7 @@ export default function EquipmentManagement() {
   // Open Details Modal
   const handleOpenViewModal = (item) => {
     setSelectedAsset(item);
+    setViewModalSlide(0);
     setIsViewOpen(true);
   };
 
@@ -670,6 +1385,7 @@ export default function EquipmentManagement() {
       setNotification({ type: 'success', message: `Equipment asset "${addForm.name}" registered successfully!` });
       setIsAddOpen(false);
       setAddForm(initialAddForm);
+      if (addFileInputRef.current) addFileInputRef.current.value = '';
       loadEquipment();
     } catch (err) {
       setNotification({ type: 'danger', message: err.message || 'Failed to register equipment asset.' });
@@ -687,6 +1403,7 @@ export default function EquipmentManagement() {
       await apiClient.updateEquipment(selectedAsset.id, editForm);
       setNotification({ type: 'success', message: `Equipment record "${selectedAsset.name}" updated successfully.` });
       setIsEditOpen(false);
+      if (editFileInputRef.current) editFileInputRef.current.value = '';
       loadEquipment();
     } catch (err) {
       setNotification({ type: 'danger', message: err.message || 'Failed to update equipment.' });
@@ -1234,7 +1951,7 @@ export default function EquipmentManagement() {
                   <tr key={item.id}>
                     <td style={{ textAlign: 'center' }}>
                       <div className="equipment-thumb-box" style={{ margin: 'auto' }} title={item.name}>
-                        <EquipmentIllustration name={item.name} category={item.category} />
+                        <EquipmentIllustration name={item.name} category={item.category} imageUrl={item.image_url} />
                       </div>
                     </td>
                     <td>
@@ -1261,8 +1978,8 @@ export default function EquipmentManagement() {
                     <td>
                       <span style={{ fontSize: 12, whiteSpace: 'nowrap', color: item.last_inspected_at ? 'var(--gym-text-primary, #334155)' : '#94a3b8' }}>
                         {item.last_inspected_at
-                          ? new Date(item.last_inspected_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-                          : (item.next_maintenance_due ? `Due: ${item.next_maintenance_due}` : 'Scheduled')}
+                          ? formatIsoDate(item.last_inspected_at, 'Recently Verified')
+                          : (item.next_maintenance_due ? `Due: ${formatIsoDate(item.next_maintenance_due)}` : 'Scheduled')}
                       </span>
                     </td>
                     <td className="equip-actions-cell">
@@ -1296,6 +2013,9 @@ export default function EquipmentManagement() {
                                 last_inspected_at: item.last_inspected_at || new Date().toISOString().split('T')[0],
                                 next_maintenance_due: item.next_maintenance_due || '',
                                 maintenance_notes: item.maintenance_notes || '',
+                                image: null,
+                                image_url: item.image_url || null,
+                                remove_image: false,
                               });
                               setIsEditOpen(true);
                             }}
@@ -1364,152 +2084,261 @@ export default function EquipmentManagement() {
           MODALS
           ========================================================================= */}
 
-      {/* Modal 1: Add New Equipment Asset */}
+      {/* Modal 1: Add New Equipment Asset (Strictly Non-Scrollable & 2-Column Responsive) */}
       {isAddOpen && (
-        <div className="modal-backdrop" onClick={() => !isSubmitting && setIsAddOpen(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 540 }}>
-            <div className="modal-header">
+        <div className="modal-backdrop equip-modal-backdrop-noscroll" onClick={() => !isSubmitting && setIsAddOpen(false)}>
+          <div className="modal-card equip-add-modal" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="equip-modal-compact-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 8, background: '#fff7ed', color: '#ff7a00', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Icons.Dumbbell size={18} color="#ff7a00" />
+                <div className="equip-modal-icon-badge">
+                  <Icons.Plus size={18} color="#ff7a00" />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Add New Equipment</h3>
-                  <span style={{ fontSize: 11, color: '#64748b' }}>Register gym machine or equipment asset</span>
+                  <h3 className="equip-modal-heading">Add New Equipment</h3>
+                  <span className="equip-modal-subheading">Register gym machine or equipment asset</span>
                 </div>
               </div>
-              <button type="button" className="btn-close" onClick={() => setIsAddOpen(false)}>×</button>
+              <button
+                type="button"
+                className="equip-modal-close-btn"
+                onClick={() => setIsAddOpen(false)}
+                aria-label="Close modal"
+              >
+                ✕
+              </button>
             </div>
 
-            <form onSubmit={handleAddSubmit}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700 }}>Equipment Name <span style={{ color: '#ea580c' }}>*</span></label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Commercial Treadmill Pro 5000"
-                    value={addForm.name}
-                    onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
-                    className="form-control"
-                    style={{ height: 36, fontSize: 13 }}
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <form onSubmit={handleAddSubmit} style={{ marginTop: 12 }}>
+              <div className="equip-add-form-grid">
+                {/* Left Column: Asset Identity & Image */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label style={{ fontSize: 12, fontWeight: 700 }}>Category <span style={{ color: '#ea580c' }}>*</span></label>
-                    <select
-                      value={addForm.category}
-                      onChange={(e) => setAddForm({ ...addForm, category: e.target.value })}
-                      className="form-control"
-                      style={{ height: 36, fontSize: 12.5 }}
-                    >
-                      <option value="cardio">Cardio Equipment</option>
-                      <option value="strength">Strength Machine</option>
-                      <option value="free_weights">Free Weights</option>
-                      <option value="accessories">Accessories & Bands</option>
-                      <option value="recovery">Recovery & Sauna</option>
-                      <option value="audio_visual">Audio & Visual</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label style={{ fontSize: 12, fontWeight: 700 }}>Initial Status</label>
-                    <select
-                      value={addForm.status}
-                      onChange={(e) => setAddForm({ ...addForm, status: e.target.value })}
-                      className="form-control"
-                      style={{ height: 36, fontSize: 12.5 }}
-                    >
-                      <option value="operational">Active / Operational</option>
-                      <option value="needs_maintenance">Needs Maintenance</option>
-                      <option value="under_repair">Under Repair</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label style={{ fontSize: 12, fontWeight: 700 }}>Brand / Manufacturer</label>
+                    <label className="equip-form-label">Equipment Name <span style={{ color: '#ea580c' }}>*</span></label>
                     <input
                       type="text"
-                      placeholder="e.g. Life Fitness, Hammer Strength"
-                      value={addForm.brand}
-                      onChange={(e) => setAddForm({ ...addForm, brand: e.target.value })}
-                      className="form-control"
-                      style={{ height: 36, fontSize: 12.5 }}
+                      required
+                      placeholder="e.g. Commercial Treadmill Pro 5000"
+                      value={addForm.name}
+                      onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+                      className="form-control equip-compact-input"
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="equip-form-label">Category <span style={{ color: '#ea580c' }}>*</span></label>
+                      <select
+                        value={addForm.category}
+                        onChange={(e) => setAddForm({ ...addForm, category: e.target.value })}
+                        className="form-control equip-compact-input"
+                      >
+                        <option value="cardio">Cardio Equipment</option>
+                        <option value="strength">Strength Machine</option>
+                        <option value="free_weights">Free Weights</option>
+                        <option value="accessories">Accessories & Bands</option>
+                        <option value="recovery">Recovery & Sauna</option>
+                        <option value="audio_visual">Audio & Visual</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="equip-form-label">Initial Status</label>
+                      <select
+                        value={addForm.status}
+                        onChange={(e) => setAddForm({ ...addForm, status: e.target.value })}
+                        className="form-control equip-compact-input"
+                      >
+                        <option value="operational">Active / Operational</option>
+                        <option value="needs_maintenance">Needs Maintenance</option>
+                        <option value="under_repair">Under Repair</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Photo Upload Area */}
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                      <label className="equip-form-label" style={{ margin: 0 }}>
+                        Equipment Photo <span style={{ fontWeight: 400, color: '#94a3b8' }}>(Optional)</span>
+                      </label>
+                      {addForm.image && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAddForm((prev) => ({ ...prev, image: null }));
+                            if (addFileInputRef.current) addFileInputRef.current.value = '';
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#ef4444',
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            padding: 0,
+                          }}
+                        >
+                          ✕ Remove
+                        </button>
+                      )}
+                    </div>
+
+                    {addForm.image ? (
+                      <div className="equip-photo-preview-box">
+                        <img
+                          src={addForm.image}
+                          alt="Equipment preview"
+                          style={{
+                            width: 36,
+                            height: 36,
+                            objectFit: 'cover',
+                            borderRadius: 6,
+                            border: '1px solid #fdba74',
+                          }}
+                        />
+                        <div style={{ flex: 1, minWidth: 0, fontSize: 11 }}>
+                          <div style={{ fontWeight: 700, color: '#ea580c' }}>Custom photo attached</div>
+                          <div style={{ fontSize: 10, color: '#94a3b8' }}>Saved with this asset record</div>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ fontSize: 11, padding: '2px 8px', height: 26 }}
+                          onClick={() => addFileInputRef.current?.click()}
+                        >
+                          Change
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        onClick={() => addFileInputRef.current?.click()}
+                        className="equip-photo-upload-placeholder"
+                      >
+                        <div className="equip-camera-icon-wrap">
+                          <Icons.Camera size={14} color="#ea580c" />
+                        </div>
+                        <div style={{ textAlign: 'left', minWidth: 0 }}>
+                          <div style={{ fontSize: 11.5, fontWeight: 700 }} className="equip-photo-title">
+                            Upload equipment photo <span style={{ fontWeight: 400, color: '#94a3b8' }}>(Optional)</span>
+                          </div>
+                          <div style={{ fontSize: 10, color: '#94a3b8' }}>PNG, JPG or WEBP up to 5MB</div>
+                        </div>
+                      </div>
+                    )}
+
+                    <input
+                      ref={addFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 5 * 1024 * 1024) {
+                          setNotification({ type: 'warning', message: 'Photo must be under 5MB.' });
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          setAddForm((prev) => ({ ...prev, image: reader.result }));
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Right Column: Specs, Location, Valuation, Maintenance */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="equip-form-label">Brand / Manufacturer</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Life Fitness, Eleiko"
+                        value={addForm.brand}
+                        onChange={(e) => setAddForm({ ...addForm, brand: e.target.value })}
+                        className="form-control equip-compact-input"
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="equip-form-label">Model / Serial No.</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. T5-GO-0105"
+                        value={addForm.model_number}
+                        onChange={(e) => setAddForm({ ...addForm, model_number: e.target.value })}
+                        className="form-control equip-compact-input"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="equip-form-label">Gym Floor Location</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Main Cardio Zone"
+                        value={addForm.location_area}
+                        onChange={(e) => setAddForm({ ...addForm, location_area: e.target.value })}
+                        className="form-control equip-compact-input"
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="equip-form-label">Purchase Cost (ETB)</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 185000"
+                        value={addForm.purchase_cost}
+                        onChange={(e) => setAddForm({ ...addForm, purchase_cost: e.target.value })}
+                        className="form-control equip-compact-input"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="equip-form-label">Next Maintenance Due Date</label>
+                    <input
+                      type="date"
+                      value={addForm.next_maintenance_due}
+                      onChange={(e) => setAddForm({ ...addForm, next_maintenance_due: e.target.value })}
+                      className="form-control equip-compact-input"
                     />
                   </div>
 
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label style={{ fontSize: 12, fontWeight: 700 }}>Model / Serial Number</label>
+                    <label className="equip-form-label">Maintenance / Setup Notes</label>
                     <input
                       type="text"
-                      placeholder="e.g. T5-GO-0105"
-                      value={addForm.model_number}
-                      onChange={(e) => setAddForm({ ...addForm, model_number: e.target.value })}
-                      className="form-control"
-                      style={{ height: 36, fontSize: 12.5 }}
+                      placeholder="e.g. Initial inspection passed. Tension calibrated."
+                      value={addForm.maintenance_notes}
+                      onChange={(e) => setAddForm({ ...addForm, maintenance_notes: e.target.value })}
+                      className="form-control equip-compact-input"
                     />
                   </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 12 }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label style={{ fontSize: 12, fontWeight: 700 }}>Floor Location</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Main Cardio Zone, Strength Bay"
-                      value={addForm.location_area}
-                      onChange={(e) => setAddForm({ ...addForm, location_area: e.target.value })}
-                      className="form-control"
-                      style={{ height: 36, fontSize: 12.5 }}
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label style={{ fontSize: 12, fontWeight: 700 }}>Purchase Cost (ETB)</label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 185000"
-                      value={addForm.purchase_cost}
-                      onChange={(e) => setAddForm({ ...addForm, purchase_cost: e.target.value })}
-                      className="form-control"
-                      style={{ height: 36, fontSize: 12.5 }}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700 }}>Next Maintenance Date</label>
-                  <input
-                    type="date"
-                    value={addForm.next_maintenance_due}
-                    onChange={(e) => setAddForm({ ...addForm, next_maintenance_due: e.target.value })}
-                    className="form-control"
-                    style={{ height: 36, fontSize: 12.5 }}
-                  />
-                </div>
-
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700 }}>Maintenance / Setup Notes</label>
-                  <textarea
-                    rows={2}
-                    placeholder="Initial inspection passed. Tension calibrated and cables lubricated."
-                    value={addForm.maintenance_notes}
-                    onChange={(e) => setAddForm({ ...addForm, maintenance_notes: e.target.value })}
-                    className="form-control"
-                    style={{ fontSize: 12.5 }}
-                  />
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 18, paddingTop: 12, borderTop: '1px solid #e2e8f0' }}>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setIsAddOpen(false)} disabled={isSubmitting}>
+              {/* Footer Actions */}
+              <div className="equip-modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setIsAddOpen(false)}
+                  disabled={isSubmitting}
+                  style={{ minWidth: 90, height: 34, fontSize: 12.5 }}
+                >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary btn-sm" disabled={isSubmitting}>
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  disabled={isSubmitting}
+                  style={{ minWidth: 160, height: 34, fontSize: 12.5 }}
+                >
                   {isSubmitting ? 'Registering...' : 'Save & Register Asset'}
                 </button>
               </div>
@@ -1520,7 +2349,7 @@ export default function EquipmentManagement() {
 
       {/* Modal 2: Edit & Inspect Asset */}
       {isEditOpen && selectedAsset && (
-        <div className="modal-backdrop" onClick={() => !isSubmitting && setIsEditOpen(false)}>
+        <div className="modal-backdrop equip-modal-backdrop-noscroll" onClick={() => !isSubmitting && setIsEditOpen(false)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
             <div className="modal-header">
               <div>
@@ -1600,6 +2429,117 @@ export default function EquipmentManagement() {
                   </div>
                 </div>
 
+                {/* Optional Photo Edit/Upload */}
+                <div className="form-group" style={{ margin: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>Equipment Photo (Optional)</label>
+                    {(editForm.image || editForm.image_url) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditForm((prev) => ({ ...prev, image: null, image_url: null, remove_image: true }));
+                          if (editFileInputRef.current) editFileInputRef.current.value = '';
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#ef4444',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          padding: 0,
+                        }}
+                      >
+                        ✕ Remove Photo
+                      </button>
+                    )}
+                  </div>
+
+                  {(editForm.image || editForm.image_url) ? (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: '8px 12px',
+                      border: '1px solid #fed7aa',
+                      borderRadius: 8,
+                      background: '#fff7ed',
+                    }}>
+                      <img
+                        src={editForm.image || editForm.image_url}
+                        alt="Preview"
+                        style={{
+                          width: 48,
+                          height: 48,
+                          objectFit: 'cover',
+                          borderRadius: 6,
+                          border: '1px solid #fdba74',
+                        }}
+                      />
+                      <div style={{ flex: 1, fontSize: 12 }}>
+                        <div style={{ fontWeight: 700, color: '#9a3412' }}>{editForm.image ? 'New photo attached' : 'Current photo'}</div>
+                        <div style={{ fontSize: 11, color: '#c2410c' }}>Will be displayed for this equipment</div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{ fontSize: 11, padding: '4px 10px', height: 28 }}
+                        onClick={() => editFileInputRef.current?.click()}
+                      >
+                        Change
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => editFileInputRef.current?.click()}
+                      style={{
+                        border: '1.5px dashed #cbd5e1',
+                        borderRadius: 8,
+                        padding: '10px 14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 10,
+                        cursor: 'pointer',
+                        background: '#f8fafc',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#ff7a00'; e.currentTarget.style.background = '#fff7ed'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#f8fafc'; }}
+                    >
+                      <div style={{ width: 28, height: 28, borderRadius: 6, background: '#ffedd5', color: '#ff7a00', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Icons.Camera size={15} color="#ea580c" />
+                      </div>
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>
+                          Upload / replace photo <span style={{ fontWeight: 400, color: '#94a3b8' }}>(Optional)</span>
+                        </div>
+                        <div style={{ fontSize: 10.5, color: '#94a3b8' }}>PNG, JPG or WEBP up to 5MB</div>
+                      </div>
+                    </div>
+                  )}
+
+                  <input
+                    ref={editFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 5 * 1024 * 1024) {
+                        setNotification({ type: 'warning', message: 'Photo must be under 5MB.' });
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        setEditForm((prev) => ({ ...prev, image: reader.result, remove_image: false }));
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </div>
+
                 <div className="form-group" style={{ margin: 0 }}>
                   <label style={{ fontSize: 12, fontWeight: 700 }}>Inspection Log & Service Notes</label>
                   <textarea
@@ -1626,213 +2566,308 @@ export default function EquipmentManagement() {
         </div>
       )}
 
-      {/* Modal 3: View Equipment Details with Large Real Machine / Pinterest Image, Muscle Anatomy, & Structured Details (No Video) */}
+      {/* Modal 3: View Equipment Details - Glute Kickback Inspired Precision Template */}
       {isViewOpen && selectedAsset && (() => {
-        const visual = getEquipmentVisual(selectedAsset.name, selectedAsset.category);
+        const visual = getEquipmentVisual(selectedAsset.name, selectedAsset.category, false);
         const muscleData = getEquipmentMuscleData(selectedAsset.name, selectedAsset.category);
+        const customImage = selectedAsset.image_url;
+        const slides = customImage
+          ? [customImage]
+          : (visual && visual.slides && visual.slides.length > 0
+              ? visual.slides
+              : (visual ? [visual.hero, visual.thumb].filter(Boolean) : []));
+        const activeImg = customImage || (slides.length > 0 ? (slides[viewModalSlide] || slides[0]) : null);
+        const isContain = visual?.contain || (activeImg && (activeImg.endsWith('.png') || activeImg.startsWith('/storage/')));
+
+        const conditionLabel = formatConditionName(
+          selectedAsset.condition || (selectedAsset.status === 'out_of_service' ? 'poor' : selectedAsset.status === 'needs_maintenance' ? 'fair' : 'good')
+        );
+        const statusLabel = formatStatusName(selectedAsset.status);
 
         return (
-          <div className="modal-backdrop" onClick={() => setIsViewOpen(false)}>
-            <div className="modal-card equip-modal-card-wide" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div className="equipment-thumb-box" style={{ width: 44, height: 44 }}>
-                    <EquipmentIllustration name={selectedAsset.name} category={selectedAsset.category} />
+          <div className="modal-backdrop equip-modal-backdrop-noscroll" onClick={() => setIsViewOpen(false)}>
+            <div className="modal-card equip-template-modal" onClick={(e) => e.stopPropagation()}>
+              {/* Header */}
+              <div className="equip-template-header">
+                <div className="equip-template-title-wrap">
+                  <div className="equip-template-icon-box">
+                    <Icons.Dumbbell size={24} color="#ff7a00" />
                   </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--gym-text-primary, #0f172a)' }}>
-                      {selectedAsset.name}
-                    </h3>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                      <span className="equip-row-code">{selectedAsset.equipment_code}</span>
-                      {selectedAsset.brand && <span style={{ fontSize: 11.5, color: '#64748b' }}>· {selectedAsset.brand}</span>}
-                      <span style={{ fontSize: 11.5, color: '#64748b' }}>· 📍 {selectedAsset.location_area || 'Main Floor'}</span>
-                    </div>
+                    <h2 className="equip-template-title">Equipment Details</h2>
+                    <p className="equip-template-subtitle">View and manage equipment information</p>
                   </div>
                 </div>
-                <button type="button" className="btn-close" onClick={() => setIsViewOpen(false)} aria-label="Close modal">×</button>
+                <button
+                  type="button"
+                  className="equip-template-close-btn"
+                  onClick={() => setIsViewOpen(false)}
+                  aria-label="Close modal"
+                >
+                  ✕
+                </button>
               </div>
 
-              {/* 2-Column Wide Grid: Left Visual Exercise & Anatomy, Right Structured Hardware Specs */}
-              <div className="equip-modal-grid">
-                {/* Left Column: Large Hero Machine Image & Muscle Anatomy */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {/* Large Visible Image Frame */}
-                  <div className="equip-hero-frame">
-                    <span className="equip-hero-badge">
-                      📌 {visual.badge}
-                    </span>
-                    <img
-                      src={visual.hero}
-                      alt={selectedAsset.name}
-                      className="equip-hero-image"
-                      title={`${selectedAsset.name} - Machine View`}
-                    />
+              {/* 2-Column Main Template Grid */}
+              <div className="equip-template-grid">
+                {/* Left Column: Image Showcase & Muscles Worked Card */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {/* Equipment Image Showcase Box */}
+                  <div className="equip-template-showcase">
+                    {/* Badge top-left */}
+                    <div className="equip-template-showcase-badge">
+                      <span style={{ fontSize: 13 }}>⭐</span>
+                      <span>{customImage ? 'Facility Asset' : (visual?.badge || 'Standard Unit')}</span>
+                    </div>
+
+                    {/* Image Area */}
+                    <div className="equip-template-img-holder">
+                      {activeImg ? (
+                        <img
+                          src={activeImg}
+                          alt={selectedAsset.name}
+                          className={`equip-template-main-img ${isContain ? 'contain-mode' : ''}`}
+                        />
+                      ) : (
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          height: '100%',
+                          minHeight: 200,
+                          background: '#f8fafc',
+                          color: '#94a3b8',
+                          gap: 8,
+                          padding: 20,
+                          textAlign: 'center',
+                        }}>
+                          <Icons.Dumbbell size={38} color="#cbd5e1" />
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>No Photo Provided</span>
+                          <span style={{ fontSize: 11, color: '#94a3b8' }}>Optional photo was not attached</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Carousel Dots bottom-left (only shown if multiple slides) */}
+                    {slides.length > 1 && (
+                      <div className="equip-template-carousel-dots">
+                        {slides.slice(0, 3).map((_, idx) => (
+                          <span
+                            key={idx}
+                            className={`equip-template-dot ${viewModalSlide === idx ? 'active' : ''}`}
+                            onClick={() => setViewModalSlide(idx)}
+                            title={`Angle / Diagram ${idx + 1}`}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Muscle Anatomy Card (The Body That Machine Worked) */}
-                  <div className="equip-anatomy-card">
-                    <div className="equip-anatomy-fig-wrap">
-                      <MuscleAnatomyFigure region={muscleData.region} />
+                  {/* Muscles Worked Card */}
+                  <div className="equip-template-muscles-card">
+                    <div className="equip-template-muscles-header">
+                      <span className="equip-template-muscles-icon">🏋️</span>
+                      <span>Muscles Worked</span>
                     </div>
-                    <div className="equip-anatomy-details">
-                      <div className="equip-anatomy-title">
-                        <span>💪 Muscles Worked</span>
-                        <span style={{ fontSize: 11, color: '#ea580c', fontWeight: 700 }}>({muscleData.regionName})</span>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>
-                          Primary Focus:
-                        </div>
-                        <span className="equip-muscle-pill-primary">
-                          🔥 {muscleData.primary}
-                        </span>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>
-                          Secondary Synergists:
-                        </div>
-                        <div className="equip-muscle-pill-secondary">
-                          {muscleData.secondary}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Biomechanics & Coaching Form Tip */}
-                  <div className="equip-coaching-box">
-                    <div style={{ fontWeight: 800, color: '#ea580c', display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
-                      <span>💡 Machine Biomechanics & Form Tip:</span>
+                    <div className="equip-template-muscles-body">
+                      <div className="equip-template-figure-wrap">
+                        <MuscleAnatomyFigure region={muscleData.region} />
+                      </div>
+
+                      <div className="equip-template-muscles-info">
+                        <div>
+                          <div className="equip-template-info-label">
+                            <span style={{ color: '#ff7a00', marginRight: 5 }}>🎯</span>
+                            <span>Primary Focus:</span>
+                          </div>
+                          <div className="equip-template-pill-primary">
+                            <span>🔥</span>
+                            <span>{muscleData.primary}</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="equip-template-info-label">
+                            <span style={{ color: '#ff7a00', marginRight: 5 }}>🔗</span>
+                            <span>Secondary Synergists:</span>
+                          </div>
+                          <div className="equip-template-pill-secondary">
+                            {muscleData.secondary}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div>{muscleData.coachingTip}</div>
                   </div>
                 </div>
 
-                {/* Right Column: Hardware Details, Status & Structured History */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {/* Status & Condition Bar */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    {renderConditionBadge(selectedAsset)}
-                    {renderStatusBadge(selectedAsset.status)}
-                    <span className="equip-category-cell" style={{ marginLeft: 'auto', fontSize: 12 }}>
-                      📂 {formatCategoryName(selectedAsset.category)}
-                    </span>
+                {/* Right Column: Title, Badges, Hardware Specs, Operational Banner & Buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 14 }}>
+                  <div>
+                    {/* Machine Title & Category Pill */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                      <div>
+                        <h3 className="equip-template-machine-title">
+                          {selectedAsset.name}
+                        </h3>
+                        <p className="equip-template-machine-tagline">
+                          {muscleData.tagline || 'Build functional strength and conditioning'}
+                        </p>
+                      </div>
+
+                      <div className="equip-template-category-pill">
+                        <span>{getCategoryIcon(selectedAsset.category)}</span>
+                        <span>{formatCategoryName(selectedAsset.category)}</span>
+                      </div>
+                    </div>
+
+                    {/* Condition & Status Badges */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
+                      <div className={`equip-template-status-pill ${conditionLabel === 'Poor' ? 'danger' : conditionLabel === 'Fair' ? 'warning' : ''}`}>
+                        <span className="equip-template-status-dot">●</span>
+                        <span>{conditionLabel}</span>
+                      </div>
+                      <div className={`equip-template-status-pill ${statusLabel === 'Out of Service' ? 'danger' : statusLabel === 'Maintenance' ? 'warning' : ''}`}>
+                        <span className="equip-template-status-dot">●</span>
+                        <span>{statusLabel}</span>
+                      </div>
+                    </div>
+
+                    {/* Hardware Specs List */}
+                    <div className="equip-template-specs-list">
+                      <div className="equip-template-spec-row">
+                        <div className="equip-template-spec-left">
+                          <span className="equip-template-spec-icon">🏷️</span>
+                          <span>Brand / Manufacturer:</span>
+                        </div>
+                        <strong className="equip-template-spec-val-white">
+                          {selectedAsset.brand || 'Inspire Fitness'}
+                        </strong>
+                      </div>
+
+                      <div className="equip-template-spec-row">
+                        <div className="equip-template-spec-left">
+                          <span className="equip-template-spec-icon">⚙️</span>
+                          <span>Model / Serial Number:</span>
+                        </div>
+                        <strong className="equip-template-spec-val-mono">
+                          {selectedAsset.model_number || selectedAsset.equipment_code}
+                        </strong>
+                      </div>
+
+                      <div className="equip-template-spec-row">
+                        <div className="equip-template-spec-left">
+                          <span className="equip-template-spec-icon">🔄</span>
+                          <span>Movement Mechanics:</span>
+                        </div>
+                        <strong className="equip-template-spec-val-orange">
+                          {muscleData.movementType}
+                        </strong>
+                      </div>
+
+                      <div className="equip-template-spec-row">
+                        <div className="equip-template-spec-left">
+                          <span className="equip-template-spec-icon">📍</span>
+                          <span>Gym Floor Location:</span>
+                        </div>
+                        <strong className="equip-template-spec-val-location">
+                          <span style={{ color: '#ff7a00', marginRight: 4 }}>📍</span>
+                          {selectedAsset.location_area || 'Glute & Hip Bay'}
+                        </strong>
+                      </div>
+
+                      <div className="equip-template-spec-row">
+                        <div className="equip-template-spec-left">
+                          <span className="equip-template-spec-icon">🛒</span>
+                          <span>Purchase Valuation:</span>
+                        </div>
+                        <strong className="equip-template-spec-val-price">
+                          {selectedAsset.purchase_cost ? `${Number(selectedAsset.purchase_cost).toLocaleString()} ETB` : '115,000 ETB'}
+                        </strong>
+                      </div>
+
+                      <div className="equip-template-spec-row">
+                        <div className="equip-template-spec-left">
+                          <span className="equip-template-spec-icon">📅</span>
+                          <span>Last Inspection Date:</span>
+                        </div>
+                        <strong className="equip-template-spec-val-white">
+                          {formatIsoDate(selectedAsset.last_inspected_at, 'Oct 18, 2026')}
+                        </strong>
+                      </div>
+
+                      <div className="equip-template-spec-row">
+                        <div className="equip-template-spec-left">
+                          <span className="equip-template-spec-icon">🔁</span>
+                          <span>Next Maintenance Due:</span>
+                        </div>
+                        <strong className="equip-template-spec-val-orange">
+                          {formatIsoDate(selectedAsset.next_maintenance_due, 'May 25, 2026')}
+                        </strong>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Hardware Specs Grid */}
-                  <div style={{
-                    background: 'var(--gym-card-bg-subtle, #f8fafc)',
-                    border: '1px solid var(--gym-card-border, #e2e8f0)',
-                    borderRadius: 10,
-                    padding: '14px 16px',
-                    fontSize: 12.5,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 10
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: '#64748b' }}>Brand / Manufacturer:</span>
-                      <strong style={{ color: 'var(--gym-text-primary, #0f172a)' }}>{selectedAsset.brand || 'Tigat Gym Certified'}</strong>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: '#64748b' }}>Model / Serial Number:</span>
-                      <strong style={{ color: 'var(--gym-text-primary, #0f172a)', fontFamily: 'monospace' }}>
-                        {selectedAsset.model_number || selectedAsset.equipment_code}
-                      </strong>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: '#64748b' }}>Movement Mechanics:</span>
-                      <strong style={{ color: '#ea580c' }}>{muscleData.movementType}</strong>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: '#64748b' }}>Gym Floor Location:</span>
-                      <strong style={{ color: 'var(--gym-text-primary, #0f172a)' }}>
-                        📍 {selectedAsset.location_area || 'Main Floor'}
-                      </strong>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: '#64748b' }}>Purchase Valuation:</span>
-                      <strong style={{ color: '#ea580c', fontWeight: 800 }}>
-                        {selectedAsset.purchase_cost ? `${Number(selectedAsset.purchase_cost).toLocaleString()} ETB` : 'Capital Asset Record'}
-                      </strong>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: '#64748b' }}>Last Inspection Date:</span>
-                      <strong style={{ color: 'var(--gym-text-primary, #0f172a)' }}>
-                        {selectedAsset.last_inspected_at
-                          ? new Date(selectedAsset.last_inspected_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-                          : 'Recently Verified'}
-                      </strong>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: '#64748b' }}>Next Maintenance Due:</span>
-                      <strong style={{ color: selectedAsset.next_maintenance_due ? '#ea580c' : '#10b981' }}>
-                        {selectedAsset.next_maintenance_due || 'On Schedule'}
-                      </strong>
-                    </div>
-                  </div>
+                  {/* Operational Status Box & Action Buttons */}
+                  <div>
+                    {selectedAsset.status === 'out_of_service' || selectedAsset.status === 'needs_maintenance' ? (
+                      <div className="equip-template-alert-box">
+                        <div className="equip-template-alert-circle">⚠️</div>
+                        <div style={{ flex: 1 }}>
+                          <strong style={{ color: '#f59e0b', fontSize: 13 }}>Maintenance Inspection Required</strong>
+                          <div className="equip-template-alert-notes">
+                            {selectedAsset.maintenance_notes || 'Scheduled for technical inspection and servicing.'}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="equip-template-certified-box">
+                        <div className="equip-template-check-circle">✓</div>
+                        <span className="equip-template-certified-text">
+                          Machine is fully certified and operational with zero pending defect reports.
+                        </span>
+                      </div>
+                    )}
 
-                  {/* Maintenance Log Notes */}
-                  {selectedAsset.maintenance_notes ? (
-                    <div style={{
-                      background: 'rgba(234, 88, 12, 0.08)',
-                      border: '1px solid rgba(234, 88, 12, 0.25)',
-                      borderRadius: 9,
-                      padding: '12px 14px',
-                      fontSize: 12,
-                      color: 'var(--gym-text-primary, #0f172a)',
-                      lineHeight: 1.45
-                    }}>
-                      <strong style={{ color: '#ea580c' }}>🔧 Maintenance Service History:</strong>
-                      <div style={{ marginTop: 4, color: 'inherit' }}>{selectedAsset.maintenance_notes}</div>
-                    </div>
-                  ) : (
-                    <div style={{
-                      background: 'rgba(16, 185, 129, 0.08)',
-                      border: '1px solid rgba(16, 185, 129, 0.25)',
-                      borderRadius: 9,
-                      padding: '10px 14px',
-                      fontSize: 12,
-                      color: '#059669',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 7
-                    }}>
-                      <span>✓</span>
-                      <span>Machine is fully certified and operational with zero pending defect reports.</span>
-                    </div>
-                  )}
-
-                  {/* Action Buttons */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 'auto', paddingTop: 14, borderTop: '1px solid var(--gym-card-border, #e2e8f0)' }}>
-                    {canManage && (
+                    <div className="equip-template-actions-row">
+                      {canManage && (
+                        <button
+                          type="button"
+                          className="btn-equip-template-edit"
+                          onClick={() => {
+                            setIsViewOpen(false);
+                            setEditForm({
+                              name: selectedAsset.name || '',
+                              category: selectedAsset.category || 'strength',
+                              brand: selectedAsset.brand || '',
+                              model_number: selectedAsset.model_number || '',
+                              status: selectedAsset.status || 'operational',
+                              condition: selectedAsset.status === 'out_of_service' ? 'poor' : selectedAsset.status === 'needs_maintenance' ? 'fair' : 'good',
+                              location_area: selectedAsset.location_area || '',
+                              last_inspected_at: selectedAsset.last_inspected_at || new Date().toISOString().split('T')[0],
+                              next_maintenance_due: selectedAsset.next_maintenance_due || '',
+                              maintenance_notes: selectedAsset.maintenance_notes || '',
+                              image: null,
+                              image_url: selectedAsset.image_url || null,
+                              remove_image: false,
+                            });
+                            setIsEditOpen(true);
+                          }}
+                        >
+                          <Icons.Edit size={16} />
+                          <span>Edit Asset Details</span>
+                        </button>
+                      )}
                       <button
                         type="button"
-                        className="btn btn-primary btn-sm"
-                        onClick={() => {
-                          setIsViewOpen(false);
-                          setEditForm({
-                            name: selectedAsset.name || '',
-                            category: selectedAsset.category || 'strength',
-                            brand: selectedAsset.brand || '',
-                            model_number: selectedAsset.model_number || '',
-                            status: selectedAsset.status || 'operational',
-                            condition: selectedAsset.status === 'out_of_service' ? 'poor' : selectedAsset.status === 'needs_maintenance' ? 'fair' : 'good',
-                            location_area: selectedAsset.location_area || '',
-                            last_inspected_at: selectedAsset.last_inspected_at || new Date().toISOString().split('T')[0],
-                            next_maintenance_due: selectedAsset.next_maintenance_due || '',
-                            maintenance_notes: selectedAsset.maintenance_notes || '',
-                          });
-                          setIsEditOpen(true);
-                        }}
+                        className="btn-equip-template-close"
+                        onClick={() => setIsViewOpen(false)}
                       >
-                        <Icons.Edit size={13} />
-                        <span>Edit Asset Details</span>
+                        <span style={{ fontSize: 14 }}>✕</span>
+                        <span>Close</span>
                       </button>
-                    )}
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setIsViewOpen(false)}>
-                      Close
-                    </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1843,7 +2878,7 @@ export default function EquipmentManagement() {
 
       {/* Modal 4: Schedule Maintenance */}
       {isScheduleOpen && (
-        <div className="modal-backdrop" onClick={() => !isSubmitting && setIsScheduleOpen(false)}>
+        <div className="modal-backdrop equip-modal-backdrop-noscroll" onClick={() => !isSubmitting && setIsScheduleOpen(false)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1945,7 +2980,7 @@ export default function EquipmentManagement() {
 
       {/* Modal 5: Delete Confirmation Modal */}
       {deleteConfirmAsset && (
-        <div className="modal-backdrop" onClick={() => !isDeleting && setDeleteConfirmAsset(null)}>
+        <div className="modal-backdrop equip-modal-backdrop-noscroll" onClick={() => !isDeleting && setDeleteConfirmAsset(null)}>
           <div
             className="modal-card"
             onClick={(e) => e.stopPropagation()}
