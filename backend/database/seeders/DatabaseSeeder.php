@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             MembershipPlanSeeder::class,
             EquipmentSeeder::class,
+            FitnessClassSeeder::class,
         ]);
     }
 }
