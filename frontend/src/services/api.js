@@ -143,6 +143,14 @@ export const apiClient = {
     });
   },
 
+  patch(endpoint, body = {}, headers = {}) {
+    return this.request(endpoint, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+      headers,
+    });
+  },
+
   delete(endpoint, headers = {}) {
     return this.request(endpoint, { method: 'DELETE', headers });
   },
@@ -575,12 +583,41 @@ export const apiClient = {
     const query = new URLSearchParams();
     if (params.status) query.append('status', params.status);
     if (params.date) query.append('date', params.date);
+    if (params.search) query.append('search', params.search);
     const queryString = query.toString();
     return this.get(`/classes${queryString ? `?${queryString}` : ''}`);
   },
 
+  getFitnessClassStats() {
+    return this.get('/classes/stats');
+  },
+
+  getFitnessClass(classId) {
+    return this.get(`/classes/${classId}`);
+  },
+
   createFitnessClass(payload) {
     return this.post('/classes', payload);
+  },
+
+  updateFitnessClass(classId, payload) {
+    return this.put(`/classes/${classId}`, payload);
+  },
+
+  deleteFitnessClass(classId, reason = '') {
+    return this.delete(`/classes/${classId}${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`);
+  },
+
+  getFitnessClassRoster(classId) {
+    return this.get(`/classes/${classId}/roster`);
+  },
+
+  checkInClassBooking(classId, bookingId, status) {
+    return this.patch(`/classes/${classId}/bookings/${bookingId}/check-in`, { status });
+  },
+
+  removeClassBooking(classId, bookingId) {
+    return this.delete(`/classes/${classId}/bookings/${bookingId}`);
   },
 
   bookFitnessClass(classId, payload = {}) {
