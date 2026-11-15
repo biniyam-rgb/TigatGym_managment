@@ -7,6 +7,7 @@ use App\Models\Equipment;
 use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
 class EquipmentController extends Controller
@@ -63,7 +64,40 @@ class EquipmentController extends Controller
             'purchase_cost' => ['nullable', 'numeric', 'min:0'],
             'next_maintenance_due' => ['nullable', 'date'],
             'maintenance_notes' => ['nullable', 'string', 'max:1000'],
+            'image' => ['nullable'],
+            'image_url' => ['nullable', 'string', 'max:500'],
         ]);
+
+        // Process optional photo upload (DO NOT assign random photos if null)
+        $imageUrl = null;
+        if ($request->hasFile('image')) {
+            $request->validate([
+                'image' => ['image', 'mimes:jpeg,png,jpg,webp,gif', 'max:5120'],
+            ]);
+            $file = $request->file('image');
+            $filename = 'equip_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('equipment', $filename, 'public');
+            $imageUrl = '/storage/' . $path;
+        } elseif ($request->filled('image') && is_string($request->input('image'))) {
+            $imgStr = $request->input('image');
+            if (str_starts_with($imgStr, 'data:image')) {
+                $parts = explode(',', $imgStr, 2);
+                if (count($parts) === 2) {
+                    $decoded = base64_decode($parts[1]);
+                    $ext = 'jpg';
+                    if (str_contains($parts[0], 'png')) $ext = 'png';
+                    elseif (str_contains($parts[0], 'webp')) $ext = 'webp';
+                    elseif (str_contains($parts[0], 'gif')) $ext = 'gif';
+                    $filename = 'equip_' . time() . '_' . uniqid() . '.' . $ext;
+                    Storage::disk('public')->put('equipment/' . $filename, $decoded);
+                    $imageUrl = '/storage/equipment/' . $filename;
+                }
+            } elseif (str_starts_with($imgStr, '/storage/') || str_starts_with($imgStr, '/equipment/') || str_starts_with($imgStr, 'http')) {
+                $imageUrl = $imgStr;
+            }
+        } elseif ($request->filled('image_url')) {
+            $imageUrl = $request->input('image_url');
+        }
 
         $count = Equipment::count() + 1;
         $code = sprintf('EQ-%03d', $count);
@@ -72,6 +106,7 @@ class EquipmentController extends Controller
             'equipment_code' => $code,
             'name' => $validated['name'],
             'category' => $validated['category'],
+            'image_url' => $imageUrl,
             'brand' => $validated['brand'] ?? null,
             'model_number' => $validated['model_number'] ?? null,
             'status' => $validated['status'] ?? 'operational',
@@ -105,12 +140,54 @@ class EquipmentController extends Controller
         }
 
         $validated = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:150'],
+            'category' => ['sometimes', 'required', 'string', 'in:cardio,strength,free_weights,machines,accessories,audio_visual,recovery,other'],
+            'brand' => ['nullable', 'string', 'max:100'],
+            'model_number' => ['nullable', 'string', 'max:100'],
+            'purchase_cost' => ['nullable', 'numeric', 'min:0'],
             'status' => ['sometimes', 'required', 'string', 'in:operational,needs_maintenance,under_repair,out_of_service,decommissioned'],
             'location_area' => ['nullable', 'string', 'max:100'],
             'last_inspected_at' => ['nullable', 'date'],
             'next_maintenance_due' => ['nullable', 'date'],
             'maintenance_notes' => ['nullable', 'string', 'max:1000'],
+            'image' => ['nullable'],
+            'image_url' => ['nullable', 'string', 'max:500'],
+            'remove_image' => ['nullable', 'boolean'],
         ]);
+
+        if ($request->boolean('remove_image')) {
+            if ($equipment->image_url && str_starts_with($equipment->image_url, '/storage/equipment/')) {
+                $filePath = str_replace('/storage/', '', $equipment->image_url);
+                Storage::disk('public')->delete($filePath);
+            }
+            $validated['image_url'] = null;
+        } elseif ($request->hasFile('image')) {
+            $request->validate([
+                'image' => ['image', 'mimes:jpeg,png,jpg,webp,gif', 'max:5120'],
+            ]);
+            $file = $request->file('image');
+            $filename = 'equip_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('equipment', $filename, 'public');
+            $validated['image_url'] = '/storage/' . $path;
+        } elseif ($request->filled('image') && is_string($request->input('image'))) {
+            $imgStr = $request->input('image');
+            if (str_starts_with($imgStr, 'data:image')) {
+                $parts = explode(',', $imgStr, 2);
+                if (count($parts) === 2) {
+                    $decoded = base64_decode($parts[1]);
+                    $ext = 'jpg';
+                    if (str_contains($parts[0], 'png')) $ext = 'png';
+                    elseif (str_contains($parts[0], 'webp')) $ext = 'webp';
+                    elseif (str_contains($parts[0], 'gif')) $ext = 'gif';
+                    $filename = 'equip_' . time() . '_' . uniqid() . '.' . $ext;
+                    Storage::disk('public')->put('equipment/' . $filename, $decoded);
+                    $validated['image_url'] = '/storage/equipment/' . $filename;
+                }
+            } elseif (str_starts_with($imgStr, '/storage/') || str_starts_with($imgStr, '/equipment/') || str_starts_with($imgStr, 'http')) {
+                $validated['image_url'] = $imgStr;
+            }
+        }
+        unset($validated['image'], $validated['remove_image']);
 
         $oldStatus = $equipment->status;
         $equipment->update($validated);
