@@ -165,7 +165,7 @@ export default function Sidebar({
     { id: 'memberships', label: 'Memberships', roles: ['owner', 'admin', 'member'] },
     { id: 'payments', label: 'Payments', roles: ['owner', 'admin', 'member'] },
     { id: 'trainers', label: 'Trainers', roles: ['owner', 'admin', 'trainer'] },
-    { id: 'workouts', label: 'Workouts', roles: ['owner', 'admin', 'trainer', 'member'] },
+    { id: 'workouts', label: 'Workouts', roles: ['trainer', 'member'] },
     { id: 'classes', label: 'Classes', roles: ['owner', 'admin', 'trainer', 'member'] },
     { id: 'equipment', label: 'Equipment', roles: ['owner', 'admin'] },
     { id: 'expenses', label: 'Expenses', roles: ['owner'] },
