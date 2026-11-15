@@ -601,6 +601,38 @@ class ReceptionDashboardController extends Controller
             }
         }
 
+        // Class Booking & Cancellation Notifications for Admin, Owner, and Receptionist
+        if ($isReceptionist || $isAdmin || $isOwner) {
+            $classBookingLogs = AuditLog::with('user:id,name')
+                ->whereIn('action', [
+                    'class.booked',
+                    'class.booking_removed',
+                    'class.booking_cancelled',
+                    'class.scheduled',
+                    'class.cancelled',
+                ])
+                ->latest('id')
+                ->limit(25)
+                ->get();
+
+            foreach ($classBookingLogs as $log) {
+                $role = $log->user?->roles->first()?->name ?? 'Staff';
+                $activityNotifications->push([
+                    'id' => 'act_cls_'.$log->id,
+                    'type' => 'class_activity',
+                    'badge' => 'Class Booking',
+                    'title' => self::formatActivityTitle($log->action, $log->user?->name, $role),
+                    'message' => $log->notes ?: "Class booking updated",
+                    'actor_name' => $log->user?->name ?? 'Staff',
+                    'actor_role' => ucfirst($role),
+                    'action' => $log->action,
+                    'time' => $log->created_at?->diffForHumans() ?? 'Recent',
+                    'timestamp' => $log->created_at?->toIso8601String(),
+                    'view' => 'classes',
+                ]);
+            }
+        }
+
         $dashboardPayload['activity_notifications'] = $activityNotifications->sortByDesc('timestamp')->values()->all();
 
         return response()->json([
@@ -641,6 +673,11 @@ class ReceptionDashboardController extends Controller
             'membership_plan.updated' => "{$actor} modified membership package",
             'expense.recorded' => "{$actor} recorded operating expense",
             'expense.approved' => "{$actor} approved operating expense",
+            'class.booked' => "{$actor} booked a spot in fitness class",
+            'class.booking_removed' => "{$actor} removed reservation from class",
+            'class.booking_cancelled' => "{$actor} cancelled class spot",
+            'class.scheduled' => "{$actor} scheduled a new fitness class",
+            'class.cancelled' => "{$actor} cancelled a fitness class",
             default => "{$actor} performed {$action}",
         };
     }
@@ -650,6 +687,7 @@ class ReceptionDashboardController extends Controller
      */
     protected static function resolveActivityView(string $action): string
     {
+        if (str_starts_with($action, 'class.')) return 'classes';
         if (str_starts_with($action, 'attendance')) return 'attendance';
         if (str_starts_with($action, 'payment')) return 'payments';
         if (str_starts_with($action, 'subscription') || str_starts_with($action, 'membership_plan')) return 'memberships';
