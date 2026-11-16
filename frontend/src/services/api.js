@@ -554,16 +554,55 @@ export const apiClient = {
   getTrainers(params = {}) {
     const query = new URLSearchParams();
     if (params.search) query.append('search', params.search);
+    if (params.status) query.append('status', params.status);
     const queryString = query.toString();
     return this.get(`/trainers${queryString ? `?${queryString}` : ''}`);
+  },
+
+  getTrainer(id) {
+    return this.get(`/trainers/${id}`);
   },
 
   createTrainer(payload) {
     return this.post('/trainers', payload);
   },
 
+  updateTrainer(id, payload) {
+    return this.put(`/trainers/${id}`, payload);
+  },
+
+  deleteTrainer(id) {
+    return this.delete(`/trainers/${id}`);
+  },
+
+  toggleTrainerStatus(id) {
+    return this.post(`/trainers/${id}/toggle-status`);
+  },
+
   assignTrainer(payload) {
     return this.post('/trainers/assign', payload);
+  },
+
+  changeTrainer(payload) {
+    return this.post('/trainers/change', payload);
+  },
+
+  getTrainerMembers(trainerId, params = {}) {
+    const query = new URLSearchParams();
+    if (params.all) query.append('all', '1');
+    const qs = query.toString();
+    return this.get(`/trainers/${trainerId}/members${qs ? `?${qs}` : ''}`);
+  },
+
+  assignTrainerWithPayment(payload) {
+    return this.post('/trainers/assign-with-payment', payload);
+  },
+
+  getTrainerDashboard(params = {}) {
+    const query = new URLSearchParams();
+    if (params.trainer_id) query.append('trainer_id', params.trainer_id);
+    const queryString = query.toString();
+    return this.get(`/trainers/my-dashboard${queryString ? `?${queryString}` : ''}`);
   },
 
   getTrainingSessions(params = {}) {
@@ -576,6 +615,14 @@ export const apiClient = {
 
   scheduleTrainingSession(payload) {
     return this.post('/trainers/sessions', payload);
+  },
+
+  updateSessionStatus(sessionId, payload) {
+    return this.patch(`/trainers/sessions/${sessionId}/status`, payload);
+  },
+
+  cancelTrainingSession(sessionId, reason) {
+    return this.delete(`/trainers/sessions/${sessionId}`, { data: { reason } });
   },
 
   // Module G: Fitness Classes & Reservations

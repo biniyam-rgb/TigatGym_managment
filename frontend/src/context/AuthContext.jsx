@@ -155,14 +155,40 @@ export function AuthProvider({ children }) {
     return response;
   };
 
+  const updateUser = (partialOrUser) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updated = typeof partialOrUser === 'function'
+        ? partialOrUser(prev)
+        : { ...prev, ...partialOrUser };
+      try {
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+  };
+
   const hasRole = (roleName) => {
-    if (!user || !user.role_names) return false;
-    return user.role_names.includes(roleName);
+    if (!user) return false;
+    const target = String(roleName).toLowerCase();
+    if (user.role_names && Array.isArray(user.role_names)) {
+      if (user.role_names.some((r) => String(r).toLowerCase() === target)) return true;
+    }
+    if (user.roles && Array.isArray(user.roles)) {
+      if (user.roles.some((r) => (typeof r === 'string' ? r.toLowerCase() === target : String(r.name).toLowerCase() === target))) {
+        return true;
+      }
+    }
+    if (user.primary_role && String(user.primary_role).toLowerCase() === target) return true;
+    if (user.role && String(user.role).toLowerCase() === target) return true;
+    return false;
   };
 
   const hasAnyRole = (roles = []) => {
-    if (!user || !user.role_names) return false;
-    return roles.some((r) => user.role_names.includes(r));
+    if (!user) return false;
+    return roles.some((r) => hasRole(r));
   };
 
   const primaryRole = user?.primary_role || (user?.role_names?.[0] ?? 'guest');
@@ -176,6 +202,7 @@ export function AuthProvider({ children }) {
     logout,
     changePassword,
     updateProfile,
+    updateUser,
     hasRole,
     hasAnyRole,
     primaryRole,
