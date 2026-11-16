@@ -109,11 +109,21 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::apiResource('attendance', AttendanceController::class)->except(['store', 'destroy']);
 
     // Module B: Trainer Management & PT Sessions
+    Route::get('/trainers/my-dashboard', [TrainerController::class, 'myDashboard']);
     Route::get('/trainers', [TrainerController::class, 'index']);
     Route::post('/trainers', [TrainerController::class, 'store']);
-    Route::post('/trainers/assign', [TrainerController::class, 'assign']);
     Route::get('/trainers/sessions', [TrainerController::class, 'sessions']);
     Route::post('/trainers/sessions', [TrainerController::class, 'storeSession']);
+    Route::patch('/trainers/sessions/{trainingSession}/status', [TrainerController::class, 'updateSessionStatus'])->whereNumber('trainingSession');
+    Route::delete('/trainers/sessions/{trainingSession}', [TrainerController::class, 'cancelSession'])->whereNumber('trainingSession');
+    Route::post('/trainers/assign', [TrainerController::class, 'assign']);
+    Route::post('/trainers/change', [TrainerController::class, 'changeTrainer']);
+    Route::post('/trainers/assign-with-payment', [TrainerController::class, 'assignWithPayment']);
+    Route::get('/trainers/{trainer}/members', [TrainerController::class, 'assignedMembers'])->whereNumber('trainer');
+    Route::get('/trainers/{trainer}', [TrainerController::class, 'show'])->whereNumber('trainer');
+    Route::put('/trainers/{trainer}', [TrainerController::class, 'update'])->whereNumber('trainer');
+    Route::delete('/trainers/{trainer}', [TrainerController::class, 'destroy'])->whereNumber('trainer');
+    Route::post('/trainers/{trainer}/toggle-status', [TrainerController::class, 'toggleStatus'])->whereNumber('trainer');
 
     // Module G: Fitness Classes & Bookings
     Route::get('/classes/stats', [FitnessClassController::class, 'stats']);
