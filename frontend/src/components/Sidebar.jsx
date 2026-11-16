@@ -1,5 +1,29 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/useAuth';
 import BrandLogo from './BrandLogo';
+
+// Professional role descriptions for TigatGym staff and members
+function getRoleDescription(user, primaryRole) {
+  if (user?.role_description) return user.role_description;
+
+  const roleKey = String(primaryRole || '').toLowerCase();
+  switch (roleKey) {
+    case 'owner':
+      return 'Gym Owner';
+    case 'admin':
+      return 'Operations Admin';
+    case 'receptionist':
+      return 'Front Desk Staff';
+    case 'trainer':
+      return 'Fitness Coach';
+    case 'member':
+      return 'Active Member';
+    default:
+      return primaryRole
+        ? `${primaryRole.charAt(0).toUpperCase() + primaryRole.slice(1)} Staff`
+        : 'Gym Staff';
+  }
+}
 
 // Crisp, consistent Lucide-style SVG icons for navigation items
 function NavIcon({ id }) {
@@ -156,7 +180,19 @@ export default function Sidebar({
   isCollapsed = false,
   onToggleCollapse,
 }) {
-  const { primaryRole, hasRole, logout } = useAuth();
+  const { user, primaryRole, hasRole, logout } = useAuth();
+  const [avatarError, setAvatarError] = useState(false);
+
+  useEffect(() => {
+    setTimeout(() => {
+      setAvatarError(false);
+    }, 0);
+  }, [user?.avatar]);
+
+  const displayName = user?.name || (primaryRole === 'receptionist' ? 'Front Desk Staff' : 'Staff Member');
+  const roleDescription = getRoleDescription(user, primaryRole);
+  const initial = displayName.charAt(0).toUpperCase();
+  const userAvatar = !avatarError && user?.avatar ? user.avatar : null;
 
   // Navigation items structured by permissions
   const defaultNavItems = [
@@ -188,9 +224,23 @@ export default function Sidebar({
     { id: 'profile', label: 'My Profile' },
   ];
 
+  // Specific Trainer / Fitness Coach navigation:
+  // Focused on Coaching, Athletes, Workouts, Classes, Schedule, and Profile
+  const trainerNavItems = [
+    { id: 'dashboard', label: 'Overview' },
+    { id: 'members', label: 'My Athletes' },
+    { id: 'classes', label: 'Classes' },
+    { id: 'workouts', label: 'Workouts' },
+    { id: 'trainers', label: 'Coaching Staff' },
+    { id: 'notifications', label: 'Notifications' },
+    { id: 'profile', label: 'My Profile' },
+  ];
+
   // Filter items based on active role
   const visibleNav = primaryRole === 'receptionist'
     ? receptionNavItems
+    : primaryRole === 'trainer'
+    ? trainerNavItems
     : defaultNavItems.filter((item) => item.roles.some((r) => hasRole(r)));
 
   return (
@@ -243,6 +293,47 @@ export default function Sidebar({
             </button>
           </div>
         )}
+      </div>
+
+      {/* User Identity Block: Name + Role Description (Directly Below Logo, Above Nav) */}
+      <div className="sidebar-user-block">
+        <button
+          type="button"
+          className={`sidebar-user-card ${activeView === 'profile' ? 'active' : ''}`}
+          onClick={() => onViewChange && onViewChange('profile')}
+          title={isCollapsed ? `${displayName} (${roleDescription}) — Click to view profile` : 'View Profile'}
+          aria-label={`User profile: ${displayName}, ${roleDescription}`}
+        >
+          <div className="sidebar-user-avatar-wrap">
+            {userAvatar ? (
+              <img
+                src={userAvatar}
+                alt={displayName}
+                className="sidebar-user-avatar-img"
+                onError={() => setAvatarError(true)}
+              />
+            ) : (
+              <div className={`sidebar-user-avatar-fallback role-${primaryRole || 'default'}`}>
+                {initial}
+              </div>
+            )}
+            <span className="sidebar-user-status-dot" title="Active & Online" />
+          </div>
+
+          {!isCollapsed && (
+            <div className="sidebar-user-meta">
+              <span className="sidebar-user-name" title={displayName}>
+                {displayName}
+              </span>
+              <span className="sidebar-user-role-desc" title={roleDescription}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.85 }}>
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+                <span className="sidebar-user-role-text">{roleDescription}</span>
+              </span>
+            </div>
+          )}
+        </button>
       </div>
 
       {/* Navigation Links with Consistent Lucide SVG Icons & Tooltips */}

@@ -1,27 +1,46 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
 import LoginForm from './components/LoginForm';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
-import MemberDirectory from './components/MemberDirectory';
-import RoleDashboard from './components/RoleDashboard';
-import ReceptionDashboard from './components/ReceptionDashboard';
-import UserManagement from './components/UserManagement';
-import AuditLogViewer from './components/AuditLogViewer';
-import SubscriptionManagement from './components/SubscriptionManagement';
-import PaymentLedger from './components/PaymentLedger';
-import AttendanceScanner from './components/AttendanceScanner';
-import TrainerManagement from './components/TrainerManagement';
-import FitnessClassManagement from './components/FitnessClassManagement';
-import WorkoutManagement from './components/WorkoutManagement';
-import EquipmentManagement from './components/EquipmentManagement';
-import ReceptionNotificationsView from './components/ReceptionNotificationsView';
-import ReceptionProfileView from './components/ReceptionProfileView';
-import ChangePasswordModal from './components/ChangePasswordModal';
-import ChapaVerificationModal from './components/ChapaVerificationModal';
 import BrandLogo from './components/BrandLogo';
 import './App.css';
+
+// Code-split route/view components with React.lazy for instant initial page loads
+const MemberDirectory = lazy(() => import('./components/MemberDirectory'));
+const RoleDashboard = lazy(() => import('./components/RoleDashboard'));
+const ReceptionDashboard = lazy(() => import('./components/ReceptionDashboard'));
+const UserManagement = lazy(() => import('./components/UserManagement'));
+const AuditLogViewer = lazy(() => import('./components/AuditLogViewer'));
+const SubscriptionManagement = lazy(() => import('./components/SubscriptionManagement'));
+const PaymentLedger = lazy(() => import('./components/PaymentLedger'));
+const AttendanceScanner = lazy(() => import('./components/AttendanceScanner'));
+const TrainerManagement = lazy(() => import('./components/TrainerManagement'));
+const FitnessClassManagement = lazy(() => import('./components/FitnessClassManagement'));
+const WorkoutManagement = lazy(() => import('./components/WorkoutManagement'));
+const EquipmentManagement = lazy(() => import('./components/EquipmentManagement'));
+const ReceptionNotificationsView = lazy(() => import('./components/ReceptionNotificationsView'));
+const ReceptionProfileView = lazy(() => import('./components/ReceptionProfileView'));
+const ChangePasswordModal = lazy(() => import('./components/ChangePasswordModal'));
+const ChapaVerificationModal = lazy(() => import('./components/ChapaVerificationModal'));
+
+function ViewLoadingSkeleton() {
+  return (
+    <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ width: '220px', height: '32px', borderRadius: '8px', background: 'var(--border, #2a2a2a)', opacity: 0.6 }} />
+        <div style={{ width: '120px', height: '36px', borderRadius: '8px', background: 'var(--border, #2a2a2a)', opacity: 0.6 }} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} style={{ height: '90px', borderRadius: '12px', background: 'var(--card-bg, #1a1a1a)', border: '1px solid var(--border, #2a2a2a)', opacity: 0.7 }} />
+        ))}
+      </div>
+      <div style={{ height: '350px', borderRadius: '12px', background: 'var(--card-bg, #1a1a1a)', border: '1px solid var(--border, #2a2a2a)', opacity: 0.7 }} />
+    </div>
+  );
+}
 
 function GymCoreApp() {
   const { isAuthenticated, isLoading, primaryRole, user } = useAuth();
@@ -29,6 +48,13 @@ function GymCoreApp() {
   const [navParams, setNavParams] = useState(null);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [chapaVerificationRef, setChapaVerificationRef] = useState(null);
+
+  // Reset view to overview dashboard whenever active user switches (e.g. login/logout)
+  useEffect(() => {
+    setTimeout(() => {
+      setActiveView('dashboard');
+    }, 0);
+  }, [user?.id]);
 
   // Intercept Chapa return redirect from hosted checkout
   useEffect(() => {
@@ -96,6 +122,12 @@ function GymCoreApp() {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
 
+  // Global Refresh Key to instantly reload any active view on demand
+  const [refreshKey, setRefreshKey] = useState(0);
+  const handleRefresh = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+  }, []);
+
   if (isLoading) {
     return (
       <div className="gymcore-container" style={{ justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
@@ -157,70 +189,77 @@ function GymCoreApp() {
           theme={theme}
           onToggleTheme={toggleTheme}
           onNavigate={handleNavigate}
+          onRefresh={handleRefresh}
         />
 
-        <main className="gymcore-content-body">
-          {activeView === 'members' && (
-            <MemberDirectory
-              initialOpenRegister={Boolean(navParams?.openRegister)}
-              initialSearch={navParams?.search || ''}
-            />
-          )}
-          {activeView === 'memberships' && <SubscriptionManagement />}
-          {(activeView === 'payments' || activeView === 'expenses') && (
-            <PaymentLedger
-              initialTab={activeView === 'expenses' ? 'expenses' : 'payments'}
-            />
-          )}
-          {activeView === 'attendance' && (
-            <AttendanceScanner
-              onNavigateToMemberships={() => handleNavigate('memberships')}
-            />
-          )}
-          {activeView === 'dashboard' && (
-            primaryRole === 'receptionist' ? (
-              <ReceptionDashboard onNavigate={handleNavigate} />
-            ) : (
-              <RoleDashboard onNavigate={handleNavigate} />
-            )
-          )}
-          {activeView === 'trainers' && <TrainerManagement />}
-          {activeView === 'classes' && (
-            <FitnessClassManagement
-              initialOpenSchedule={Boolean(navParams?.openSchedule)}
-            />
-          )}
-          {activeView === 'notifications' && (
-            <ReceptionNotificationsView onNavigate={handleNavigate} />
-          )}
-          {activeView === 'profile' && (
-            <ReceptionProfileView
-              onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
-              onNavigate={handleNavigate}
-            />
-          )}
-          {activeView === 'workouts' && <WorkoutManagement />}
-          {activeView === 'equipment' && <EquipmentManagement />}
-          {activeView === 'users' && <UserManagement />}
-          {activeView === 'audit' && <AuditLogViewer />}
+        <main className="gymcore-content-body" key={refreshKey}>
+          <Suspense fallback={<ViewLoadingSkeleton />}>
+            {activeView === 'members' && (
+              <MemberDirectory
+                initialOpenRegister={Boolean(navParams?.openRegister)}
+                initialSearch={navParams?.search || ''}
+              />
+            )}
+            {activeView === 'memberships' && <SubscriptionManagement />}
+            {(activeView === 'payments' || activeView === 'expenses') && (
+              <PaymentLedger
+                initialTab={activeView === 'expenses' ? 'expenses' : 'payments'}
+              />
+            )}
+            {activeView === 'attendance' && (
+              <AttendanceScanner
+                onNavigateToMemberships={() => handleNavigate('memberships')}
+              />
+            )}
+            {activeView === 'dashboard' && (
+              primaryRole === 'receptionist' ? (
+                <ReceptionDashboard onNavigate={handleNavigate} />
+              ) : (
+                <RoleDashboard onNavigate={handleNavigate} />
+              )
+            )}
+            {activeView === 'trainers' && <TrainerManagement />}
+            {activeView === 'classes' && (
+              <FitnessClassManagement
+                initialOpenSchedule={Boolean(navParams?.openSchedule)}
+              />
+            )}
+            {activeView === 'notifications' && (
+              <ReceptionNotificationsView onNavigate={handleNavigate} />
+            )}
+            {activeView === 'profile' && (
+              <ReceptionProfileView
+                onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
+                onNavigate={handleNavigate}
+              />
+            )}
+            {activeView === 'workouts' && <WorkoutManagement />}
+            {activeView === 'equipment' && <EquipmentManagement />}
+            {activeView === 'users' && <UserManagement />}
+            {activeView === 'audit' && <AuditLogViewer />}
+
+            {/* Change Password Modal */}
+            {isPasswordModalOpen && (
+              <ChangePasswordModal
+                isOpen={isPasswordModalOpen}
+                onClose={() => setIsPasswordModalOpen(false)}
+              />
+            )}
+
+            {/* Chapa Return Redirect Verification Modal */}
+            {Boolean(chapaVerificationRef) && (
+              <ChapaVerificationModal
+                isOpen={Boolean(chapaVerificationRef)}
+                merchantReference={chapaVerificationRef}
+                onClose={() => setChapaVerificationRef(null)}
+                onVerified={() => {
+                  setActiveView('memberships');
+                }}
+              />
+            )}
+          </Suspense>
         </main>
       </div>
-
-      {/* Change Password Modal */}
-      <ChangePasswordModal
-        isOpen={isPasswordModalOpen}
-        onClose={() => setIsPasswordModalOpen(false)}
-      />
-
-      {/* Chapa Return Redirect Verification Modal */}
-      <ChapaVerificationModal
-        isOpen={Boolean(chapaVerificationRef)}
-        merchantReference={chapaVerificationRef}
-        onClose={() => setChapaVerificationRef(null)}
-        onVerified={() => {
-          setActiveView('memberships');
-        }}
-      />
     </div>
   );
 }

@@ -42,6 +42,51 @@ const Icons = {
       <polyline points="12 6 12 12 16 14" />
     </svg>
   ),
+  Refresh: ({ size = 15, isSpinning = false }) => (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{
+        animation: isSpinning ? 'spin 0.7s linear infinite' : 'none',
+        display: 'inline-block',
+      }}
+    >
+      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+      <path d="M16 21h5v-5" />
+    </svg>
+  ),
+  AlertTriangle: ({ size = 15, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  ),
+  CheckCircle: ({ size = 15, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  ),
+  Shield: ({ size = 15, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  ),
+  ArrowRight: ({ size = 14, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="5" y1="12" x2="19" y2="12" />
+      <polyline points="12 5 19 12 12 19" />
+    </svg>
+  ),
 };
 
 // Defensive conversion ensuring any non-array or object structure safely resolves to an Array
@@ -58,12 +103,39 @@ export default function Header({
   theme = 'light',
   onToggleTheme,
   onNavigate,
+  onRefresh,
 }) {
   const { user, primaryRole } = useAuth();
   const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setTimeout(() => {
+      setImageError(false);
+    }, 0);
+  }, [user?.avatar]);
   const userAvatar = !imageError
     ? (user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80')
     : null;
+
+  // Refresh System Data State
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefreshClick = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      if (onRefresh) {
+        await Promise.resolve(onRefresh());
+      }
+      window.dispatchEvent(new CustomEvent('gymcore:refresh'));
+    } catch (err) {
+      console.error('Refresh system data failed:', err);
+    } finally {
+      setTimeout(() => {
+        setIsRefreshing(false);
+      }, 650);
+    }
+  };
 
   // Live Notifications Dropdown Popover State
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -131,6 +203,11 @@ export default function Header({
     let ignore = false;
 
     const loadAlerts = () => {
+      // Only call getReceptionDashboard for staff who have permission (owner, admin, receptionist)
+      if (primaryRole !== 'owner' && primaryRole !== 'admin' && primaryRole !== 'receptionist') {
+        return;
+      }
+
       // Load active notifications
       apiClient.getReceptionDashboard({ refresh: 1 })
         .then((res) => {
@@ -157,7 +234,7 @@ export default function Header({
               if (a && !dismissed.includes(`alert_${a.id}`)) {
                 items.push({
                   id: `alert_${a.id}`,
-                  title: a.type === 'suspended' ? `⛔ Suspended: ${a.member_name}` : a.type === 'expired' ? `Expired: ${a.member_name}` : `Expiring: ${a.member_name}`,
+                  title: a.type === 'suspended' ? `Suspended: ${a.member_name}` : a.type === 'expired' ? `Expired: ${a.member_name}` : `Expiring: ${a.member_name}`,
                   message: a.type === 'suspended' ? `Reason: ${a.reason || 'Administrative hold'}` : a.type === 'expired' ? 'Membership is expired. Renewal pending.' : `Plan expires in ${a.days_remaining ?? 3} days.`,
                   time: a.suspended_at || 'Urgent',
                   type: a.type === 'suspended' || a.type === 'expired' ? 'danger' : 'warning',
@@ -185,7 +262,7 @@ export default function Header({
       ignore = true;
       window.removeEventListener('gymcore:refresh', loadAlerts);
     };
-  }, []);
+  }, [primaryRole]);
 
   // Close notifications popover on click outside
   useEffect(() => {
@@ -472,6 +549,19 @@ export default function Header({
           )}
         </div>
 
+        {/* Refresh System Data Button (Beside Notifications) */}
+        <button
+          type="button"
+          className="header-tool-btn"
+          onClick={handleRefreshClick}
+          title={isRefreshing ? 'Refreshing system data...' : 'Refresh system data'}
+          aria-label="Refresh system data"
+          disabled={isRefreshing}
+          style={{ cursor: isRefreshing ? 'wait' : 'pointer' }}
+        >
+          <Icons.Refresh size={15} isSpinning={isRefreshing} />
+        </button>
+
         {/* Notifications Shortcut with Dynamic Badge & Interactive Popover */}
         <div style={{ position: 'relative' }} ref={notifRef}>
           <button
@@ -491,48 +581,75 @@ export default function Header({
             <div className="header-notif-dropdown">
               {/* Popover Header */}
               <div className="header-notif-top">
-                <span className="header-notif-title">
-                  Notifications ({notifications.length})
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="header-notif-title">Notifications</span>
+                  {notifications.length > 0 && (
+                    <span className="header-notif-count-pill">{notifications.length} active</span>
+                  )}
+                </div>
                 {notifications.length > 0 && (
                   <button
                     type="button"
+                    className="header-notif-markread-btn"
                     onClick={() => {
                       const ids = notifications.map(n => n.id);
                       const dismissed = JSON.parse(localStorage.getItem('tigat_dismissed_notifs') || '[]');
                       localStorage.setItem('tigat_dismissed_notifs', JSON.stringify([...new Set([...dismissed, ...ids])]));
                       setNotifications([]);
                     }}
-                    style={{ background: 'transparent', border: 'none', color: '#ff8a00', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
                   >
-                    Mark all read
+                    <Icons.CheckCircle size={12} color="#10b981" />
+                    <span>Mark all read</span>
                   </button>
                 )}
               </div>
 
               {/* Popover Body List */}
-              <div style={{ maxHeight: 260, overflowY: 'auto' }}>
+              <div className="header-notif-body-list">
                 {notifications.length === 0 ? (
-                  <div style={{ padding: '24px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
-                    ✓ All notifications caught up!
+                  <div className="header-notif-empty-state">
+                    <div className="header-notif-empty-icon">
+                      <Icons.CheckCircle size={22} color="#10b981" />
+                    </div>
+                    <strong style={{ fontSize: 13, color: 'var(--gym-text-main, #0f172a)' }}>All Caught Up!</strong>
+                    <span style={{ fontSize: 11.5, color: '#64748b' }}>No pending alerts or notifications.</span>
                   </div>
                 ) : (
-                  notifications.map((n) => (
-                    <div
-                      key={n.id}
-                      className="header-notif-row"
-                      onClick={() => {
-                        setIsNotifOpen(false);
-                        if (onNavigate) onNavigate(n.view);
-                      }}
-                    >
-                      <span style={{ fontSize: 16 }}>{n.type === 'danger' ? '⚠️' : '⏰'}</span>
-                      <div style={{ flex: 1 }}>
-                        <div className="header-notif-item-title">{n.title}</div>
-                        <div className="header-notif-item-desc">{n.message}</div>
+                  notifications.map((n) => {
+                    const isDanger = n.type === 'danger';
+                    const isWarning = n.type === 'warning';
+                    const isPrimary = n.type === 'primary';
+
+                    return (
+                      <div
+                        key={n.id}
+                        className={`header-notif-row ${n.type || 'info'}`}
+                        onClick={() => {
+                          setIsNotifOpen(false);
+                          if (onNavigate) onNavigate(n.view);
+                        }}
+                      >
+                        <div className={`header-notif-icon-col ${n.type || 'info'}`}>
+                          {isDanger ? (
+                            <Icons.AlertTriangle size={14} color="#ef4444" />
+                          ) : isWarning ? (
+                            <Icons.Clock size={14} color="#f59e0b" />
+                          ) : isPrimary ? (
+                            <Icons.Shield size={14} color="#ff8a00" />
+                          ) : (
+                            <Icons.Bell />
+                          )}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                            <div className="header-notif-item-title">{n.title}</div>
+                            {n.time && <span className="header-notif-time-tag">{n.time}</span>}
+                          </div>
+                          <div className="header-notif-item-desc">{n.message}</div>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
 
@@ -540,13 +657,14 @@ export default function Header({
               <div className="header-notif-footer">
                 <button
                   type="button"
+                  className="header-notif-footer-link"
                   onClick={() => {
                     setIsNotifOpen(false);
                     if (onNavigate) onNavigate('notifications');
                   }}
-                  style={{ background: 'transparent', border: 'none', color: '#ff8a00', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}
                 >
-                  View All Notifications →
+                  <span>Open Notification Center</span>
+                  <Icons.ArrowRight size={13} />
                 </button>
               </div>
             </div>
