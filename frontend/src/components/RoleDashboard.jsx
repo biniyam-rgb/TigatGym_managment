@@ -3,17 +3,10 @@ import { useAuth } from '../context/useAuth';
 import apiClient from '../services/api';
 import AuditLogViewer from './AuditLogViewer';
 import ReceptionDashboard from './ReceptionDashboard';
+import TrainerDashboard from './TrainerDashboard';
+import './TrainerManagement.css';
 
 // ─── SVG Icon Library ────────────────────────────────────────────────────────
-
-function DeskIcon({ size = 18 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 19h16" /><path d="M4 15h16" /><path d="M4 11h16" />
-      <path d="M8 7h8" /><path d="M6 7v12" /><path d="M18 7v12" />
-    </svg>
-  );
-}
 
 function AlertTriangleIcon({ size = 18 }) {
   return (
@@ -466,7 +459,7 @@ export default function RoleDashboard({ onNavigate }) {
 
   // ── Main Data Fetch ───────────────────────────────────────────────────────
   useEffect(() => {
-    if (primaryRole === 'receptionist') return;
+    if (primaryRole === 'receptionist' || primaryRole === 'trainer' || hasRole('trainer') || hasRole('receptionist')) return;
 
     let ignore = false;
 
@@ -527,7 +520,20 @@ export default function RoleDashboard({ onNavigate }) {
       window.removeEventListener('gymcore:refresh', fetchAllData);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [primaryRole]);
+  }, [primaryRole, hasRole]);
+
+  // ── Listen for real-time coach/trainer photo updates ─────────────────────
+  useEffect(() => {
+    const handleTrainerUpdated = (e) => {
+      const updated = e.detail?.trainer;
+      if (!updated?.id) return;
+      setTrainersList((prev) =>
+        prev.map((t) => (t.id === updated.id ? { ...t, ...updated, avatar: updated.avatar || t.avatar } : t))
+      );
+    };
+    window.addEventListener('gymcore:trainer-updated', handleTrainerUpdated);
+    return () => window.removeEventListener('gymcore:trainer-updated', handleTrainerUpdated);
+  }, []);
 
   // ── Monthly Summary (chart + trends) ─────────────────────────────────────
   useEffect(() => {
@@ -582,7 +588,14 @@ export default function RoleDashboard({ onNavigate }) {
       avatar: t.avatar || defaultAvatars[idx % defaultAvatars.length],
       rating: t.rating || '4.9',
       active_clients: t.active_clients_count ?? t.clients ?? 14,
-      status: t.status || 'Active',
+      status: t.status || 'active',
+      profile: t.profile || {},
+      monthly_fee: Number(t.profile?.monthly_fee || 1500),
+      shift: t.profile?.shift || 'full_day',
+      trainer_code: t.profile?.trainer_code || `TR-${String(t.id).padStart(3, '0')}`,
+      bio: t.profile?.bio || 'Certified Tigat Gym coach specialized in strength & athlete conditioning.',
+      phone: t.phone || '',
+      email: t.email || '',
     }));
     if (mappedReal.length >= 4) return mappedReal.slice(0, 4);
     const needed = 4 - mappedReal.length;
@@ -590,7 +603,23 @@ export default function RoleDashboard({ onNavigate }) {
     const backfill = defaultTrainers
       .filter((d) => !realNames.has((d.name || '').toLowerCase()))
       .slice(0, needed)
-      .map((d, idx) => ({ ...d, avatar: d.avatar || defaultAvatars[(mappedReal.length + idx) % defaultAvatars.length], active_clients: 12 + idx * 3 }));
+      .map((d, idx) => ({
+        ...d,
+        avatar: d.avatar || defaultAvatars[(mappedReal.length + idx) % defaultAvatars.length],
+        active_clients: 12 + idx * 3,
+        status: 'active',
+        profile: {
+          specialization: d.specialization,
+          monthly_fee: 1500,
+          shift: idx % 2 === 0 ? 'morning' : 'evening',
+          trainer_code: `TR-00${mappedReal.length + idx + 1}`,
+          bio: 'Certified Tigat Gym coach specialized in strength & athlete conditioning.',
+        },
+        monthly_fee: 1500,
+        shift: idx % 2 === 0 ? 'morning' : 'evening',
+        trainer_code: `TR-00${mappedReal.length + idx + 1}`,
+        bio: 'Certified Tigat Gym coach specialized in strength & athlete conditioning.',
+      }));
     return [...mappedReal, ...backfill];
   })();
 
@@ -610,8 +639,13 @@ export default function RoleDashboard({ onNavigate }) {
     : 1600;
 
   // Receptionist view
-  if (primaryRole === 'receptionist') {
+  if (primaryRole === 'receptionist' || hasRole('receptionist')) {
     return <ReceptionDashboard onNavigate={onNavigate} />;
+  }
+
+  // Trainer / Fitness Coach view
+  if (primaryRole === 'trainer' || hasRole('trainer')) {
+    return <TrainerDashboard onNavigate={onNavigate} />;
   }
 
   return (
@@ -1003,55 +1037,139 @@ export default function RoleDashboard({ onNavigate }) {
               </button>
             </div>
 
-            <div className="iron-trainers-row">
-              {displayTrainers.map((coach, idx) => {
-                const initial = (coach.name || 'C').charAt(0).toUpperCase();
+            <div className="classes-grid">
+              {displayTrainers.map((t, idx) => {
+                const prof = t.profile || {};
+                const monthlyFee = Number(prof.monthly_fee || t.monthly_fee || 1500);
+                const clientsCount = Number(t.active_clients ?? t.active_clients_count ?? 14);
+                const shiftKey = prof.shift || t.shift || 'full_day';
+                const shiftLabel = shiftKey === 'morning' ? '🌅 Morning' : shiftKey === 'evening' ? '🌆 Evening' : '☀️ Full Day';
+                const shiftHours = shiftKey === 'morning' ? '6:00 AM – 2:00 PM' : shiftKey === 'evening' ? '2:00 PM – 10:00 PM' : '6:00 AM – 10:00 PM';
+                const rawContact = t.phone || t.email || 'Staff Desk';
+                const formattedContact = (t.phone && t.phone.startsWith('+251') && t.phone.length === 13)
+                  ? `+251 ${t.phone.slice(4, 6)} ${t.phone.slice(6, 9)} ${t.phone.slice(9)}`
+                  : rawContact;
+
                 return (
-                  <div key={coach.id || idx} className="iron-coach-card">
-                    <div className="coach-photo-wrap">
+                  <div key={t.id || idx} className="class-card">
+                    {/* Hero Visual Cover matching Class Dashboard */}
+                    <div className="class-card-hero">
                       <img
-                        src={coach.avatar || defaultAvatars[idx % defaultAvatars.length]}
-                        alt={coach.name}
-                        className="coach-portrait-img"
+                        src={t.avatar || defaultAvatars[idx % defaultAvatars.length]}
+                        alt={t.name}
+                        className="class-card-hero-img"
                         onError={(e) => {
-                          e.target.style.display = 'none';
-                          const fb = e.target.parentElement?.querySelector('.coach-fallback-portrait');
-                          if (fb) fb.style.display = 'flex';
+                          e.currentTarget.src = defaultAvatars[idx % defaultAvatars.length];
                         }}
                       />
-                      <div className="coach-fallback-portrait" style={{ display: 'none' }}>
-                        <span className="coach-fallback-letter">{initial}</span>
-                        <span className="coach-fallback-role">Certified PT</span>
-                      </div>
-                      <div className="coach-photo-top-bar">
-                        <span className="coach-status-pill">
-                          <span className="coach-status-dot pulse"></span><span>Active</span>
-                        </span>
-                        <span className="coach-rating-pill">
-                          <span style={{ color: '#f59e0b' }}>★</span><span>{coach.rating || '4.9'}</span>
-                        </span>
-                      </div>
-                      <div className="coach-photo-scrim">
-                        <span className="coach-specialty-badge">{coach.specialization || 'Strength & Conditioning'}</span>
-                      </div>
-                    </div>
-                    <div className="coach-info-body">
-                      <div className="coach-name-row">
-                        <h4 className="coach-full-name">{coach.name}</h4>
-                        <span className="coach-verified-icon" title="Certified Personal Trainer">✓</span>
-                      </div>
-                      <div className="coach-meta-stats">
-                        <span className="coach-meta-item"><UsersIcon size={12} /><span>{coach.active_clients || 14} Clients</span></span>
-                        <span className="coach-meta-divider">•</span>
-                        <span className="coach-meta-item"><span>{coach.status || 'Full-Time'}</span></span>
+                      <div className="class-card-hero-overlay">
+                        <div className="class-hero-top-row">
+                          <div className="class-category-tag">
+                            <span>🎯</span>
+                            <span>{prof.specialization || t.specialization || 'Personal Trainer'}</span>
+                          </div>
+                          <div className={`class-status-tag ${t.status === 'active' ? 'scheduled' : 'completed'}`}>
+                            <span style={{ fontSize: 9 }}>●</span>
+                            <span>{t.status === 'active' ? 'Active Coach' : 'Inactive'}</span>
+                          </div>
+                        </div>
+
+                        <div className="class-hero-bottom-row">
+                          <div className="class-room-pill">
+                            <ClockIcon size={11} color="#ff7a00" />
+                            <span>{shiftLabel}</span>
+                          </div>
+                          <div className="class-fee-pill paid">
+                            {monthlyFee > 0 ? `${monthlyFee.toLocaleString()} ETB / mo` : 'Standard'}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <div className="coach-actions-bar">
-                      <button type="button" className="coach-book-btn" onClick={() => onNavigate && onNavigate('trainers')} title="Book Personal Training Session">
-                        <ClockIcon size={14} /><span>Book PT</span>
+
+                    {/* Card Content Body */}
+                    <div className="class-card-body">
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 4 }}>
+                          <h3 className="class-card-title">{t.name}</h3>
+                          <span className="trainer-code-pill">
+                            {prof.trainer_code || t.trainer_code || `TR-${String(t.id).replace(/\D/g, '').padStart(3, '0') || '001'}`}
+                          </span>
+                        </div>
+                        <p className="class-card-desc">
+                          {prof.bio || t.bio || 'Salaried Tigat Gym personal coach specialized in strength & athlete conditioning.'}
+                        </p>
+                      </div>
+
+                      {/* Coach & Shift Schedule Strip */}
+                      <div className="class-info-strip">
+                        <div className="class-coach-info">
+                          <div className="class-coach-avatar">
+                            {t.name?.charAt(0).toUpperCase() || 'C'}
+                          </div>
+                          <div className="class-coach-text-col">
+                            <div className="class-coach-sublabel">Contact Coach</div>
+                            <strong className="class-coach-contact" title={rawContact}>
+                              {formattedContact}
+                            </strong>
+                          </div>
+                        </div>
+
+                        <div className="class-schedule-box">
+                          <div className="class-schedule-date">
+                            <ClockIcon size={11} color="#ff7a00" />
+                            <span>{shiftHours}</span>
+                          </div>
+                          <div className="class-schedule-time">
+                            <span className="class-time-until-badge">
+                              100% Salaried
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Active Athletes Mentorship Load Bar */}
+                      <div className="class-capacity-box">
+                        <div className="class-capacity-header">
+                          <span style={{ color: '#64748b', fontWeight: 600 }}>Active Athletes Mentored</span>
+                          <strong style={{ color: clientsCount > 0 ? '#ff7a00' : '#10b981' }}>
+                            {clientsCount} Coached Members
+                          </strong>
+                        </div>
+                        <div className="class-capacity-bar-track">
+                          <div
+                            className="class-capacity-bar-fill"
+                            style={{
+                              width: `${Math.min(100, Math.max(8, clientsCount * 12))}%`,
+                              background: clientsCount >= 10
+                                ? 'linear-gradient(90deg, #ff7a00, #ea580c)'
+                                : 'linear-gradient(90deg, #10b981, #059669)',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card Footer Actions */}
+                    <div className="class-card-footer">
+                      <button
+                        type="button"
+                        className="btn-book-class"
+                        onClick={() => onNavigate && onNavigate('trainers')}
+                        title="Book PT or View Coach"
+                        style={{ flex: 1 }}
+                      >
+                        <ClockIcon size={13} />
+                        <span>Book PT</span>
                       </button>
-                      <button type="button" className="coach-consult-btn" onClick={() => onNavigate && onNavigate('trainers')} title="Direct Consultation">
-                        <DeskIcon size={14} />
+                      <button
+                        type="button"
+                        className="btn-clean-schedule"
+                        onClick={() => onNavigate && onNavigate('trainers')}
+                        title="View Full Coach Profile & Roster"
+                        style={{ height: 32, fontSize: 11.5, padding: '0 12px' }}
+                      >
+                        <span>View Details</span>
+                        <ArrowUpRightIcon size={12} />
                       </button>
                     </div>
                   </div>
