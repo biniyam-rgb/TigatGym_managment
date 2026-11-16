@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Equipment;
+use App\Rules\ValidMoneyAmount;
 use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -61,7 +62,7 @@ class EquipmentController extends Controller
             'model_number' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', 'string', 'in:operational,needs_maintenance,under_repair,out_of_service,decommissioned'],
             'location_area' => ['nullable', 'string', 'max:100'],
-            'purchase_cost' => ['nullable', 'numeric', 'min:0'],
+            'purchase_cost' => ['nullable', new ValidMoneyAmount(0, 10000000, true)],
             'next_maintenance_due' => ['nullable', 'date'],
             'maintenance_notes' => ['nullable', 'string', 'max:1000'],
             'image' => ['nullable'],
@@ -144,7 +145,7 @@ class EquipmentController extends Controller
             'category' => ['sometimes', 'required', 'string', 'in:cardio,strength,free_weights,machines,accessories,audio_visual,recovery,other'],
             'brand' => ['nullable', 'string', 'max:100'],
             'model_number' => ['nullable', 'string', 'max:100'],
-            'purchase_cost' => ['nullable', 'numeric', 'min:0'],
+            'purchase_cost' => ['nullable', new ValidMoneyAmount(0, 10000000, true)],
             'status' => ['sometimes', 'required', 'string', 'in:operational,needs_maintenance,under_repair,out_of_service,decommissioned'],
             'location_area' => ['nullable', 'string', 'max:100'],
             'last_inspected_at' => ['nullable', 'date'],

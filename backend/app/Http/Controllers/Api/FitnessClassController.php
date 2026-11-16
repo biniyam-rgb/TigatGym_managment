@@ -8,10 +8,12 @@ use App\Models\FitnessClass;
 use App\Models\Payment;
 use App\Models\PaymentTransaction;
 use App\Models\User;
+use App\Rules\ValidMoneyAmount;
 use App\Services\AuditLogger;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -24,38 +26,45 @@ class FitnessClassController extends Controller
      */
     public function stats(Request $request): JsonResponse
     {
-        $today = Carbon::today();
+        $data = Cache::remember('fitness_classes_stats_v1', 30, function () {
+            $today = Carbon::today();
 
-        $totalClasses = FitnessClass::count();
-        $todayClasses = FitnessClass::whereDate('start_time', $today)
-            ->whereIn('status', ['scheduled', 'ongoing'])
-            ->count();
+            $totalClasses = FitnessClass::count();
+            $todayClasses = FitnessClass::whereDate('start_time', $today)
+                ->whereIn('status', ['scheduled', 'ongoing'])
+                ->count();
 
-        $totalBookings = ClassBooking::whereIn('status', ['reserved', 'attended'])->count();
-        $attendedCount = ClassBooking::where('status', 'attended')->count();
+            $totalBookings = ClassBooking::whereIn('status', ['reserved', 'attended'])->count();
+            $attendedCount = ClassBooking::where('status', 'attended')->count();
 
-        $activeClasses = FitnessClass::whereIn('status', ['scheduled', 'ongoing'])->get();
-        $totalCapacity = $activeClasses->sum('capacity');
-        $activeBookings = ClassBooking::whereIn('fitness_class_id', $activeClasses->pluck('id'))
-            ->whereIn('status', ['reserved', 'attended'])
-            ->count();
+            $activeClasses = FitnessClass::whereIn('status', ['scheduled', 'ongoing'])
+                ->select(['id', 'capacity', 'trainer_id'])
+                ->get();
 
-        $occupancyRate = $totalCapacity > 0 ? round(($activeBookings / $totalCapacity) * 100, 1) : 0;
+            $totalCapacity = $activeClasses->sum('capacity');
+            $activeClassIds = $activeClasses->pluck('id');
+            $activeBookings = $activeClassIds->isNotEmpty()
+                ? ClassBooking::whereIn('fitness_class_id', $activeClassIds)
+                    ->whereIn('status', ['reserved', 'attended'])
+                    ->count()
+                : 0;
 
-        $activeTrainers = FitnessClass::whereIn('status', ['scheduled', 'ongoing'])
-            ->distinct('trainer_id')
-            ->count('trainer_id');
+            $occupancyRate = $totalCapacity > 0 ? round(($activeBookings / $totalCapacity) * 100, 1) : 0;
+            $activeTrainers = $activeClasses->pluck('trainer_id')->filter()->unique()->count();
 
-        return response()->json([
-            'status' => 'success',
-            'data' => [
+            return [
                 'total_classes' => $totalClasses,
                 'today_classes' => $todayClasses,
                 'total_bookings' => $totalBookings,
                 'attended_count' => $attendedCount,
                 'occupancy_rate' => $occupancyRate,
                 'active_trainers' => $activeTrainers,
-            ],
+            ];
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $data,
         ]);
     }
 
@@ -119,8 +128,10 @@ class FitnessClassController extends Controller
     {
         $currentUser = $request->user();
 
-        // Automatically sync statuses and cleanup completed non-recurring classes > 48h
-        self::cleanupCompletedClasses();
+        // Throttle auto-sync to at most once per 3 minutes to avoid executing 3 UPDATE queries on every GET request
+        if (Cache::add('fitness_classes_cleanup_lock', true, 180)) {
+            self::cleanupCompletedClasses();
+        }
 
         $query = FitnessClass::with(['trainer'])
             ->withCount(['bookings as booked_count' => function ($q) {
@@ -149,16 +160,20 @@ class FitnessClassController extends Controller
             });
         }
 
-        $classes = $query->orderBy('start_time')->get()->map(function ($c) use ($currentUser) {
-            $isBookedByMe = false;
-            $myBooking = null;
-            if ($currentUser) {
-                $myBooking = ClassBooking::where('fitness_class_id', $c->id)
-                    ->where('member_id', $currentUser->id)
-                    ->whereIn('status', ['reserved', 'attended'])
-                    ->first();
-                $isBookedByMe = (bool) $myBooking;
-            }
+        $rawClasses = $query->orderBy('start_time')->get();
+
+        // Batch load current user's bookings to avoid N+1 queries
+        $myBookings = ($currentUser && $rawClasses->isNotEmpty())
+            ? ClassBooking::where('member_id', $currentUser->id)
+                ->whereIn('status', ['reserved', 'attended'])
+                ->whereIn('fitness_class_id', $rawClasses->pluck('id'))
+                ->get()
+                ->keyBy('fitness_class_id')
+            : collect();
+
+        $classes = $rawClasses->map(function ($c) use ($currentUser, $myBookings) {
+            $myBooking = $currentUser ? $myBookings->get($c->id) : null;
+            $isBookedByMe = (bool) $myBooking;
 
             return [
                 'id' => $c->id,
@@ -237,7 +252,7 @@ class FitnessClassController extends Controller
             'start_time' => ['required', 'date'],
             'end_time' => ['required', 'date', 'after:start_time'],
             'recurrence' => ['nullable', 'string', 'in:none,daily,weekly,biweekly'],
-            'price' => ['nullable', 'numeric', 'min:0'],
+            'price' => ['nullable', new ValidMoneyAmount(0, 50000, true)],
             'image' => ['nullable'],
             'image_url' => ['nullable', 'string'],
         ], [
@@ -340,7 +355,7 @@ class FitnessClassController extends Controller
             'recurrence' => ['nullable', 'string', 'in:none,daily,weekly,biweekly'],
             'status' => ['nullable', 'string'],
             'cancellation_reason' => ['nullable', 'string', 'max:255'],
-            'price' => ['nullable', 'numeric', 'min:0'],
+            'price' => ['nullable', new ValidMoneyAmount(0, 50000, true)],
             'image' => ['nullable'],
             'image_url' => ['nullable', 'string'],
             'remove_image' => ['nullable', 'boolean'],

@@ -13,7 +13,9 @@ use App\Services\AuditLogger;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
 class AttendanceController extends Controller
@@ -23,6 +25,11 @@ class AttendanceController extends Controller
      */
     public static function autoCheckOutOverstayRecords(): int
     {
+        // Throttle overstay scans to at most once per 3 minutes across requests
+        if (! Cache::add('attendance_autocheckout_lock', true, 180)) {
+            return 0;
+        }
+
         $cutoff = Carbon::now()->subHours(4);
         $overstays = AttendanceRecord::where('status', 'admitted')
             ->whereNull('check_out_time')
@@ -311,6 +318,12 @@ class AttendanceController extends Controller
             'method' => ['nullable', 'string', 'in:qr_code,manual_reception,member_code,rfid'],
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
+
+        if (empty($validated['qr_token']) && empty($validated['member_code']) && empty($validated['member_id'])) {
+            throw ValidationException::withMessages([
+                'member_code' => ['Please provide a member QR pass token, member code (TG-XXXX), or member ID to check in.'],
+            ]);
+        }
 
         $member = null;
         $method = $validated['method'] ?? 'qr_code';

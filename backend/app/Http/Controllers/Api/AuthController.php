@@ -7,6 +7,9 @@ use App\Http\Resources\UserResource;
 use App\Models\MemberProfile;
 use App\Models\Role;
 use App\Models\User;
+use App\Rules\ValidDateOfBirth;
+use App\Rules\ValidHumanName;
+use App\Rules\ValidPhone;
 use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -154,19 +157,19 @@ class AuthController extends Controller
         $user = $request->user();
 
         $validated = $request->validate([
-            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'name' => ['sometimes', 'required', 'string', new ValidHumanName(2, 100)],
             'email' => ['sometimes', 'required', 'string', 'email:rfc', 'max:255', 'unique:users,email,' . $user->id],
-            'phone' => ['nullable', 'string', 'max:30'],
+            'phone' => ['nullable', 'string', new ValidPhone(true)],
             'avatar' => ['nullable'],
             'remove_avatar' => ['sometimes', 'boolean'],
 
             // Member-specific fields
-            'date_of_birth' => ['nullable', 'date'],
+            'date_of_birth' => ['nullable', 'date', new ValidDateOfBirth(10, 110)],
             'gender' => ['nullable', 'string', 'in:male,female,other'],
-            'blood_type' => ['nullable', 'string', 'max:10'],
-            'address' => ['nullable', 'string', 'max:255'],
-            'emergency_contact_name' => ['nullable', 'string', 'max:255'],
-            'emergency_contact_phone' => ['nullable', 'string', 'max:30'],
+            'blood_type' => ['nullable', 'string', 'in:A+,A-,B+,B-,AB+,AB-,O+,O-'],
+            'address' => ['nullable', 'string', 'max:500'],
+            'emergency_contact_name' => ['nullable', 'string', new ValidHumanName(2, 100, true)],
+            'emergency_contact_phone' => ['nullable', 'string', new ValidPhone(true)],
             'emergency_contact_relationship' => ['nullable', 'string', 'max:100'],
 
             // Trainer-specific fields

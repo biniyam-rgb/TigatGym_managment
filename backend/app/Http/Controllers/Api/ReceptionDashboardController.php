@@ -52,7 +52,6 @@ class ReceptionDashboardController extends Controller
 
             // Card 1: Active Members (Total members with currently active subscriptions)
             $activeMembersCount = Subscription::where('status', 'active')
-                ->whereHas('member')
                 ->where('end_date', '>=', $today->toDateString())
                 ->distinct('member_id')
                 ->count('member_id');
@@ -62,16 +61,23 @@ class ReceptionDashboardController extends Controller
                 $activeMembersCount = User::role('member')->where('status', 'active')->count();
             }
 
-            // Card 2: Today's Check-ins (Total successful attendance records admitted today)
-            $todayCheckInsCount = AttendanceRecord::where('status', 'admitted')
-                ->whereBetween('check_in_time', [$startOfDay, $endOfDay])
-                ->count();
+            // Card 2, Denied, Floor Occupancy: Combined single attendance aggregate
+            $attendanceStats = AttendanceRecord::whereBetween('check_in_time', [$startOfDay, $endOfDay])
+                ->selectRaw("
+                    COUNT(CASE WHEN status = 'admitted' THEN 1 END) as today_check_ins,
+                    COUNT(CASE WHEN status = 'denied' THEN 1 END) as denied_count,
+                    COUNT(CASE WHEN status = 'admitted' AND check_out_time IS NULL THEN 1 END) as currently_inside
+                ")
+                ->first();
+
+            $todayCheckInsCount = (int) ($attendanceStats->today_check_ins ?? 0);
+            $deniedCount = (int) ($attendanceStats->denied_count ?? 0);
+            $currentlyInside = (int) ($attendanceStats->currently_inside ?? 0);
 
             // Card 3: Expected Members Today (Derived from today's fitness class bookings + scheduled sessions)
-            $todayClassBookings = ClassBooking::whereHas('fitnessClass', function ($query) use ($startOfDay, $endOfDay) {
-                $query->whereBetween('start_time', [$startOfDay, $endOfDay]);
-            })
-                ->where('status', 'reserved')
+            $todayClassBookings = ClassBooking::join('fitness_classes', 'fitness_classes.id', '=', 'class_bookings.fitness_class_id')
+                ->whereBetween('fitness_classes.start_time', [$startOfDay, $endOfDay])
+                ->where('class_bookings.status', 'reserved')
                 ->count();
 
             // Total expected attendees: actual bookings plus historical daily baseline if available
@@ -88,7 +94,6 @@ class ReceptionDashboardController extends Controller
 
             // Card 4: Expiring Memberships (Expiring within the next 7 days)
             $expiringMembershipsCount = Subscription::where('status', 'active')
-                ->whereHas('member')
                 ->whereBetween('end_date', [$today->toDateString(), $nextSevenDays->toDateString()])
                 ->count();
 
@@ -334,13 +339,14 @@ class ReceptionDashboardController extends Controller
             // -------------------------------------------------------------------------
             // 5. Today's Classes (Today's Scheduled Fitness Classes)
             // -------------------------------------------------------------------------
-            $todayClasses = FitnessClass::with(['trainer:id,name', 'bookings'])
+            $todayClasses = FitnessClass::with(['trainer:id,name'])
+                ->withCount(['bookings as reserved_count' => fn ($q) => $q->where('status', 'reserved')])
                 ->whereBetween('start_time', [$startOfDay, $endOfDay])
                 ->orderBy('start_time')
                 ->get()
                 ->map(function ($class) {
-                    $reservedCount = $class->bookings->where('status', 'reserved')->count();
-                    $available = max(0, $class->capacity - $reservedCount);
+                    $reservedCount = (int) $class->reserved_count;
+                    $available = max(0, (int) $class->capacity - $reservedCount);
 
                     return [
                         'id' => $class->id,
@@ -394,10 +400,7 @@ class ReceptionDashboardController extends Controller
                 ]);
             }
 
-            // C. Denied check-ins today
-            $deniedCount = AttendanceRecord::where('status', 'denied')
-                ->whereBetween('check_in_time', [$startOfDay, $endOfDay])
-                ->count();
+            // C. Denied check-ins today (Computed in Card 2 query above)
             if ($deniedCount > 0) {
                 $notifications->push([
                     'id' => 'notif_denied',
@@ -411,12 +414,8 @@ class ReceptionDashboardController extends Controller
                 ]);
             }
 
-            // D. High floor occupancy warning if capacity > 80%
+            // D. High floor occupancy warning if capacity > 80% (Computed in Card 2 query above)
             $capacityLimit = 100;
-            $currentlyInside = AttendanceRecord::where('status', 'admitted')
-                ->whereNull('check_out_time')
-                ->whereBetween('check_in_time', [$startOfDay, $endOfDay])
-                ->count();
 
             if ($currentlyInside >= ($capacityLimit * 0.8)) {
                 $notifications->push([
@@ -503,137 +502,93 @@ class ReceptionDashboardController extends Controller
         $isOwner = $user->hasRole('owner');
         $isAdmin = $user->hasRole('admin');
         $isReceptionist = $user->hasRole('receptionist');
-        $activityNotifications = collect();
 
-        if ($isReceptionist) {
-            // Admin management activities relevant to front desk (member created, deleted, suspended, etc.)
-            $adminLogsForReception = AuditLog::with('user:id,name')
-                ->whereHas('user', function ($q) {
-                    $q->role('admin')->orWhere(function ($oq) {
-                        $oq->role('owner');
-                    });
-                })
-                ->whereIn('action', [
-                    'member.created',
-                    'member.updated',
-                    'member.deleted',
-                    'member.suspended',
-                    'member.unsuspended',
-                    'subscription.created',
-                    'subscription.renewed',
-                    'subscription.frozen',
-                    'subscription.unfrozen',
-                ])
-                ->latest('id')
-                ->limit(25)
-                ->get();
-
-            foreach ($adminLogsForReception as $log) {
-                $activityNotifications->push([
-                    'id' => 'act_mgr_'.$log->id,
-                    'type' => 'admin_activity',
-                    'badge' => 'Management Update',
-                    'title' => self::formatActivityTitle($log->action, $log->user?->name, 'admin'),
-                    'message' => $log->notes ?: "Performed {$log->action}",
-                    'actor_name' => $log->user?->name ?? 'Management',
-                    'actor_role' => 'Admin',
-                    'action' => $log->action,
-                    'time' => $log->created_at?->diffForHumans() ?? 'Recent',
-                    'timestamp' => $log->created_at?->toIso8601String(),
-                    'view' => self::resolveActivityView($log->action),
-                ]);
-            }
+        $activityCacheKey = 'reception_act_notifs_'.$user->roles->first()?->name.'_'.$today->toDateString();
+        if ($request->boolean('refresh')) {
+            Cache::forget($activityCacheKey);
         }
 
-        if ($isAdmin || $isOwner) {
-            // Receptionist activities for Admin and Owner
-            $receptionLogs = AuditLog::with('user:id,name')
-                ->whereHas('user', function ($q) {
-                    $q->role('receptionist');
-                })
+        $activityNotifications = Cache::remember($activityCacheKey, 15, function () use ($isOwner, $isAdmin, $isReceptionist, $user) {
+            $notifications = collect();
+
+            $relevantLogs = AuditLog::with(['user:id,name', 'user.roles:id,name'])
                 ->where('action', 'not like', 'auth.%')
                 ->latest('id')
-                ->limit(25)
+                ->limit(40)
                 ->get();
 
-            foreach ($receptionLogs as $log) {
-                $activityNotifications->push([
-                    'id' => 'act_rec_'.$log->id,
-                    'type' => 'reception_activity',
-                    'badge' => 'Reception Activity',
-                    'title' => self::formatActivityTitle($log->action, $log->user?->name, 'receptionist'),
-                    'message' => $log->notes ?: "Performed {$log->action}",
-                    'actor_name' => $log->user?->name ?? 'Receptionist',
-                    'actor_role' => 'Receptionist',
-                    'action' => $log->action,
-                    'time' => $log->created_at?->diffForHumans() ?? 'Recent',
-                    'timestamp' => $log->created_at?->toIso8601String(),
-                    'view' => self::resolveActivityView($log->action),
-                ]);
-            }
-        }
-
-        if ($isOwner) {
-            // Admin activities exclusively for Owner
-            $adminLogs = AuditLog::with('user:id,name')
-                ->whereHas('user', function ($q) {
-                    $q->role('admin');
-                })
-                ->where('action', 'not like', 'auth.%')
-                ->latest('id')
-                ->limit(25)
-                ->get();
-
-            foreach ($adminLogs as $log) {
-                $activityNotifications->push([
-                    'id' => 'act_adm_'.$log->id,
-                    'type' => 'admin_activity',
-                    'badge' => 'Admin Activity',
-                    'title' => self::formatActivityTitle($log->action, $log->user?->name, 'admin'),
-                    'message' => $log->notes ?: "Performed {$log->action}",
-                    'actor_name' => $log->user?->name ?? 'Admin',
-                    'actor_role' => 'Admin',
-                    'action' => $log->action,
-                    'time' => $log->created_at?->diffForHumans() ?? 'Recent',
-                    'timestamp' => $log->created_at?->toIso8601String(),
-                    'view' => self::resolveActivityView($log->action),
-                ]);
-            }
-        }
-
-        // Class Booking & Cancellation Notifications for Admin, Owner, and Receptionist
-        if ($isReceptionist || $isAdmin || $isOwner) {
-            $classBookingLogs = AuditLog::with('user:id,name')
-                ->whereIn('action', [
-                    'class.booked',
-                    'class.booking_removed',
-                    'class.booking_cancelled',
-                    'class.scheduled',
-                    'class.cancelled',
-                ])
-                ->latest('id')
-                ->limit(25)
-                ->get();
-
-            foreach ($classBookingLogs as $log) {
+            foreach ($relevantLogs as $log) {
                 $role = $log->user?->roles->first()?->name ?? 'Staff';
-                $activityNotifications->push([
-                    'id' => 'act_cls_'.$log->id,
-                    'type' => 'class_activity',
-                    'badge' => 'Class Booking',
-                    'title' => self::formatActivityTitle($log->action, $log->user?->name, $role),
-                    'message' => $log->notes ?: "Class booking updated",
-                    'actor_name' => $log->user?->name ?? 'Staff',
-                    'actor_role' => ucfirst($role),
-                    'action' => $log->action,
-                    'time' => $log->created_at?->diffForHumans() ?? 'Recent',
-                    'timestamp' => $log->created_at?->toIso8601String(),
-                    'view' => 'classes',
-                ]);
-            }
-        }
+                $isClassAction = str_starts_with($log->action, 'class.');
+                $isAdminRole = in_array($role, ['admin', 'owner'], true);
+                $isRecRole = ($role === 'receptionist');
 
-        $dashboardPayload['activity_notifications'] = $activityNotifications->sortByDesc('timestamp')->values()->all();
+                if ($isClassAction) {
+                    $notifications->push([
+                        'id' => 'act_cls_'.$log->id,
+                        'type' => 'class_activity',
+                        'badge' => 'Class Booking',
+                        'title' => self::formatActivityTitle($log->action, $log->user?->name, $role),
+                        'message' => $log->notes ?: 'Class booking updated',
+                        'actor_name' => $log->user?->name ?? 'Staff',
+                        'actor_role' => ucfirst($role),
+                        'action' => $log->action,
+                        'time' => $log->created_at?->diffForHumans() ?? 'Recent',
+                        'timestamp' => $log->created_at?->toIso8601String(),
+                        'view' => 'classes',
+                    ]);
+                    continue;
+                }
+
+                if ($isReceptionist && $isAdminRole) {
+                    $notifications->push([
+                        'id' => 'act_mgr_'.$log->id,
+                        'type' => 'admin_activity',
+                        'badge' => 'Management Update',
+                        'title' => self::formatActivityTitle($log->action, $log->user?->name, 'admin'),
+                        'message' => $log->notes ?: "Performed {$log->action}",
+                        'actor_name' => $log->user?->name ?? 'Management',
+                        'actor_role' => 'Admin',
+                        'action' => $log->action,
+                        'time' => $log->created_at?->diffForHumans() ?? 'Recent',
+                        'timestamp' => $log->created_at?->toIso8601String(),
+                        'view' => self::resolveActivityView($log->action),
+                    ]);
+                } elseif (($isAdmin || $isOwner) && $isRecRole) {
+                    $notifications->push([
+                        'id' => 'act_rec_'.$log->id,
+                        'type' => 'reception_activity',
+                        'badge' => 'Reception Activity',
+                        'title' => self::formatActivityTitle($log->action, $log->user?->name, 'receptionist'),
+                        'message' => $log->notes ?: "Performed {$log->action}",
+                        'actor_name' => $log->user?->name ?? 'Receptionist',
+                        'actor_role' => 'Receptionist',
+                        'action' => $log->action,
+                        'time' => $log->created_at?->diffForHumans() ?? 'Recent',
+                        'timestamp' => $log->created_at?->toIso8601String(),
+                        'view' => self::resolveActivityView($log->action),
+                    ]);
+                } elseif ($isOwner && $isAdminRole && (int) $log->user_id !== (int) $user->id) {
+                    $notifications->push([
+                        'id' => 'act_adm_'.$log->id,
+                        'type' => 'admin_activity',
+                        'badge' => 'Admin Activity',
+                        'title' => self::formatActivityTitle($log->action, $log->user?->name, 'admin'),
+                        'message' => $log->notes ?: "Performed {$log->action}",
+                        'actor_name' => $log->user?->name ?? 'Admin',
+                        'actor_role' => 'Admin',
+                        'action' => $log->action,
+                        'time' => $log->created_at?->diffForHumans() ?? 'Recent',
+                        'timestamp' => $log->created_at?->toIso8601String(),
+                        'view' => self::resolveActivityView($log->action),
+                    ]);
+                }
+            }
+
+            return $notifications->sortByDesc('timestamp')->values()->all();
+        });
+
+        $dashboardPayload['activity_notifications'] = $activityNotifications;
 
         return response()->json([
             'status' => 'success',

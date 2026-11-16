@@ -19,7 +19,10 @@ class SendMembershipDocuments
             return;
         }
 
-        $payment->loadMissing(['user.memberProfile', 'payable.plan']);
+        $payment->loadMissing([
+            'user.memberProfile',
+            'payable' => fn ($m) => $m->morphWith([\App\Models\Subscription::class => ['plan']]),
+        ]);
         $user = $payment->user;
         if (! $user) {
             Log::warning("Skipped SendMembershipDocuments: payment #{$payment->id} has no associated user.");
