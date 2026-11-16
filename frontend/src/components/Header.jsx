@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/useAuth';
 import apiClient from '../services/api';
 import useDebounce from '../hooks/useDebounce';
+import './Header.css';
 
 // Crisp Lucide-style SVG icons matching the clean SaaS header
 const Icons = {

@@ -5468,6 +5468,7 @@ body.theme-dark .sidebar-user-role-desc,
 /* Main Content Wrapper - PC Screen Fit (Supports Collapsible Sidebar) */
 .gymcore-main-wrapper {
   margin-left: 220px;
+  padding-top: 58px;
   flex: 1;
   min-width: 0;
   width: calc(100% - 220px);
@@ -7870,7 +7871,7 @@ body.theme-dark .gymcore-content-body,
 }
 
 /* ==========================================================================
-   EXECUTIVE PROFESSIONAL HEADER STYLING
+   EXECUTIVE PROFESSIONAL HEADER STYLING - FIXED ON ENTIRE SYSTEM
    ========================================================================== */
 
 .gymcore-header {
@@ -7880,12 +7881,25 @@ body.theme-dark .gymcore-content-body,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  position: fixed !important;
+  top: 0 !important;
+  left: 220px !important;
+  right: 0 !important;
+  width: calc(100% - 220px) !important;
+  z-index: 100 !important;
   box-sizing: border-box;
-  width: 100%;
+  overflow: visible !important;
+  transition: left 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              width 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.25s ease,
+              border-color 0.25s ease,
+              box-shadow 0.25s ease;
+}
+
+.gymcore-main-wrapper.sidebar-collapsed .gymcore-header,
+.sidebar-collapsed .gymcore-header {
+  left: 68px !important;
+  width: calc(100% - 68px) !important;
 }
 
 body.theme-light .gymcore-header,

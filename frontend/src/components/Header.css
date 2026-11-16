@@ -1,0 +1,53 @@
+/* ==========================================================================
+   FIXED EXECUTIVE HEADER STYLING - SYSTEM-WIDE FIXED HEADER
+   ========================================================================== */
+
+.gymcore-header {
+  height: 58px;
+  min-height: 58px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: fixed !important;
+  top: 0 !important;
+  left: 220px !important;
+  right: 0 !important;
+  width: calc(100% - 220px) !important;
+  z-index: 100 !important;
+  box-sizing: border-box;
+  overflow: visible !important;
+  transition: left 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              width 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.25s ease,
+              border-color 0.25s ease,
+              box-shadow 0.25s ease;
+}
+
+/* When left sidebar is collapsed (68px) */
+.gymcore-main-wrapper.sidebar-collapsed .gymcore-header,
+.sidebar-collapsed .gymcore-header {
+  left: 68px !important;
+  width: calc(100% - 68px) !important;
+}
+
+/* Light Theme Header Appearance */
+body.theme-light .gymcore-header,
+[data-theme="light"] .gymcore-header {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Dark Theme Header Appearance */
+body.theme-dark .gymcore-header,
+[data-theme="dark"] .gymcore-header {
+  background: #0d1118 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Offset main wrapper content so it starts right below the fixed 58px header */
+.gymcore-main-wrapper {
+  padding-top: 58px !important;
+}
