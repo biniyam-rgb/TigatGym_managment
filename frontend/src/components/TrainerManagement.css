@@ -1,0 +1,2089 @@
+/* ========================================================================= */
+/* TIGAT GYM — COACHING & PERSONAL TRAINING MODULE STYLESHEET                */
+/* Aligned 100% with Tigat Gym Dashboard System (MemberDirectory/RoleDash)   */
+/* ========================================================================= */
+
+.trainer-management-view {
+  width: 100%;
+  animation: fadeIn 0.15s ease-out;
+}
+
+/* ── Shift Accent Strips ── */
+.trainer-card-accent-bar {
+  height: 3px;
+  width: 100%;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+
+.trainer-card-accent-bar.shift-morning {
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.trainer-card-accent-bar.shift-evening {
+  background: linear-gradient(90deg, #6366f1, #4f46e5);
+}
+
+.trainer-card-accent-bar.shift-full_day {
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+
+/* ── Coach Card Container ── */
+.trainer-unified-card {
+  background: var(--gym-card-bg, #ffffff);
+  border: 1px solid var(--gym-card-border, #e2e8f0);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.trainer-unified-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  border-color: rgba(255, 122, 0, 0.35);
+}
+
+body.theme-dark .trainer-unified-card,
+[data-theme="dark"] .trainer-unified-card {
+  background: rgba(30, 41, 59, 0.7);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+body.theme-dark .trainer-unified-card:hover,
+[data-theme="dark"] .trainer-unified-card:hover {
+  border-color: rgba(255, 122, 0, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Coach Header Info ── */
+.trainer-card-inner {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.trainer-card-top-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.trainer-avatar-box {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.trainer-avatar-img {
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 2px solid rgba(255, 122, 0, 0.35);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  background: #1e293b;
+}
+
+.trainer-online-dot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+}
+
+body.theme-dark .trainer-online-dot,
+[data-theme="dark"] .trainer-online-dot {
+  border-color: #1e293b;
+}
+
+.trainer-online-dot.active {
+  background: #10b981;
+}
+
+.trainer-online-dot.inactive {
+  background: #94a3b8;
+}
+
+.trainer-meta-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.trainer-name-heading {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--gym-text-main, #0f172a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.theme-dark .trainer-name-heading,
+[data-theme="dark"] .trainer-name-heading {
+  color: #f8fafc;
+}
+
+.trainer-code-pill {
+  font-family: monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 122, 0, 0.12);
+  color: #ff7a00;
+  border: 1px solid rgba(255, 122, 0, 0.25);
+  flex-shrink: 0;
+}
+
+.trainer-spec-text {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #ff7a00;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trainer-shift-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.trainer-shift-badge.morning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.trainer-shift-badge.evening {
+  background: rgba(99, 102, 241, 0.12);
+  color: #4f46e5;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.trainer-shift-badge.full_day {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+body.theme-dark .trainer-shift-badge.morning,
+[data-theme="dark"] .trainer-shift-badge.morning {
+  color: #fbbf24;
+}
+
+body.theme-dark .trainer-shift-badge.evening,
+[data-theme="dark"] .trainer-shift-badge.evening {
+  color: #a5b4fc;
+}
+
+body.theme-dark .trainer-shift-badge.full_day,
+[data-theme="dark"] .trainer-shift-badge.full_day {
+  color: #6ee7b7;
+}
+
+/* ── Rate & Clients Box ── */
+.trainer-pricing-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--gym-bg-subtle, #f8fafc);
+  border: 1px solid var(--gym-card-border, #f1f5f9);
+}
+
+body.theme-dark .trainer-pricing-strip,
+[data-theme="dark"] .trainer-pricing-strip {
+  background: rgba(15, 23, 42, 0.55);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.trainer-fee-title {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #64748b;
+  display: block;
+}
+
+.trainer-fee-num {
+  font-size: 15px;
+  font-weight: 900;
+  color: #ff7a00;
+}
+
+.trainer-clients-tag {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #059669;
+  border-radius: 6px;
+  padding: 5px 9px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  transition: all 0.15s ease;
+}
+
+body.theme-dark .trainer-clients-tag,
+[data-theme="dark"] .trainer-clients-tag {
+  color: #34d399;
+}
+
+.trainer-clients-tag:hover {
+  background: rgba(16, 185, 129, 0.2);
+}
+
+/* ── Card Action Buttons Row ── */
+.trainer-card-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--gym-card-border, #f1f5f9);
+  background: var(--gym-bg-subtle, #fafafa);
+}
+
+body.theme-dark .trainer-card-actions-bar,
+[data-theme="dark"] .trainer-card-actions-bar {
+  background: rgba(15, 23, 42, 0.3);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.trainer-assign-action-btn {
+  flex: 1;
+  height: 31px;
+  background: #ff8a00;
+  color: #ffffff;
+  border: none;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(255, 138, 0, 0.28);
+  transition: all 0.15s ease;
+}
+
+.trainer-assign-action-btn:hover {
+  background: #e67c00;
+  transform: translateY(-1px);
+}
+
+.trainer-action-icon-btn {
+  height: 31px;
+  padding: 0 10px;
+  border-radius: 7px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.trainer-action-icon-btn:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+body.theme-dark .trainer-action-icon-btn,
+[data-theme="dark"] .trainer-action-icon-btn {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+body.theme-dark .trainer-action-icon-btn:hover,
+[data-theme="dark"] .trainer-action-icon-btn:hover {
+  background: #334155;
+}
+
+.trainer-action-icon-btn.danger {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.trainer-action-icon-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+}
+
+/* ── Shift Card Selection in Modals ── */
+.trainer-modal-shift-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.trainer-modal-shift-box {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+body.theme-dark .trainer-modal-shift-box,
+[data-theme="dark"] .trainer-modal-shift-box {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.trainer-modal-shift-box.selected {
+  border-color: #ff8a00;
+  background: rgba(255, 138, 0, 0.08);
+  box-shadow: 0 0 0 1px #ff8a00;
+}
+
+.trainer-modal-shift-title {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.trainer-modal-shift-hours {
+  font-size: 10.5px;
+  color: #64748b;
+}
+
+/* ── Quick ETB Chips in Modals ── */
+.trainer-modal-fee-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.trainer-fee-chip-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+body.theme-dark .trainer-fee-chip-btn,
+[data-theme="dark"] .trainer-fee-chip-btn {
+  background: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+.trainer-fee-chip-btn.selected {
+  background: #ff8a00;
+  border-color: #ff8a00;
+  color: #ffffff;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   TRAINER CONTROLS BAR (Organized Search & Dropdown Filters)
+   ══════════════════════════════════════════════════════════════════════ */
+.trainer-controls-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  background: var(--gym-bg-subtle, #f8fafc);
+  border: 1px solid var(--gym-card-border, #e2e8f0);
+  border-radius: 10px;
+}
+
+body.theme-dark .trainer-controls-bar,
+[data-theme="dark"] .trainer-controls-bar {
+  background: rgba(30, 41, 59, 0.45);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.trainer-search-wrapper {
+  flex: 1 1 260px;
+  min-width: 220px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.trainer-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  z-index: 2;
+}
+
+.trainer-search-input {
+  width: 100%;
+  height: 38px;
+  padding-left: 38px;
+  padding-right: 32px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #0f172a;
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+body.theme-dark .trainer-search-input,
+[data-theme="dark"] .trainer-search-input {
+  background-color: #1e293b;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+}
+
+.trainer-search-input:focus {
+  border-color: #ff8a00;
+  box-shadow: 0 0 0 3px rgba(255, 138, 0, 0.15);
+}
+
+.trainer-search-clear-btn {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  line-height: 1;
+  border-radius: 4px;
+}
+
+.trainer-search-clear-btn:hover {
+  color: #0f172a;
+}
+
+body.theme-dark .trainer-search-clear-btn:hover {
+  color: #ffffff;
+}
+
+.trainer-filter-item {
+  flex: 0 0 auto;
+}
+
+.trainer-filter-select {
+  height: 38px;
+  min-width: 140px;
+  padding: 0 32px 0 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #0f172a;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+body.theme-dark .trainer-filter-select,
+[data-theme="dark"] .trainer-filter-select {
+  background-color: #1e293b;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+}
+
+.trainer-filter-select:focus {
+  border-color: #ff8a00;
+  box-shadow: 0 0 0 3px rgba(255, 138, 0, 0.15);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   MODAL DIALOGS — BLUR BACKDROP, TOP POSITIONED, NON-SCROLLABLE
+   ══════════════════════════════════════════════════════════════════════ */
+.trainer-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: flex-start; /* Always appears on the top */
+  justify-content: center;
+  z-index: 9999;
+  padding: 28px 16px;
+  overflow: hidden; /* Prevent outer scroll */
+  animation: trainerBackdropFadeIn 0.18s ease-out;
+}
+
+@keyframes trainerBackdropFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.trainer-modal-card {
+  width: 100%;
+  max-width: 620px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3), 0 0 1px rgba(0, 0, 0, 0.1);
+  color: #0f172a;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Non-scrollable on normal screen sizes */
+  max-height: calc(100vh - 56px);
+  animation: trainerModalSlideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes trainerModalSlideDown {
+  from {
+    transform: translateY(-24px) scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+body.theme-dark .trainer-modal-card,
+[data-theme="dark"] .trainer-modal-card {
+  background: #0f172a;
+  border-color: rgba(255, 122, 0, 0.25);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.85), 0 0 35px rgba(255, 122, 0, 0.08);
+  color: #f8fafc;
+}
+
+/* Compact Modal Header */
+.trainer-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  background: var(--gym-bg-subtle, #f8fafc);
+  flex-shrink: 0;
+}
+
+body.theme-dark .trainer-modal-header,
+[data-theme="dark"] .trainer-modal-header {
+  background: rgba(30, 41, 59, 0.6);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.trainer-modal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.trainer-modal-icon-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: rgba(255, 122, 0, 0.12);
+  color: #ff7a00;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.trainer-modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+body.theme-dark .trainer-modal-title,
+[data-theme="dark"] .trainer-modal-title {
+  color: #f8fafc;
+}
+
+.trainer-modal-subtitle {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 2px;
+  display: block;
+}
+
+body.theme-dark .trainer-modal-subtitle,
+[data-theme="dark"] .trainer-modal-subtitle {
+  color: #94a3b8;
+}
+
+.trainer-modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.trainer-modal-close-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #0f172a;
+}
+
+body.theme-dark .trainer-modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+/* Modal Body */
+.trainer-modal-body {
+  padding: 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+/* Form Groups & Inputs inside Modal */
+.trainer-form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.trainer-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trainer-form-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #475569;
+}
+
+body.theme-dark .trainer-form-label,
+[data-theme="dark"] .trainer-form-label {
+  color: #94a3b8;
+}
+
+.trainer-modal-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #0f172a;
+  font-size: 12.5px;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+body.theme-dark .trainer-modal-input,
+[data-theme="dark"] .trainer-modal-input {
+  background-color: #1e293b;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+}
+
+.trainer-modal-input:focus {
+  border-color: #ff8a00;
+  box-shadow: 0 0 0 2px rgba(255, 138, 0, 0.15);
+}
+
+/* Modal Footer */
+.trainer-modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid #f1f5f9;
+  background: var(--gym-bg-subtle, #f8fafc);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+body.theme-dark .trainer-modal-footer,
+[data-theme="dark"] .trainer-modal-footer {
+  background: rgba(30, 41, 59, 0.6);
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ========================================================================= */
+/* COACHED MEMBERS ROSTER TABLE & CONTROLS (COMPACT & CLEAN)                 */
+/* ========================================================================= */
+
+.roster-section-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Micro Summary Strip above roster */
+.roster-summary-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.roster-summary-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--gym-card-bg, #ffffff);
+  border: 1px solid var(--gym-card-border, #e2e8f0);
+  border-radius: 8px;
+  font-size: 11.5px;
+  color: var(--gym-text-muted, #64748b);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+body.theme-dark .roster-summary-chip,
+[data-theme="dark"] .roster-summary-chip {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+}
+
+.roster-summary-chip strong {
+  color: var(--gym-text-main, #0f172a);
+  font-weight: 700;
+}
+
+body.theme-dark .roster-summary-chip strong,
+[data-theme="dark"] .roster-summary-chip strong {
+  color: #f8fafc;
+}
+
+.roster-summary-chip .chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.roster-summary-chip .chip-dot.active {
+  background: #10b981;
+}
+
+.roster-summary-chip .chip-dot.warning {
+  background: #f59e0b;
+}
+
+.roster-summary-chip .chip-dot.primary {
+  background: #ff8a00;
+}
+
+/* Outer Card Container */
+.roster-table-card {
+  background: var(--gym-card-bg, #ffffff);
+  border: 1px solid var(--gym-card-border, #e2e8f0);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+body.theme-dark .roster-table-card,
+[data-theme="dark"] .roster-table-card {
+  background: rgba(30, 41, 59, 0.7);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* Dedicated Compact Roster Table */
+.roster-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.roster-table th {
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--gym-card-border, #e2e8f0);
+  white-space: nowrap;
+}
+
+body.theme-dark .roster-table th,
+[data-theme="dark"] .roster-table th {
+  background: rgba(15, 23, 42, 0.65);
+  color: #94a3b8;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.roster-table td {
+  padding: 8px 14px;
+  font-size: 12.5px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  color: var(--gym-text-main, #0f172a);
+}
+
+body.theme-dark .roster-table td,
+[data-theme="dark"] .roster-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+  color: #f1f5f9;
+}
+
+.roster-table tr:last-child td {
+  border-bottom: none;
+}
+
+.roster-table tbody tr {
+  transition: background-color 0.12s ease;
+}
+
+.roster-table tbody tr:hover {
+  background-color: rgba(255, 138, 0, 0.035);
+}
+
+body.theme-dark .roster-table tbody tr:hover,
+[data-theme="dark"] .roster-table tbody tr:hover {
+  background-color: rgba(255, 138, 0, 0.06);
+}
+
+/* Athlete Cell */
+.roster-athlete-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.roster-athlete-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff8a00, #ea580c);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  font-weight: 800;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(255, 138, 0, 0.3);
+}
+
+.roster-athlete-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.roster-athlete-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gym-text-main, #0f172a);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.theme-dark .roster-athlete-name,
+[data-theme="dark"] .roster-athlete-name {
+  color: #f8fafc;
+}
+
+.roster-athlete-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.2;
+}
+
+body.theme-dark .roster-athlete-meta,
+[data-theme="dark"] .roster-athlete-meta {
+  color: #94a3b8;
+}
+
+.roster-code-tag {
+  font-family: monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #ea580c;
+  background: rgba(234, 88, 12, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* Coach Cell */
+.roster-coach-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.roster-coach-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 138, 0, 0.3);
+}
+
+.roster-coach-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.roster-coach-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--gym-text-main, #0f172a);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.theme-dark .roster-coach-name,
+[data-theme="dark"] .roster-coach-name {
+  color: #f8fafc;
+}
+
+.roster-coach-spec {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #ea580c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+/* Shift badge */
+.roster-shift-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  width: fit-content;
+}
+
+.roster-shift-tag.morning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.roster-shift-tag.evening {
+  background: rgba(99, 102, 241, 0.12);
+  color: #4f46e5;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.roster-shift-tag.full_day {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+/* Cycle Dates */
+.roster-cycle-date {
+  font-size: 11px;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+body.theme-dark .roster-cycle-date,
+[data-theme="dark"] .roster-cycle-date {
+  color: #94a3b8;
+}
+
+/* Cycle Status Pill */
+.roster-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.roster-status-pill .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.roster-status-pill.status-active {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+.roster-status-pill.status-active .status-dot {
+  background: #10b981;
+}
+
+.roster-status-pill.status-warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+.roster-status-pill.status-warning .status-dot {
+  background: #f59e0b;
+}
+
+.roster-status-pill.status-danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+.roster-status-pill.status-danger .status-dot {
+  background: #ef4444;
+}
+
+/* Plan Badge */
+.roster-plan-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--gym-bg-subtle, #f1f5f9);
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+body.theme-dark .roster-plan-pill,
+[data-theme="dark"] .roster-plan-pill {
+  background: rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Action Group */
+.roster-actions-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.roster-btn-action {
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+body.theme-dark .roster-btn-action,
+[data-theme="dark"] .roster-btn-action {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+}
+
+.roster-btn-action:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+body.theme-dark .roster-btn-action:hover,
+[data-theme="dark"] .roster-btn-action:hover {
+  background: #334155;
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.roster-btn-action.btn-renew {
+  border-color: rgba(255, 138, 0, 0.35);
+  color: #ea580c;
+  background: rgba(255, 138, 0, 0.04);
+}
+
+.roster-btn-action.btn-renew:hover {
+  background: #ea580c;
+  color: #ffffff;
+  border-color: #ea580c;
+}
+
+
+/* ========================================================================= */
+/* COACH CARD PERFECT CONSISTENCY & ALIGNMENT STYLES                         */
+/* Ensures 100% identical dimensions, heights, and padding across all cards   */
+/* ========================================================================= */
+
+.classes-grid.trainers-cards-grid,
+.classes-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)) !important;
+  gap: 22px !important;
+}
+
+.classes-grid .class-card {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  height: 100% !important;
+  min-height: 390px !important;
+  cursor: pointer !important;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease !important;
+  border: 1px solid var(--gym-card-border, #e2e8f0) !important;
+  background: var(--gym-card-bg, #ffffff) !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+.classes-grid .class-card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.12), 0 0 0 1.5px rgba(255, 122, 0, 0.45) !important;
+  border-color: #ff7a00 !important;
+}
+
+body.theme-dark .classes-grid .class-card,
+[data-theme="dark"] .classes-grid .class-card {
+  background: #111827 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+body.theme-dark .classes-grid .class-card:hover,
+[data-theme="dark"] .classes-grid .class-card:hover {
+  box-shadow: 0 14px 30px -8px rgba(0, 0, 0, 0.5), 0 0 0 1.5px rgba(255, 122, 0, 0.6) !important;
+  border-color: #ff7a00 !important;
+}
+
+.classes-grid .class-card-hero {
+  height: 125px !important;
+  flex-shrink: 0 !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.classes-grid .class-card-body {
+  flex: 1 1 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  padding: 14px 16px 12px !important;
+  gap: 12px !important;
+}
+
+.classes-grid .class-card-desc {
+  font-size: 11.5px !important;
+  color: #64748b !important;
+  line-height: 1.4 !important;
+  margin: 0 !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  height: 33px !important;
+  min-height: 33px !important;
+  max-height: 33px !important;
+}
+
+body.theme-dark .classes-grid .class-card-desc,
+[data-theme="dark"] .classes-grid .class-card-desc {
+  color: #94a3b8 !important;
+}
+
+/* Info Strip - Exact Equal Proportions and Clean Auto-Truncation */
+.classes-grid .class-info-strip {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  background: var(--gym-bg-subtle, #f8fafc) !important;
+  border: 1px solid var(--gym-card-border, #e2e8f0) !important;
+  border-radius: 9px !important;
+  padding: 8px 12px !important;
+  gap: 10px !important;
+  min-height: 58px !important;
+  max-height: 58px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+body.theme-dark .classes-grid .class-info-strip,
+[data-theme="dark"] .classes-grid .class-info-strip {
+  background: rgba(18, 24, 38, 0.7) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.classes-grid .class-coach-info {
+  display: flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+  flex: 1 1 0% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.classes-grid .class-coach-avatar {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 8px !important;
+  background: linear-gradient(135deg, #ff7a00, #ea580c) !important;
+  color: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: 800 !important;
+  font-size: 13px !important;
+  box-shadow: 0 1px 4px rgba(255, 122, 0, 0.3) !important;
+  flex-shrink: 0 !important;
+}
+
+.classes-grid .class-coach-text-col {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  flex: 1 1 auto !important;
+}
+
+.classes-grid .class-coach-sublabel {
+  font-size: 10px !important;
+  color: #64748b !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  line-height: 1.2 !important;
+  margin-bottom: 2px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.classes-grid .class-coach-contact {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: var(--gym-text-primary, #0f172a) !important;
+  display: block !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  max-width: 100% !important;
+  line-height: 1.25 !important;
+}
+
+body.theme-dark .classes-grid .class-coach-contact,
+[data-theme="dark"] .classes-grid .class-coach-contact {
+  color: #f1f5f9 !important;
+}
+
+.classes-grid .class-schedule-box {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  flex: 0 0 auto !important;
+  min-width: 110px !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+}
+
+.classes-grid .class-schedule-date {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: var(--gym-text-primary, #0f172a) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 4px !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  line-height: 1.2 !important;
+}
+
+.classes-grid .class-schedule-date span {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+}
+
+body.theme-dark .classes-grid .class-schedule-date,
+[data-theme="dark"] .classes-grid .class-schedule-date {
+  color: #f1f5f9 !important;
+}
+
+.classes-grid .class-time-until-badge {
+  font-size: 9.5px !important;
+  font-weight: 700 !important;
+  color: #ff7a00 !important;
+  background: rgba(255, 122, 0, 0.12) !important;
+  border-radius: 4px !important;
+  padding: 2px 7px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  line-height: 1.3 !important;
+}
+
+.classes-grid .class-card-footer {
+  padding: 10px 14px 12px !important;
+  border-top: 1px solid var(--gym-card-border, #f1f5f9) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  flex-shrink: 0 !important;
+}
+
+/* ========================================================================= */
+/* RELAXED TRAINER DETAIL VIEW STYLES ("Let us relax")                      */
+/* Clean, spacious, airy, no visual clutter, no redundant buttons            */
+/* ========================================================================= */
+
+.trainer-relaxed-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  animation: trainerRelaxedFadeIn 0.25s ease-out;
+  max-width: 100%;
+}
+
+@keyframes trainerRelaxedFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.trainer-relaxed-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 4px 0 2px;
+}
+
+.trainer-relaxed-breadcrumb-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn-relaxed-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--gym-card-bg, #ffffff);
+  border: 1px solid var(--gym-card-border, #cbd5e1);
+  color: var(--gym-text-primary, #0f172a);
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 9px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.btn-relaxed-back:hover {
+  background: #ff7a00;
+  color: #ffffff;
+  border-color: #ff7a00;
+  box-shadow: 0 4px 14px rgba(255, 122, 0, 0.3);
+  transform: translateX(-3px);
+}
+
+body.theme-dark .btn-relaxed-back,
+[data-theme="dark"] .btn-relaxed-back {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+}
+
+.breadcrumb-divider {
+  color: #94a3b8;
+  font-size: 15px;
+}
+
+.breadcrumb-current {
+  color: #64748b;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+body.theme-dark .breadcrumb-current,
+[data-theme="dark"] .breadcrumb-current {
+  color: #cbd5e1;
+}
+
+.trainer-relaxed-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Relaxed Hero Card */
+.trainer-relaxed-hero {
+  background: var(--gym-card-bg, #ffffff);
+  border: 1px solid var(--gym-card-border, #e2e8f0);
+  border-radius: 18px;
+  padding: 28px 32px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
+}
+
+body.theme-dark .trainer-relaxed-hero,
+[data-theme="dark"] .trainer-relaxed-hero {
+  background: #111827;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.hero-identity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.hero-avatar-wrapper {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+}
+
+.hero-avatar-img {
+  width: 96px;
+  height: 96px;
+  border-radius: 20px;
+  object-fit: cover;
+  border: 3px solid #ff7a00;
+  box-shadow: 0 6px 20px rgba(255, 122, 0, 0.22);
+}
+
+.hero-online-status {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+}
+
+.hero-online-status.online {
+  background: #10b981;
+}
+
+.hero-online-status.offline {
+  background: #94a3b8;
+}
+
+.hero-details {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 260px;
+}
+
+.hero-name-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.hero-coach-name {
+  font-size: 26px;
+  font-weight: 800;
+  margin: 0;
+  color: var(--gym-text-primary, #0f172a);
+  letter-spacing: -0.02em;
+}
+
+body.theme-dark .hero-coach-name,
+[data-theme="dark"] .hero-coach-name {
+  color: #f8fafc;
+}
+
+.trainer-code-pill-lg {
+  font-size: 13px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(255, 122, 0, 0.12);
+  color: #ff7a00;
+  border: 1px solid rgba(255, 122, 0, 0.25);
+  font-family: monospace;
+}
+
+.hero-pills-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hero-spec-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 122, 0, 0.1);
+  color: #ff7a00;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 8px;
+}
+
+.hero-shift-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--gym-bg-subtle, #f8fafc);
+  border: 1px solid var(--gym-card-border, #e2e8f0);
+  color: #64748b;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 8px;
+}
+
+body.theme-dark .hero-shift-pill,
+[data-theme="dark"] .hero-shift-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+}
+
+.hero-salaried-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(16, 185, 129, 0.08);
+  color: #10b981;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.hero-contact-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.hero-contact-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.hero-contact-link:hover {
+  color: #ff7a00;
+  text-decoration: underline;
+}
+
+body.theme-dark .hero-contact-link,
+[data-theme="dark"] .hero-contact-link {
+  color: #cbd5e1;
+}
+
+.contact-bullet {
+  color: #cbd5e1;
+}
+
+.hero-rates-box {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: var(--gym-bg-subtle, #f8fafc);
+  border: 1px solid var(--gym-card-border, #e2e8f0);
+  border-radius: 14px;
+  padding: 14px 22px;
+  flex-shrink: 0;
+}
+
+body.theme-dark .hero-rates-box,
+[data-theme="dark"] .hero-rates-box {
+  background: rgba(18, 24, 38, 0.8);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.rate-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rate-sub {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.04em;
+}
+
+.rate-main {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.rate-main strong {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ff7a00;
+}
+
+.rate-period {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.rate-divider-vertical {
+  width: 1px;
+  height: 38px;
+  background: var(--gym-card-border, #e2e8f0);
+}
+
+body.theme-dark .rate-divider-vertical,
+[data-theme="dark"] .rate-divider-vertical {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Horizontal Stats Strip */
+.hero-stats-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-top: 14px;
+  border-top: 1px solid var(--gym-card-border, #f1f5f9);
+}
+
+body.theme-dark .hero-stats-strip,
+[data-theme="dark"] .hero-stats-strip {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.stats-strip-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.stats-strip-label {
+  color: #64748b;
+}
+
+.stats-strip-value {
+  color: var(--gym-text-primary, #0f172a);
+  font-weight: 700;
+}
+
+body.theme-dark .stats-strip-value,
+[data-theme="dark"] .stats-strip-value {
+  color: #f1f5f9;
+}
+
+.stats-strip-dot {
+  color: #cbd5e1;
+}
+
+/* Relaxed Tabs */
+.trainer-relaxed-tabs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 2px solid var(--gym-card-border, #e2e8f0);
+  padding-bottom: 0;
+  margin-top: 4px;
+}
+
+body.theme-dark .trainer-relaxed-tabs,
+[data-theme="dark"] .trainer-relaxed-tabs {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.relaxed-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #64748b;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  margin-bottom: -2px;
+}
+
+.relaxed-tab-btn:hover {
+  color: var(--gym-text-primary, #0f172a);
+}
+
+.relaxed-tab-btn.active {
+  color: #ff7a00;
+  border-bottom-color: #ff7a00;
+}
+
+body.theme-dark .relaxed-tab-btn.active,
+[data-theme="dark"] .relaxed-tab-btn.active {
+  color: #ff7a00;
+  border-bottom-color: #ff7a00;
+}
+
+/* Tab Content Card */
+.trainer-tab-content-card {
+  background: var(--gym-card-bg, #ffffff);
+  border: 1px solid var(--gym-card-border, #e2e8f0);
+  border-radius: 16px;
+  padding: 24px 28px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+}
+
+body.theme-dark .trainer-tab-content-card,
+[data-theme="dark"] .trainer-tab-content-card {
+  background: #111827;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.content-card-header {
+  margin-bottom: 20px;
+}
+
+.content-card-title {
+  font-size: 17px;
+  font-weight: 800;
+  margin: 0;
+  color: var(--gym-text-primary, #0f172a);
+}
+
+body.theme-dark .content-card-title,
+[data-theme="dark"] .content-card-title {
+  color: #f8fafc;
+}
+
+.content-card-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin: 4px 0 0;
+}
+
+/* Relaxed Table Styling */
+.relaxed-roster-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.relaxed-roster-table th {
+  padding: 12px 16px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  border-bottom: 1px solid var(--gym-card-border, #e2e8f0);
+  text-align: left;
+  letter-spacing: 0.04em;
+}
+
+.relaxed-roster-table td {
+  padding: 16px;
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--gym-card-border, #f1f5f9);
+  vertical-align: middle;
+}
+
+body.theme-dark .relaxed-roster-table th {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.theme-dark .relaxed-roster-table td {
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.relaxed-member-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.relaxed-member-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ff7a00, #ea580c);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.relaxed-member-name {
+  font-weight: 700;
+  color: var(--gym-text-primary, #0f172a);
+  display: block;
+}
+
+body.theme-dark .relaxed-member-name,
+[data-theme="dark"] .relaxed-member-name {
+  color: #f8fafc;
+}
+
+.relaxed-member-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.code-pill {
+  font-family: monospace;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--gym-bg-subtle, #f1f5f9);
+  color: #64748b;
+}
+
+.phone-text {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* Tab 2: Bio Grid */
+.trainer-tab-content-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 900px) {
+  .trainer-tab-content-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.relaxed-section-box {
+  background: var(--gym-card-bg, #ffffff);
+  border: 1px solid var(--gym-card-border, #e2e8f0);
+  border-radius: 16px;
+  padding: 26px 30px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+}
+
+body.theme-dark .relaxed-section-box,
+[data-theme="dark"] .relaxed-section-box {
+  background: #111827;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.section-box-title {
+  font-size: 16px;
+  font-weight: 800;
+  margin: 0 0 14px;
+  color: var(--gym-text-primary, #0f172a);
+}
+
+body.theme-dark .section-box-title,
+[data-theme="dark"] .section-box-title {
+  color: #f8fafc;
+}
+
+.relaxed-bio-quote {
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: #475569;
+  margin: 0;
+  background: var(--gym-bg-subtle, #f8fafc);
+  border-left: 4px solid #ff7a00;
+  padding: 16px 20px;
+  border-radius: 0 10px 10px 0;
+}
+
+body.theme-dark .relaxed-bio-quote,
+[data-theme="dark"] .relaxed-bio-quote {
+  background: rgba(255, 255, 255, 0.03);
+  color: #cbd5e1;
+}
+
+.relaxed-certs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.relaxed-cert-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.relaxed-specs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.spec-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--gym-card-border, #e2e8f0);
+  font-size: 13.5px;
+}
+
+.spec-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.spec-label {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.spec-value {
+  color: var(--gym-text-primary, #0f172a);
+}
+
+body.theme-dark .spec-value,
+[data-theme="dark"] .spec-value {
+  color: #f1f5f9;
+}
+
+.relaxed-empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  background: var(--gym-bg-subtle, #f8fafc);
+  border-radius: 14px;
+  margin: 8px 0;
+}
+
+body.theme-dark .relaxed-empty-state,
+[data-theme="dark"] .relaxed-empty-state {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.relaxed-empty-state h4 {
+  font-size: 16px;
+  font-weight: 800;
+  margin: 0 0 6px;
+  color: var(--gym-text-primary, #0f172a);
+}
+
+.relaxed-empty-state p {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0 0 16px;
+}
