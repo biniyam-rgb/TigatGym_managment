@@ -11,6 +11,7 @@ use App\Models\Payment;
 use App\Models\PaymentTransaction;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Rules\ValidMoneyAmount;
 use App\Services\AuditLogger;
 use App\Services\ChapaService;
 use App\Services\GymMailService;
@@ -40,7 +41,17 @@ class PaymentController extends Controller
         $this->authorize('viewAny', Payment::class);
 
         $currentUser = $request->user();
-        $query = Payment::with(['user.memberProfile', 'recordedBy', 'payable.plan', 'transactions', 'documentDelivery']);
+        $query = Payment::with([
+            'user.memberProfile',
+            'recordedBy',
+            'payable' => function ($morphTo) {
+                $morphTo->morphWith([
+                    \App\Models\Subscription::class => ['plan'],
+                ]);
+            },
+            'transactions',
+            'documentDelivery',
+        ]);
 
         // Scoping: Members only see their own payments
         if ($currentUser->hasRole('member') && ! $currentUser->hasAnyRole('owner', 'admin', 'receptionist')) {
@@ -175,8 +186,8 @@ class PaymentController extends Controller
 
         $validated = $request->validate([
             'user_id' => ['required', 'integer', 'exists:users,id'],
-            'amount' => ['required', 'numeric', 'min:0.01'],
-            'payment_method' => ['required', 'string', 'in:cash,bank_transfer,bank_slip,pos,chapa,telebirr,other'],
+            'amount' => ['required', new ValidMoneyAmount(0.01, 10000000)],
+            'payment_method' => ['required', 'string', 'in:cash,bank_transfer,bank_slip,pos,chapa,telebirr,cbe_birr,other'],
             'payment_type' => ['nullable', 'string', 'in:subscription,registration,class_fee,trainer_fee,product,other'],
             'status' => ['nullable', 'string', 'in:completed,pending'],
             'payable_type' => ['nullable', 'string'],
@@ -188,6 +199,10 @@ class PaymentController extends Controller
             'bank_name' => ['nullable', 'string', 'max:100'],
             'bank_account_number' => ['nullable', 'string', 'max:50'],
             'notes' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'user_id.required' => 'A valid gym member must be selected for payment.',
+            'user_id.exists' => 'The selected member was not found.',
+            'payment_method.required' => 'Payment method is required.',
         ]);
 
         $user = User::findOrFail($validated['user_id']);
@@ -301,7 +316,17 @@ class PaymentController extends Controller
             return $p;
         });
 
-        $payment->load(['user.memberProfile', 'recordedBy', 'payable.plan', 'transactions', 'documentDelivery']);
+        $payment->load([
+            'user.memberProfile',
+            'recordedBy',
+            'payable' => function ($morphTo) {
+                $morphTo->morphWith([
+                    \App\Models\Subscription::class => ['plan'],
+                ]);
+            },
+            'transactions',
+            'documentDelivery',
+        ]);
 
         // Automatically trigger membership document generation & email delivery
         if ($payment->status === 'completed') {
@@ -326,7 +351,17 @@ class PaymentController extends Controller
     {
         $this->authorize('view', $payment);
 
-        $payment->load(['user.memberProfile', 'recordedBy', 'payable.plan', 'transactions', 'documentDelivery']);
+        $payment->load([
+            'user.memberProfile',
+            'recordedBy',
+            'payable' => function ($morphTo) {
+                $morphTo->morphWith([
+                    \App\Models\Subscription::class => ['plan'],
+                ]);
+            },
+            'transactions',
+            'documentDelivery',
+        ]);
 
         return response()->json([
             'status' => 'success',
@@ -374,7 +409,17 @@ class PaymentController extends Controller
             );
         });
 
-        $payment->load(['user.memberProfile', 'recordedBy', 'payable.plan', 'transactions', 'documentDelivery']);
+        $payment->load([
+            'user.memberProfile',
+            'recordedBy',
+            'payable' => function ($morphTo) {
+                $morphTo->morphWith([
+                    \App\Models\Subscription::class => ['plan'],
+                ]);
+            },
+            'transactions',
+            'documentDelivery',
+        ]);
 
         return response()->json([
             'status' => 'success',
@@ -950,7 +995,10 @@ class PaymentController extends Controller
             });
 
             // Automatically dispatch membership documents (Card + Receipt PDFs) via queue
-            $payment->loadMissing(['user.memberProfile', 'payable.plan']);
+            $payment->loadMissing([
+                'user.memberProfile',
+                'payable' => fn ($m) => $m->morphWith([\App\Models\Subscription::class => ['plan']]),
+            ]);
             event(new MembershipActivated($payment, $activatedSub));
 
             return response()->json([
@@ -1245,7 +1293,10 @@ class PaymentController extends Controller
             });
 
             // Automatically dispatch membership documents (Card + Receipt PDFs) via queue
-            $payment->loadMissing(['user.memberProfile', 'payable.plan']);
+            $payment->loadMissing([
+                'user.memberProfile',
+                'payable' => fn ($m) => $m->morphWith([\App\Models\Subscription::class => ['plan']]),
+            ]);
             event(new MembershipActivated($payment, $activatedSub));
 
             return response()->json([
@@ -1742,7 +1793,10 @@ class PaymentController extends Controller
     {
         $this->authorize('view', $payment);
 
-        $payment->load(['user.memberProfile', 'payable.plan']);
+        $payment->load([
+            'user.memberProfile',
+            'payable' => fn ($m) => $m->morphWith([\App\Models\Subscription::class => ['plan']]),
+        ]);
         $user = $payment->user;
         if (! $user || empty($user->email) || str_ends_with($user->email, '@members.tigatgym.com')) {
             return response()->json([

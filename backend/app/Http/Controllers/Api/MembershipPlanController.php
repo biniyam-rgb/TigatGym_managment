@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\MembershipPlanResource;
 use App\Models\MembershipPlan;
+use App\Rules\ValidMoneyAmount;
 use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -58,7 +59,7 @@ class MembershipPlanController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
-            'price' => ['required', 'numeric', 'min:0'],
+            'price' => ['required', new ValidMoneyAmount(0, 1000000, true)],
             'currency' => ['nullable', 'string', 'size:3'],
             'duration_type' => ['required', 'string', 'in:day,week,month,year'],
             'duration_value' => ['required', 'integer', 'min:1', 'max:365'],
@@ -133,7 +134,7 @@ class MembershipPlanController extends Controller
         $validated = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
-            'price' => ['sometimes', 'required', 'numeric', 'min:0'],
+            'price' => ['sometimes', 'required', new ValidMoneyAmount(0, 1000000, true)],
             'currency' => ['nullable', 'string', 'size:3'],
             'duration_type' => ['sometimes', 'required', 'string', 'in:day,week,month,year'],
             'duration_value' => ['sometimes', 'required', 'integer', 'min:1', 'max:365'],

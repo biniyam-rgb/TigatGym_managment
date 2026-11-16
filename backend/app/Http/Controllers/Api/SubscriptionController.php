@@ -9,6 +9,7 @@ use App\Models\MembershipPlan;
 use App\Models\Subscription;
 use App\Models\TrainerAssignment;
 use App\Models\User;
+use App\Rules\ValidMoneyAmount;
 use App\Services\AuditLogger;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -99,7 +100,7 @@ class SubscriptionController extends Controller
             'member_id' => ['required', 'integer'],
             'membership_plan_id' => ['required', 'integer', 'exists:membership_plans,id'],
             'start_date' => ['nullable', 'date'],
-            'discount' => ['nullable', 'numeric', 'min:0'],
+            'discount' => ['nullable', new ValidMoneyAmount(0, 1000000, true)],
             'notes' => ['nullable', 'string', 'max:1000'],
             'is_auto_renew' => ['nullable', 'boolean'],
         ]);

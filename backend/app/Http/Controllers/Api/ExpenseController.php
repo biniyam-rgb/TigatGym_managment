@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ExpenseResource;
 use App\Models\Expense;
+use App\Rules\ValidMoneyAmount;
 use App\Services\AuditLogger;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -111,11 +112,11 @@ class ExpenseController extends Controller
         $this->authorize('create', Expense::class);
 
         $validated = $request->validate([
-            'title' => ['required', 'string', 'max:150'],
+            'title' => ['required', 'string', 'min:2', 'max:150'],
             'category' => ['required', 'string', 'in:rent,utilities,equipment,maintenance,salary,marketing,cleaning,supplies,tax,other'],
-            'amount' => ['required', 'numeric', 'min:0.01'],
-            'payment_method' => ['required', 'string', 'in:cash,bank_transfer,check,card,other'],
-            'expense_date' => ['required', 'date'],
+            'amount' => ['required', new ValidMoneyAmount(0.01, 100000000)],
+            'payment_method' => ['required', 'string', 'in:cash,bank_transfer,check,card,telebirr,cbe_birr,pos,other'],
+            'expense_date' => ['required', 'date', 'before_or_equal:today'],
             'recipient' => ['nullable', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:1000'],
         ]);
@@ -191,11 +192,11 @@ class ExpenseController extends Controller
         $this->authorize('update', $expense);
 
         $validated = $request->validate([
-            'title' => ['sometimes', 'required', 'string', 'max:150'],
+            'title' => ['sometimes', 'required', 'string', 'min:2', 'max:150'],
             'category' => ['sometimes', 'required', 'string', 'in:rent,utilities,equipment,maintenance,salary,marketing,cleaning,supplies,tax,other'],
-            'amount' => ['sometimes', 'required', 'numeric', 'min:0.01'],
-            'payment_method' => ['sometimes', 'required', 'string', 'in:cash,bank_transfer,check,card,other'],
-            'expense_date' => ['sometimes', 'required', 'date'],
+            'amount' => ['sometimes', 'required', new ValidMoneyAmount(0.01, 100000000)],
+            'payment_method' => ['sometimes', 'required', 'string', 'in:cash,bank_transfer,check,card,telebirr,cbe_birr,pos,other'],
+            'expense_date' => ['sometimes', 'required', 'date', 'before_or_equal:today'],
             'recipient' => ['nullable', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:1000'],
         ]);
