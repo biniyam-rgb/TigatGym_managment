@@ -2,6 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../services/api';
 import { useAuth } from '../context/useAuth';
 import useDebounce from '../hooks/useDebounce';
+import {
+  validateHumanName,
+  validatePhoneNumber,
+  validateEmailAddress,
+  validatePassword,
+  extractApiErrors,
+  FieldError,
+} from '../utils/validation';
 
 const Icons = {
   Search: ({ size = 15 }) => (
@@ -30,6 +38,7 @@ export default function UserManagement() {
 
   // Create User Modal state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
   const [createForm, setCreateForm] = useState({
     name: '',
     email: '',
@@ -133,6 +142,27 @@ export default function UserManagement() {
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
+    setFormErrors({});
+
+    // Client-side domain validation
+    const errors = {};
+    const nameErr = validateHumanName(createForm.name, 'Full name');
+    if (nameErr) errors.name = nameErr;
+
+    const emailErr = validateEmailAddress(createForm.email, { required: true });
+    if (emailErr) errors.email = emailErr;
+
+    const phoneErr = validatePhoneNumber(createForm.phone, { required: false });
+    if (phoneErr) errors.phone = phoneErr;
+
+    const passwordErr = validatePassword(createForm.password, { required: true, isNew: true });
+    if (passwordErr) errors.password = passwordErr;
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await apiClient.createUser(createForm);
@@ -146,9 +176,14 @@ export default function UserManagement() {
         role: 'member',
         status: 'active',
       });
+      setFormErrors({});
       fetchUsers();
       window.dispatchEvent(new CustomEvent('gymcore:refresh'));
     } catch (err) {
+      const apiErrors = extractApiErrors(err);
+      if (Object.keys(apiErrors).length > 0) {
+        setFormErrors(apiErrors);
+      }
       setNotification({ type: 'danger', message: err.message || 'Failed to create user.' });
     } finally {
       setIsSubmitting(false);
@@ -569,50 +604,66 @@ export default function UserManagement() {
             </div>
             <form onSubmit={handleCreateUser} className="modal-form">
               <div className="form-group">
-                <label>Full Name</label>
+                <label>Full Name *</label>
                 <input
                   type="text"
                   required
-                  className="form-control"
+                  className={`form-control ${formErrors.name ? 'input-has-error' : ''}`}
                   placeholder="Enter staff full name"
                   value={createForm.name}
-                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                  onChange={(e) => {
+                    setCreateForm({ ...createForm, name: e.target.value });
+                    if (formErrors.name) setFormErrors({ ...formErrors, name: null });
+                  }}
                 />
+                <FieldError error={formErrors.name} />
               </div>
 
               <div className="form-group">
-                <label>Email Address</label>
+                <label>Email Address *</label>
                 <input
                   type="email"
                   required
-                  className="form-control"
+                  className={`form-control ${formErrors.email ? 'input-has-error' : ''}`}
                   placeholder="Enter staff email address"
                   value={createForm.email}
-                  onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                  onChange={(e) => {
+                    setCreateForm({ ...createForm, email: e.target.value });
+                    if (formErrors.email) setFormErrors({ ...formErrors, email: null });
+                  }}
                 />
+                <FieldError error={formErrors.email} />
               </div>
 
               <div className="form-group">
                 <label>Phone Number (Optional)</label>
                 <input
                   type="text"
-                  className="form-control"
-                  placeholder="Enter phone number (optional)"
+                  className={`form-control ${formErrors.phone ? 'input-has-error' : ''}`}
+                  placeholder="e.g. 0911223344 or +251911223344"
                   value={createForm.phone}
-                  onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
+                  onChange={(e) => {
+                    setCreateForm({ ...createForm, phone: e.target.value });
+                    if (formErrors.phone) setFormErrors({ ...formErrors, phone: null });
+                  }}
                 />
+                <FieldError error={formErrors.phone} />
               </div>
 
               <div className="form-group">
-                <label>Temporary Password</label>
+                <label>Temporary Password *</label>
                 <input
                   type="text"
                   required
                   minLength={8}
-                  className="form-control"
+                  className={`form-control ${formErrors.password ? 'input-has-error' : ''}`}
                   value={createForm.password}
-                  onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                  onChange={(e) => {
+                    setCreateForm({ ...createForm, password: e.target.value });
+                    if (formErrors.password) setFormErrors({ ...formErrors, password: null });
+                  }}
                 />
+                <FieldError error={formErrors.password} />
               </div>
 
               <div className="form-row-2">

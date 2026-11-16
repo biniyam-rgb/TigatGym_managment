@@ -206,6 +206,8 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
     fitness_goals: '',
     health_conditions: '',
     membership_plan_id: '',
+    wants_trainer: false,
+    trainer_id: '',
     payment_method: 'cash',
     payment_reference: '',
     payment_amount: '',
@@ -220,6 +222,40 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
   const [registeredMemberPass, setRegisteredMemberPass] = useState(null);
   const [passModalTab, setPassModalTab] = useState('receipt'); // 'receipt' | 'pass' | 'both'
   const [membershipPlans, setMembershipPlans] = useState([]);
+  const [availableTrainers, setAvailableTrainers] = useState([]);
+  const [assignCoachModalMember, setAssignCoachModalMember] = useState(null);
+  const [changeCoachModalMember, setChangeCoachModalMember] = useState(null);
+  const [isProcessingCoach, setIsProcessingCoach] = useState(false);
+  const [assignCoachForm, setAssignCoachForm] = useState({
+    trainer_id: '',
+    payment_method: 'cash',
+    payment_reference: '',
+    notes: '',
+  });
+  const [changeCoachForm, setChangeCoachForm] = useState({
+    new_trainer_id: '',
+    reason: '',
+  });
+
+  const handleOpenAssignCoach = (member) => {
+    setAssignCoachModalMember(member);
+    setAssignCoachForm({
+      trainer_id: availableTrainers[0]?.id ? String(availableTrainers[0].id) : '',
+      payment_method: 'cash',
+      payment_reference: '',
+      notes: '',
+    });
+  };
+
+  const handleOpenChangeCoach = (member) => {
+    setChangeCoachModalMember(member);
+    const otherTrainers = availableTrainers.filter((t) => t.id !== member.assigned_trainer?.trainer_id);
+    setChangeCoachForm({
+      new_trainer_id: otherTrainers[0]?.id ? String(otherTrainers[0].id) : '',
+      reason: '',
+    });
+  };
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState({});
   const [registerError, setRegisterError] = useState('');
@@ -357,6 +393,66 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
     }
   };
 
+  const handleAssignCoachSubmit = async (e) => {
+    e?.preventDefault();
+    if (!assignCoachModalMember || !assignCoachForm.trainer_id) return;
+    setIsProcessingCoach(true);
+    try {
+      const chosenCoach = availableTrainers.find((t) => String(t.id) === String(assignCoachForm.trainer_id));
+      await apiClient.assignTrainerWithPayment({
+        member_id: assignCoachModalMember.id,
+        trainer_id: Number(assignCoachForm.trainer_id),
+        payment_method: assignCoachForm.payment_method,
+        payment_reference: assignCoachForm.payment_reference?.trim() || undefined,
+        notes: assignCoachForm.notes?.trim() || undefined,
+      });
+
+      setNotification({
+        type: 'success',
+        message: `Coach ${chosenCoach?.name || ''} assigned to ${assignCoachModalMember.name}! Trainer fee of ${Number(chosenCoach?.monthly_fee || 0).toLocaleString()} ETB recorded.`,
+      });
+      setAssignCoachModalMember(null);
+      fetchMembers();
+      window.dispatchEvent(new CustomEvent('gymcore:refresh'));
+    } catch (err) {
+      setNotification({
+        type: 'danger',
+        message: err.message || 'Failed to assign personal coach.',
+      });
+    } finally {
+      setIsProcessingCoach(false);
+    }
+  };
+
+  const handleChangeCoachSubmit = async (e) => {
+    e?.preventDefault();
+    if (!changeCoachModalMember || !changeCoachForm.new_trainer_id) return;
+    setIsProcessingCoach(true);
+    try {
+      const newCoach = availableTrainers.find((t) => String(t.id) === String(changeCoachForm.new_trainer_id));
+      await apiClient.changeTrainer({
+        member_id: changeCoachModalMember.id,
+        new_trainer_id: Number(changeCoachForm.new_trainer_id),
+        reason: changeCoachForm.reason?.trim() || 'Member requested coach change',
+      });
+
+      setNotification({
+        type: 'success',
+        message: `${changeCoachModalMember.name} successfully transferred to Coach ${newCoach?.name || ''}!`,
+      });
+      setChangeCoachModalMember(null);
+      fetchMembers();
+      window.dispatchEvent(new CustomEvent('gymcore:refresh'));
+    } catch (err) {
+      setNotification({
+        type: 'danger',
+        message: err.message || 'Failed to switch coach.',
+      });
+    } finally {
+      setIsProcessingCoach(false);
+    }
+  };
+
   const fetchMembers = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -380,7 +476,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
     }
   }, [debouncedSearch, statusFilter, genderFilter, page]);
 
-  // Load plans once on mount
+  // Load plans & coaches once on mount
   useEffect(() => {
     apiClient.getMembershipPlans({ active_only: 1 })
       .then((res) => {
@@ -389,6 +485,14 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
         }
       })
       .catch((err) => console.error('Failed to load membership plans:', err));
+
+    apiClient.getTrainers({ status: 'active' })
+      .then((res) => {
+        if (res?.data) {
+          setAvailableTrainers(res.data || []);
+        }
+      })
+      .catch((err) => console.error('Failed to load coaches:', err));
   }, []);
 
   // Fetch members when search, filters, or page changes
@@ -747,9 +851,15 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
           });
           createdSubscription = subRes.data || subRes;
 
+          const chosenCoach = formData.wants_trainer && formData.trainer_id
+            ? availableTrainers.find((t) => String(t.id) === String(formData.trainer_id))
+            : null;
+
           // 3. If immediate payment was selected (not pay_later), record payment
           if (formData.payment_method !== 'pay_later' && createdSubscription?.id) {
-            const payAmount = Number(formData.payment_amount) || Number(selectedPlan?.price) || 0;
+            const planFee = Number(selectedPlan?.price || 0);
+            const coachFee = chosenCoach ? Number(chosenCoach.monthly_fee || 0) : 0;
+            const payAmount = Number(formData.payment_amount) || (planFee + coachFee);
             const paymentPayload = {
               user_id: memberUserId,
               subscription_id: createdSubscription.id,
@@ -757,13 +867,26 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
               payment_method: formData.payment_method,
               payment_type: 'subscription',
               status: 'completed',
-              notes: `Front-desk registration & plan activation: ${selectedPlan?.name || 'Membership'}`,
+              notes: `Front-desk registration & plan activation: ${selectedPlan?.name || 'Membership'}${chosenCoach ? ` + Personal Coach (${chosenCoach.name} +${coachFee} ETB)` : ''}`,
             };
             if (formData.payment_reference) {
               paymentPayload.gateway_reference = formData.payment_reference.trim();
             }
             const paymentRes = await apiClient.createPayment(paymentPayload);
             createdPayment = paymentRes.data || paymentRes;
+          }
+
+          // 4. If coach requested, assign coach for 30 days
+          if (chosenCoach && memberUserId) {
+            try {
+              await apiClient.assignTrainer(chosenCoach.id, {
+                member_id: memberUserId,
+                duration_days: 30,
+                notes: `Assigned during front-desk registration: ${selectedPlan?.name || 'Membership'}`,
+              });
+            } catch (trainerErr) {
+              console.warn('Personal coach assignment warning:', trainerErr);
+            }
           }
         } catch (subErr) {
           console.error('Subscription/Payment processing notice:', subErr);
@@ -782,6 +905,9 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
         subscription: createdSubscription,
         payment: createdPayment,
         plan: selectedPlan,
+        assignedCoach: formData.wants_trainer && formData.trainer_id
+          ? availableTrainers.find((t) => String(t.id) === String(formData.trainer_id))
+          : null,
         paymentMethod: formData.payment_method,
         paymentReference: formData.payment_reference || chapaTxRef,
         chapaProvider: chapaProvider,
@@ -1781,6 +1907,46 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                           <span className={`gymflow-status-pill pill-${m.status === 'active' ? 'active' : m.status === 'suspended' ? 'suspended' : m.status === 'inactive' ? 'at-risk' : 'lost'}`}>
                             • {m.status === 'active' ? 'ACTIVE' : m.status === 'suspended' ? 'SUSPENDED' : m.status === 'inactive' ? 'AT-RISK' : 'LOST'}
                           </span>
+                          {/* Personal Coach Status Badge */}
+                          {m.assigned_trainer ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '2px 8px',
+                                borderRadius: 10,
+                                fontSize: 10.5,
+                                fontWeight: 700,
+                                background: 'rgba(230, 124, 0, 0.12)',
+                                color: '#ea580c',
+                                border: '1px solid rgba(230, 124, 0, 0.3)',
+                                marginTop: 4,
+                              }}
+                              title={`Coach: ${m.assigned_trainer.name} (${m.assigned_trainer.specialization || 'Personal Trainer'}) — ${m.assigned_trainer.days_remaining ?? 30} days remaining`}
+                            >
+                              🏋️ Coach {m.assigned_trainer.name?.split(' ')[0]} ({m.assigned_trainer.days_remaining ?? 30}d)
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '2px 8px',
+                                borderRadius: 10,
+                                fontSize: 10.5,
+                                fontWeight: 600,
+                                background: 'rgba(100, 116, 139, 0.08)',
+                                color: '#64748b',
+                                border: '1px solid rgba(100, 116, 139, 0.2)',
+                                marginTop: 4,
+                              }}
+                              title="Normal gymer without personal coach (Self-Workout)"
+                            >
+                              🧘 Normal Gymer
+                            </span>
+                          )}
                           {m.status === 'suspended' && m.suspension_reason && (
                             <span
                               style={{
@@ -1871,6 +2037,35 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                                     <Icons.Refresh size={14} />
                                     <span>Renew / Assign Plan</span>
                                   </button>
+                                )}
+
+                                {/* Personal Coach Actions */}
+                                {isStaff && (
+                                  !m.assigned_trainer ? (
+                                    <button
+                                      type="button"
+                                      className="dropdown-item"
+                                      onClick={() => {
+                                        setOpenMenuMemberId(null);
+                                        handleOpenAssignCoach(m);
+                                      }}
+                                    >
+                                      <span style={{ fontSize: 13 }}>🏋️</span>
+                                      <span>Add Personal Coach (Trainer Fee Only)</span>
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="dropdown-item"
+                                      onClick={() => {
+                                        setOpenMenuMemberId(null);
+                                        handleOpenChangeCoach(m);
+                                      }}
+                                    >
+                                      <span style={{ fontSize: 13 }}>🔄</span>
+                                      <span>Switch / Change Coach</span>
+                                    </button>
+                                  )
                                 )}
 
                                 {isStaff && m.status === 'active' && (
@@ -1985,6 +2180,15 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                   <div><strong>Phone:</strong> {m.phone}</div>
                   <div><strong>Plan:</strong> {m.active_subscription?.plan_name || 'Standard'}</div>
                   <div className={expiry.color}><strong>Expiry:</strong> {expiry.text}</div>
+                  {m.assigned_trainer ? (
+                    <div style={{ color: '#ea580c', fontWeight: 700, fontSize: 11.5, marginTop: 4 }}>
+                      🏋️ Coach {m.assigned_trainer.name} ({m.assigned_trainer.days_remaining ?? 30}d left)
+                    </div>
+                  ) : (
+                    <div style={{ color: '#64748b', fontSize: 11, marginTop: 4 }}>
+                      🧘 Normal Gymer (Self-Workout)
+                    </div>
+                  )}
                 </div>
 
                 <div className="card-item-bottom">
@@ -1997,6 +2201,31 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                       <Icons.QrCode size={13} /> QR Pass
                     </span>
                   </button>
+                  {isStaff && (
+                    !m.assigned_trainer ? (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-xs"
+                        onClick={() => handleOpenAssignCoach(m)}
+                        title="Add Personal Coach (Trainer Fee Only)"
+                      >
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          🏋️ +Coach
+                        </span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-xs"
+                        onClick={() => handleOpenChangeCoach(m)}
+                        title="Switch / Change Coach"
+                      >
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          🔄 Coach
+                        </span>
+                      </button>
+                    )
+                  )}
                   {isStaff && (
                     <button
                       type="button"
@@ -2299,10 +2528,15 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                         onChange={(e) => {
                           const pId = e.target.value;
                           const selected = membershipPlans.find((p) => String(p.id) === String(pId));
+                          const planPrice = selected ? Number(selected.price) : 0;
+                          const coach = (formData.wants_trainer && formData.trainer_id)
+                            ? availableTrainers.find((t) => String(t.id) === String(formData.trainer_id))
+                            : null;
+                          const coachFee = coach ? Number(coach.monthly_fee || 0) : 0;
                           setFormData((prev) => ({
                             ...prev,
                             membership_plan_id: pId,
-                            payment_amount: selected ? String(selected.price) : '',
+                            payment_amount: selected ? String(planPrice + coachFee) : '',
                           }));
                           if (formErrors.membership_plan_id) {
                             setFormErrors((prev) => {
@@ -2337,7 +2571,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                         {/* Price & Start Date */}
                         <div className="reg-form-row-2">
                           <div className="reg-form-group">
-                            <label>Package Price (ETB)</label>
+                            <label>Total Payment Due (ETB)</label>
                             <input
                               type="number"
                               className={`reg-control ${formErrors.payment_amount ? 'input-error' : ''}`}
@@ -2370,6 +2604,135 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                               <span className="form-error-text" style={{ fontSize: 10.5 }}><Icons.AlertCircle size={11} /> {formErrors.start_date}</span>
                             )}
                           </div>
+                        </div>
+
+                        {/* Personal Trainer / Coach Option */}
+                        <div className="reg-form-group" style={{ marginTop: 4, marginBottom: 12, padding: '10px 12px', background: 'rgba(230, 124, 0, 0.05)', borderRadius: 8, border: '1px solid rgba(230, 124, 0, 0.2)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <label style={{ fontSize: 11, fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span>🏋️</span> Personal Trainer / Coach?
+                            </label>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const selectedPlan = membershipPlans.find((p) => String(p.id) === String(formData.membership_plan_id));
+                                  const planPrice = selectedPlan ? Number(selectedPlan.price) : 0;
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    wants_trainer: false,
+                                    trainer_id: '',
+                                    payment_amount: String(planPrice),
+                                  }));
+                                }}
+                                style={{
+                                  padding: '3px 10px',
+                                  borderRadius: 6,
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  border: !formData.wants_trainer ? '1.5px solid #64748b' : '1px solid #cbd5e1',
+                                  background: !formData.wants_trainer ? '#64748b' : '#ffffff',
+                                  color: !formData.wants_trainer ? '#ffffff' : '#64748b',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                🧘 No (Self-Workout)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    wants_trainer: true,
+                                  }));
+                                }}
+                                style={{
+                                  padding: '3px 10px',
+                                  borderRadius: 6,
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  border: formData.wants_trainer ? '1.5px solid #E67C00' : '1px solid #cbd5e1',
+                                  background: formData.wants_trainer ? '#E67C00' : '#ffffff',
+                                  color: formData.wants_trainer ? '#ffffff' : '#64748b',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                🏋️ Yes (Assign Coach)
+                              </button>
+                            </div>
+                          </div>
+
+                          {formData.wants_trainer && (
+                            <div style={{ marginTop: 8 }}>
+                              <select
+                                className={`reg-control ${formErrors.trainer_id ? 'input-error' : ''}`}
+                                value={formData.trainer_id}
+                                onChange={(e) => {
+                                  const tId = e.target.value;
+                                  const coach = availableTrainers.find((t) => String(t.id) === String(tId));
+                                  const selectedPlan = membershipPlans.find((p) => String(p.id) === String(formData.membership_plan_id));
+                                  const planPrice = selectedPlan ? Number(selectedPlan.price) : 0;
+                                  const coachFee = coach ? Number(coach.monthly_fee || 0) : 0;
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    trainer_id: tId,
+                                    payment_amount: String(planPrice + coachFee),
+                                  }));
+                                  if (formErrors.trainer_id) {
+                                    setFormErrors((prev) => {
+                                      const next = { ...prev };
+                                      delete next.trainer_id;
+                                      return next;
+                                    });
+                                  }
+                                }}
+                                style={{ fontWeight: 600 }}
+                              >
+                                <option value="">-- Choose Personal Coach (Required) --</option>
+                                {availableTrainers.map((t) => (
+                                  <option key={t.id} value={t.id}>
+                                    Coach {t.name} — {t.specialization || 'Personal Trainer'} ({t.shift === 'morning' ? '🌅 Morning' : t.shift === 'evening' ? '🌆 Evening' : '☀️ Full Day'}) — +{Number(t.monthly_fee || 0).toLocaleString()} ETB/mo
+                                  </option>
+                                ))}
+                              </select>
+                              {formErrors.trainer_id && (
+                                <span className="form-error-text" style={{ fontSize: 10.5, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                                  <Icons.AlertCircle size={11} /> {formErrors.trainer_id}
+                                </span>
+                              )}
+
+                              {/* Coach Preview & Fee Breakdown */}
+                              {formData.trainer_id && (() => {
+                                const coach = availableTrainers.find((t) => String(t.id) === String(formData.trainer_id));
+                                const selectedPlan = membershipPlans.find((p) => String(p.id) === String(formData.membership_plan_id));
+                                const planPrice = selectedPlan ? Number(selectedPlan.price) : 0;
+                                const coachFee = coach ? Number(coach.monthly_fee || 0) : 0;
+                                return (
+                                  <div style={{ marginTop: 8, padding: 8, background: '#ffffff', borderRadius: 6, border: '1px solid #fed7aa', fontSize: 11.5 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                                      {coach?.avatar ? (
+                                        <img src={coach.avatar} alt={coach.name} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
+                                      ) : (
+                                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#ffedd5', color: '#ea580c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
+                                          {coach?.name?.charAt(0) || 'C'}
+                                        </div>
+                                      )}
+                                      <div style={{ flex: 1 }}>
+                                        <span style={{ fontWeight: 700, color: '#0f172a' }}>Coach {coach?.name}</span>
+                                        <span style={{ color: '#64748b', fontSize: 10.5, marginLeft: 6 }}>• {coach?.specialization || 'Personal Trainer'}</span>
+                                      </div>
+                                      <span style={{ fontWeight: 800, color: '#ea580c' }}>+{coachFee.toLocaleString()} ETB/mo</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #e2e8f0', paddingTop: 4, color: '#64748b', fontSize: 10.5 }}>
+                                      <span>Gym Plan: {planPrice.toLocaleString()} ETB</span>
+                                      <span>+ Coach Fee: {coachFee.toLocaleString()} ETB</span>
+                                      <strong style={{ color: '#0f172a' }}>Total: {(planPrice + coachFee).toLocaleString()} ETB</strong>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          )}
                         </div>
 
                         {/* Payment Method Toggle (Cash vs Chapa) */}
@@ -2968,12 +3331,28 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                       {registeredMemberPass.plan ? registeredMemberPass.plan.name : 'Registration & Gym Access Pass'}
                     </span>
                     <span className="receipt-dark">
-                      {Number(registeredMemberPass.payment?.amount || registeredMemberPass.plan?.price || 0).toLocaleString()} ETB
+                      {Number(registeredMemberPass.plan?.price || (registeredMemberPass.payment?.amount || 0)).toLocaleString()} ETB
                     </span>
                   </div>
                   {registeredMemberPass.plan && (
                     <div className="receipt-muted" style={{ fontSize: 11, marginTop: 2 }}>
-                      Duration: {registeredMemberPass.plan.duration_value} {registeredMemberPass.plan.duration_type}{registeredMemberPass.plan.duration_value > 1 ? 's' : ''}
+                      Gym Pass Duration: {registeredMemberPass.plan.duration_value} {registeredMemberPass.plan.duration_type}{registeredMemberPass.plan.duration_value > 1 ? 's' : ''}
+                    </div>
+                  )}
+
+                  {registeredMemberPass.assignedCoach && (
+                    <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed #e2e8f0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 800 }}>
+                        <span className="receipt-dark" style={{ color: '#ea580c' }}>
+                          🏋️ Personal Coach: {registeredMemberPass.assignedCoach.name}
+                        </span>
+                        <span className="receipt-dark" style={{ color: '#ea580c' }}>
+                          +{Number(registeredMemberPass.assignedCoach.monthly_fee || 0).toLocaleString()} ETB
+                        </span>
+                      </div>
+                      <div className="receipt-muted" style={{ fontSize: 11, marginTop: 2 }}>
+                        Coaching Duration: 1 Month (30 Days) • {registeredMemberPass.assignedCoach.specialization || 'Personal Trainer'}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -3829,6 +4208,304 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== MODAL: ASSIGN PERSONAL COACH (NORMAL GYMER) ==================== */}
+      {assignCoachModalMember && (
+        <div className="modal-backdrop">
+          <div className="modal-card" style={{ maxWidth: 520, width: '100%' }}>
+            <div className="modal-header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--gym-border, #e2e8f0)' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Assign Personal Coach</h3>
+                <span style={{ fontSize: 11, color: '#64748b' }}>
+                  Member: <strong style={{ color: '#0f172a' }}>{assignCoachModalMember.name}</strong> ({assignCoachModalMember.member_code})
+                </span>
+              </div>
+              <button type="button" className="btn-close" onClick={() => setAssignCoachModalMember(null)}>×</button>
+            </div>
+
+            <form onSubmit={handleAssignCoachSubmit} style={{ padding: '18px 20px' }}>
+              {/* Notice that existing member only pays trainer fee */}
+              <div style={{
+                background: '#fff7ed',
+                border: '1px solid #fed7aa',
+                borderRadius: 8,
+                padding: '10px 14px',
+                marginBottom: 16,
+                fontSize: 12,
+                color: '#9a3412',
+                lineHeight: 1.45,
+              }}>
+                💡 <strong>Fee Policy:</strong> Since {assignCoachModalMember.name} already holds an active gym membership, they <strong>only pay the personal trainer fee</strong>. Coach salary/payout is covered by the gym owner.
+              </div>
+
+              {/* Coach Selector */}
+              <div className="form-group" style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, marginBottom: 6 }}>
+                  Select Coach <span style={{ color: '#ea580c' }}>*</span>
+                </label>
+                <select
+                  className="form-control"
+                  value={assignCoachForm.trainer_id}
+                  onChange={(e) => setAssignCoachForm((prev) => ({ ...prev, trainer_id: e.target.value }))}
+                  required
+                  style={{ fontWeight: 600 }}
+                >
+                  <option value="">-- Choose a Personal Coach --</option>
+                  {availableTrainers.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      Coach {t.name} — {t.specialization || 'Personal Trainer'} ({t.shift === 'morning' ? '🌅 Morning' : t.shift === 'evening' ? '🌆 Evening' : '☀️ Full Day'}) — {Number(t.monthly_fee || 0).toLocaleString()} ETB/mo
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Selected Coach Card Preview */}
+              {assignCoachForm.trainer_id && (() => {
+                const coach = availableTrainers.find((t) => String(t.id) === String(assignCoachForm.trainer_id));
+                const coachFee = Number(coach?.monthly_fee || 0);
+                return (
+                  <div style={{
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 8,
+                    padding: '12px 14px',
+                    marginBottom: 16,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      {coach?.avatar ? (
+                        <img src={coach.avatar} alt={coach.name} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
+                      ) : (
+                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#ffedd5', color: '#ea580c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
+                          {coach?.name?.charAt(0) || 'C'}
+                        </div>
+                      )}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 800, fontSize: 13, color: '#0f172a' }}>Coach {coach?.name}</div>
+                        <div style={{ fontSize: 11, color: '#64748b' }}>
+                          {coach?.specialization || 'Personal Trainer'} • Shift: {coach?.shift === 'morning' ? '🌅 Morning' : coach?.shift === 'evening' ? '🌆 Evening' : '☀️ Full Day'}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Trainer Fee Only</div>
+                        <div style={{ fontSize: 16, fontWeight: 900, color: '#ea580c' }}>{coachFee.toLocaleString()} ETB</div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#64748b', borderTop: '1px dashed #e2e8f0', paddingTop: 6 }}>
+                      Duration: <strong>1 Month (30 Days)</strong> synchronized coaching pass.
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Payment Method */}
+              <div className="form-group" style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, marginBottom: 6 }}>
+                  Payment Method for Trainer Fee <span style={{ color: '#ea580c' }}>*</span>
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                  {[
+                    { id: 'cash', label: '💵 Cash' },
+                    { id: 'chapa', label: '⚡ Chapa / Telebirr' },
+                    { id: 'cbe', label: '🏦 CBE / Bank' },
+                  ].map((m) => (
+                    <label
+                      key={m.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '8px 10px',
+                        borderRadius: 6,
+                        border: assignCoachForm.payment_method === m.id ? '2px solid #ea580c' : '1px solid #cbd5e1',
+                        background: assignCoachForm.payment_method === m.id ? '#fff7ed' : '#ffffff',
+                        color: assignCoachForm.payment_method === m.id ? '#ea580c' : '#475569',
+                        fontWeight: 700,
+                        fontSize: 11.5,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="assign_coach_payment_method"
+                        value={m.id}
+                        checked={assignCoachForm.payment_method === m.id}
+                        onChange={(e) => setAssignCoachForm((prev) => ({ ...prev, payment_method: e.target.value }))}
+                        style={{ display: 'none' }}
+                      />
+                      {m.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Payment Reference (if electronic) */}
+              {assignCoachForm.payment_method !== 'cash' && (
+                <div className="form-group" style={{ marginBottom: 14 }}>
+                  <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, marginBottom: 6 }}>
+                    Payment Reference / Txn ID
+                  </label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Enter transaction code or transfer reference"
+                    value={assignCoachForm.payment_reference}
+                    onChange={(e) => setAssignCoachForm((prev) => ({ ...prev, payment_reference: e.target.value }))}
+                  />
+                </div>
+              )}
+
+              {/* Notes */}
+              <div className="form-group" style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, marginBottom: 6 }}>
+                  Coaching Goals / Notes (Optional)
+                </label>
+                <textarea
+                  className="form-control"
+                  rows={2}
+                  placeholder="e.g. Weight loss focus, evening sessions requested..."
+                  value={assignCoachForm.notes}
+                  onChange={(e) => setAssignCoachForm((prev) => ({ ...prev, notes: e.target.value }))}
+                />
+              </div>
+
+              {/* Modal Actions */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={isProcessingCoach}
+                  onClick={() => setAssignCoachModalMember(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={isProcessingCoach || !assignCoachForm.trainer_id}
+                  style={{
+                    background: '#ea580c',
+                    borderColor: '#ea580c',
+                    fontWeight: 700,
+                  }}
+                >
+                  {isProcessingCoach ? 'Processing...' : 'Confirm Coach & Record Fee'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== MODAL: SWITCH / CHANGE PERSONAL COACH ==================== */}
+      {changeCoachModalMember && (
+        <div className="modal-backdrop">
+          <div className="modal-card" style={{ maxWidth: 520, width: '100%' }}>
+            <div className="modal-header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--gym-border, #e2e8f0)' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Switch Personal Coach</h3>
+                <span style={{ fontSize: 11, color: '#64748b' }}>
+                  Member: <strong style={{ color: '#0f172a' }}>{changeCoachModalMember.name}</strong>
+                </span>
+              </div>
+              <button type="button" className="btn-close" onClick={() => setChangeCoachModalMember(null)}>×</button>
+            </div>
+
+            <form onSubmit={handleChangeCoachSubmit} style={{ padding: '18px 20px' }}>
+              {/* Current Coach Strip */}
+              <div style={{
+                background: '#f1f5f9',
+                border: '1px solid #cbd5e1',
+                borderRadius: 8,
+                padding: '10px 14px',
+                marginBottom: 16,
+                fontSize: 12,
+              }}>
+                <div style={{ color: '#475569', marginBottom: 2 }}>Current Assigned Coach:</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <strong style={{ fontSize: 13, color: '#0f172a' }}>
+                    🏋️ Coach {changeCoachModalMember.assigned_trainer?.name || 'Assigned Coach'}
+                  </strong>
+                  <span style={{
+                    background: 'rgba(230, 124, 0, 0.12)',
+                    color: '#ea580c',
+                    fontWeight: 800,
+                    fontSize: 11,
+                    padding: '2px 8px',
+                    borderRadius: 6,
+                  }}>
+                    {changeCoachModalMember.assigned_trainer?.days_remaining ?? 30} days remaining
+                  </span>
+                </div>
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                  ✓ All remaining days will transfer to the new coach automatically with no extra charge.
+                </div>
+              </div>
+
+              {/* Select New Coach */}
+              <div className="form-group" style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, marginBottom: 6 }}>
+                  Select New Coach <span style={{ color: '#ea580c' }}>*</span>
+                </label>
+                <select
+                  className="form-control"
+                  value={changeCoachForm.new_trainer_id}
+                  onChange={(e) => setChangeCoachForm((prev) => ({ ...prev, new_trainer_id: e.target.value }))}
+                  required
+                  style={{ fontWeight: 600 }}
+                >
+                  <option value="">-- Choose New Coach --</option>
+                  {availableTrainers
+                    .filter((t) => t.id !== changeCoachModalMember.assigned_trainer?.trainer_id)
+                    .map((t) => (
+                      <option key={t.id} value={t.id}>
+                        Coach {t.name} — {t.specialization || 'Personal Trainer'} ({t.shift === 'morning' ? '🌅 Morning' : t.shift === 'evening' ? '🌆 Evening' : '☀️ Full Day'})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Reason for Switch */}
+              <div className="form-group" style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, marginBottom: 6 }}>
+                  Reason for Transfer / Note <span style={{ color: '#ea580c' }}>*</span>
+                </label>
+                <textarea
+                  className="form-control"
+                  rows={3}
+                  required
+                  placeholder="e.g. Schedule adjustment, client preferred morning sessions, coach availability..."
+                  value={changeCoachForm.reason}
+                  onChange={(e) => setChangeCoachForm((prev) => ({ ...prev, reason: e.target.value }))}
+                />
+              </div>
+
+              {/* Modal Actions */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={isProcessingCoach}
+                  onClick={() => setChangeCoachModalMember(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={isProcessingCoach || !changeCoachForm.new_trainer_id}
+                  style={{
+                    background: '#ea580c',
+                    borderColor: '#ea580c',
+                    fontWeight: 700,
+                  }}
+                >
+                  {isProcessingCoach ? 'Transferring...' : 'Transfer to New Coach'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

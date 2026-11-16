@@ -60,7 +60,7 @@ const Icons = {
 export default function PaymentLedger({ initialTab = 'payments' }) {
   const { user, hasRole } = useAuth();
   const isStaff = hasRole('owner') || hasRole('admin') || hasRole('receptionist');
-  const isOwnerOrAdmin = hasRole('owner') || hasRole('admin');
+  const isOwnerOrAdmin = hasRole('owner') || hasRole('admin') || user?.primary_role === 'owner' || user?.primary_role === 'admin' || user?.role === 'owner' || user?.role === 'admin';
   const isOwner = hasRole('owner');
 
   // Main active tab: 'payments' | 'expenses'
@@ -331,7 +331,19 @@ export default function PaymentLedger({ initialTab = 'payments' }) {
       const res = await apiClient.refundPayment(selectedPayment.id, {
         reason: refundForm.reason.trim(),
       });
-      showNotification('success', res.message || `Payment ${selectedPayment.receipt_number} refunded.`);
+      // Optimistically flip status in active table list
+      setPayments((prev) =>
+        prev.map((p) =>
+          p.id === selectedPayment.id
+            ? {
+                ...p,
+                status: 'refunded',
+                notes: (p.notes ? p.notes + '\n' : '') + `[REFUNDED by Admin: ${refundForm.reason.trim()}]`,
+              }
+            : p
+        )
+      );
+      showNotification('success', res.message || `Payment ${selectedPayment.receipt_number} successfully refunded.`);
       setIsRefundModalOpen(false);
       fetchPayments();
       fetchPaymentSummary();
@@ -950,15 +962,25 @@ export default function PaymentLedger({ initialTab = 'payments' }) {
                             >
                               Receipt
                             </button>
-                            {isOwnerOrAdmin && p.status === 'completed' && (
+                            {isOwnerOrAdmin && String(p.status).toLowerCase() === 'completed' && (
                               <button
                                 type="button"
                                 className="btn btn-secondary btn-sm"
                                 onClick={() => handleOpenRefund(p)}
-                                title="Issue Audited Refund"
-                                style={{ padding: '4px 8px', fontSize: 12, color: '#ef4444' }}
+                                title="Issue Audited Refund (Admin / Owner Only)"
+                                style={{
+                                  padding: '4px 10px',
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  color: '#ef4444',
+                                  background: 'rgba(239, 68, 68, 0.08)',
+                                  borderColor: 'rgba(239, 68, 68, 0.35)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                }}
                               >
-                                Refund
+                                <span>↩️</span> Refund
                               </button>
                             )}
 
@@ -1541,6 +1563,28 @@ export default function PaymentLedger({ initialTab = 'payments' }) {
                 >
                   Close
                 </button>
+                {isOwnerOrAdmin && String(selectedPayment?.status).toLowerCase() === 'completed' && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setIsReceiptModalOpen(false);
+                      handleOpenRefund(selectedPayment);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontWeight: 700,
+                      color: '#ef4444',
+                      borderColor: 'rgba(239, 68, 68, 0.4)',
+                      background: 'rgba(239, 68, 68, 0.08)',
+                    }}
+                    title="Issue Audited Refund for this Payment"
+                  >
+                    <span>↩️</span> Issue Refund
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn btn-secondary"
