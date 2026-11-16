@@ -1,3 +1,5 @@
+import { validatePhoneNumber } from './validation';
+
 /**
  * Member validation constants and utility functions for Tigat Gym.
  */
@@ -48,16 +50,7 @@ export function validateSingleField(field, value, allData = {}, isRegister = tru
     }
 
     case 'phone': {
-      if (!value || !value.trim()) {
-        return 'Phone number is required.';
-      }
-      const cleanPhone = value.trim().replace(/[\s-()]/g, '');
-      // Standard Ethiopian (09..., 07..., +251..., 251...) or international 9-15 digits
-      const phoneRegex = /^(\+?[0-9]{9,15})$/;
-      if (!phoneRegex.test(cleanPhone)) {
-        return 'Please enter a valid phone number (e.g. 0911234567 or +251911234567).';
-      }
-      return null;
+      return validatePhoneNumber(value, { required: true, label: 'Phone number' });
     }
 
     case 'email': {
@@ -104,18 +97,19 @@ export function validateSingleField(field, value, allData = {}, isRegister = tru
     }
 
     case 'emergency_contact_phone': {
-      if (!value || !value.trim()) return null;
-      const cleanEmergency = value.trim().replace(/[\s-()]/g, '');
-      const phoneRegex = /^(\+?[0-9]{9,15})$/;
-      if (!phoneRegex.test(cleanEmergency)) {
-        return 'Please enter a valid emergency contact phone (e.g. 0911234567).';
-      }
-      return null;
+      return validatePhoneNumber(value, { required: false, label: 'Emergency contact phone' });
     }
 
     case 'membership_plan_id': {
       if (isRegister && (!value || String(value).trim() === '')) {
         return 'Please select a membership plan for the member.';
+      }
+      return null;
+    }
+
+    case 'trainer_id': {
+      if (isRegister && allData.wants_trainer && (!value || String(value).trim() === '')) {
+        return 'Please choose an assigned coach or switch to Self-Workout.';
       }
       return null;
     }
