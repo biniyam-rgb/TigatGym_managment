@@ -147,6 +147,7 @@ export default function ReceptionProfileView({ onOpenPasswordModal, onNavigate }
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewAvatar, setPreviewAvatar] = useState(null);
   const [isRemovingAvatar, setIsRemovingAvatar] = useState(false);
+  const [isSavingPhoto, setIsSavingPhoto] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState({});
   const [statusMessage, setStatusMessage] = useState(null);
@@ -232,8 +233,8 @@ export default function ReceptionProfileView({ onOpenPasswordModal, onNavigate }
     : isTrainer ? (user?.trainer_profile?.trainer_code || `#TRN-${String(user?.id || 1).padStart(3, '0')}`)
     : `#USR-${String(user?.id || 1).padStart(4, '0')}`);
 
-  // Handle Photo Picker Selection
-  const handlePhotoSelect = (e) => {
+  // Handle Photo Picker Selection with automatic instant save
+  const handlePhotoSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -251,19 +252,63 @@ export default function ReceptionProfileView({ onOpenPasswordModal, onNavigate }
     setIsRemovingAvatar(false);
     setFormErrors((prev) => ({ ...prev, avatar: null }));
 
+    // 1. Show immediate preview locally
     const reader = new FileReader();
     reader.onload = (event) => {
       setPreviewAvatar(event.target.result);
     };
     reader.readAsDataURL(file);
+
+    // 2. Automatically save immediately to the backend
+    setIsSavingPhoto(true);
+    setStatusMessage({ type: 'success', text: 'Saving photo...' });
+    try {
+      const payload = new FormData();
+      payload.append('avatar', file);
+      payload.append('name', user?.name || formData.name);
+      payload.append('email', user?.email || formData.email);
+      if (user?.phone) payload.append('phone', user.phone);
+
+      const res = await updateProfile(payload);
+      if (res?.user) {
+        window.dispatchEvent(new CustomEvent('gymcore:trainer-updated', {
+          detail: { trainer: res.user }
+        }));
+      }
+      setStatusMessage({ type: 'success', text: '✓ Profile photo automatically saved and updated!' });
+      setSelectedFile(null);
+    } catch (err) {
+      console.error('Auto-save photo failed:', err);
+      setStatusMessage({ type: 'error', text: err.message || 'Failed to save photo. Please try clicking Save Photo.' });
+    } finally {
+      setIsSavingPhoto(false);
+    }
   };
 
-  const handleRemovePhoto = () => {
-    setSelectedFile(null);
-    setPreviewAvatar(null);
-    setIsRemovingAvatar(true);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  const handleRemovePhoto = async () => {
+    setIsSavingPhoto(true);
+    try {
+      const payload = new FormData();
+      payload.append('remove_avatar', '1');
+      payload.append('name', user?.name || formData.name);
+      payload.append('email', user?.email || formData.email);
+      if (user?.phone) payload.append('phone', user.phone);
+
+      const res = await updateProfile(payload);
+      if (res?.user) {
+        window.dispatchEvent(new CustomEvent('gymcore:trainer-updated', {
+          detail: { trainer: res.user }
+        }));
+      }
+      setSelectedFile(null);
+      setPreviewAvatar(null);
+      setIsRemovingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      setStatusMessage({ type: 'success', text: '✓ Profile photo removed successfully.' });
+    } catch (err) {
+      setStatusMessage({ type: 'error', text: err.message || 'Failed to remove photo.' });
+    } finally {
+      setIsSavingPhoto(false);
     }
   };
 
@@ -322,6 +367,11 @@ export default function ReceptionProfileView({ onOpenPasswordModal, onNavigate }
       }
 
       const res = await updateProfile(payload);
+      if (res?.user) {
+        window.dispatchEvent(new CustomEvent('gymcore:trainer-updated', {
+          detail: { trainer: res.user }
+        }));
+      }
       setStatusMessage({ type: 'success', text: res.message || 'Profile updated successfully!' });
       setIsEditing(false);
       setSelectedFile(null);
@@ -411,21 +461,29 @@ export default function ReceptionProfileView({ onOpenPasswordModal, onNavigate }
                 type="button"
                 className="profile-photo-btn"
                 onClick={() => fileInputRef.current?.click()}
+                disabled={isSavingPhoto}
               >
                 <Icons.Camera size={12} />
-                <span>{previewAvatar ? 'Change Photo' : 'Upload Photo'}</span>
+                <span>{isSavingPhoto ? 'Saving Photo...' : previewAvatar ? 'Change Photo' : 'Upload Photo'}</span>
               </button>
               {previewAvatar && (
                 <button
                   type="button"
                   className="profile-photo-btn remove-btn"
                   onClick={handleRemovePhoto}
+                  disabled={isSavingPhoto}
                   title="Remove current photo"
                 >
                   <Icons.Trash2 size={12} />
                   <span>Remove</span>
                 </button>
               )}
+            </div>
+
+            {/* Clear auto-save indicator */}
+            <div style={{ fontSize: 11, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4, fontWeight: 600 }}>
+              <Icons.CheckCircle size={12} color="#16a34a" />
+              <span>Photos are automatically saved to your profile upon selection.</span>
             </div>
             {formErrors.avatar && (
               <div className="profile-field-error" style={{ marginTop: 4 }}>
