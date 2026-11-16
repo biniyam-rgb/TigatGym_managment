@@ -202,6 +202,40 @@ class User extends Authenticatable
         return $this->hasOne(TrainerProfile::class);
     }
 
+    public function trainerAssignments(): HasMany
+    {
+        return $this->hasMany(TrainerAssignment::class, 'trainer_id');
+    }
+
+    public function memberTrainerAssignments(): HasMany
+    {
+        return $this->hasMany(TrainerAssignment::class, 'member_id');
+    }
+
+    public function currentTrainerAssignment(): HasOne
+    {
+        return $this->hasOne(TrainerAssignment::class, 'member_id')
+            ->where('status', 'active')
+            ->where(function ($q) {
+                $q->whereNull('end_date')
+                    ->orWhere('end_date', '>=', now()->toDateString());
+            })
+            ->latestOfMany();
+    }
+
+    public function activeTrainerAssignment(): ?TrainerAssignment
+    {
+        return $this->memberTrainerAssignments()
+            ->with(['trainer.trainerProfile'])
+            ->where('status', 'active')
+            ->where(function ($q) {
+                $q->whereNull('end_date')
+                    ->orWhere('end_date', '>=', now()->toDateString());
+            })
+            ->latest('id')
+            ->first();
+    }
+
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class, 'member_id');

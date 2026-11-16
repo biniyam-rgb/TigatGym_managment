@@ -19,13 +19,25 @@ class MemberResource extends JsonResource
         $isStaff = $currentUser && $currentUser->hasAnyRole('owner', 'admin', 'receptionist');
         $isTrainer = $currentUser && $currentUser->hasRole('trainer');
 
+        // Retrieve active trainer assignment if member has a personal coach
+        $activeTrainerAssignment = null;
+        if ($this->relationLoaded('user') && $this->user && $this->user->relationLoaded('currentTrainerAssignment')) {
+            $activeTrainerAssignment = $this->user->currentTrainerAssignment;
+        } else {
+            $activeTrainerAssignment = $this->user?->activeTrainerAssignment();
+        }
+
         // Check if trainer is assigned to this member
         $isAssignedTrainer = false;
         if ($isTrainer) {
-            $isAssignedTrainer = \App\Models\TrainerAssignment::where('trainer_id', $currentUser->id)
-                ->where('member_id', $this->user_id)
-                ->where('status', 'active')
-                ->exists();
+            if ($activeTrainerAssignment) {
+                $isAssignedTrainer = ((int) $activeTrainerAssignment->trainer_id === (int) $currentUser->id);
+            } else {
+                $isAssignedTrainer = \App\Models\TrainerAssignment::where('trainer_id', $currentUser->id)
+                    ->where('member_id', $this->user_id)
+                    ->where('status', 'active')
+                    ->exists();
+            }
         }
 
         $canViewSensitive = $isSelf || $isStaff || $isAssignedTrainer;
@@ -50,6 +62,7 @@ class MemberResource extends JsonResource
             'name' => $this->user?->name,
             'email' => $this->user?->email,
             'phone' => $this->user?->phone,
+            'avatar' => $this->user?->avatar,
             'status' => $this->user?->status ?? 'active',
             'suspension_reason' => $this->user?->suspension_reason,
             'suspended_at' => $this->user?->suspended_at?->toIso8601String(),
@@ -79,6 +92,18 @@ class MemberResource extends JsonResource
                 'end_date' => $activeSubscription->end_date?->format('Y-m-d'),
                 'status' => $activeSubscription->status,
                 'days_remaining' => $activeSubscription->days_remaining,
+            ] : null,
+            'assigned_trainer' => $activeTrainerAssignment ? [
+                'assignment_id' => $activeTrainerAssignment->id,
+                'trainer_id' => $activeTrainerAssignment->trainer_id,
+                'name' => $activeTrainerAssignment->trainer?->name,
+                'trainer_code' => $activeTrainerAssignment->trainer?->trainerProfile?->trainer_code,
+                'avatar' => $activeTrainerAssignment->trainer?->avatar,
+                'specialization' => $activeTrainerAssignment->trainer?->trainerProfile?->specialization,
+                'monthly_fee' => (float) ($activeTrainerAssignment->trainer?->trainerProfile?->monthly_fee ?: $activeTrainerAssignment->trainer?->trainerProfile?->hourly_rate ?: 0),
+                'start_date' => $activeTrainerAssignment->start_date?->format('Y-m-d'),
+                'end_date' => $activeTrainerAssignment->end_date?->format('Y-m-d'),
+                'days_remaining' => $activeTrainerAssignment->end_date ? max(0, (int) \Carbon\Carbon::today()->diffInDays(\Carbon\Carbon::parse($activeTrainerAssignment->end_date), false)) : null,
             ] : null,
         ];
     }

@@ -15,9 +15,11 @@ class TrainerProfile extends Model
         'user_id',
         'trainer_code',
         'specialization',
+        'shift',
         'bio',
         'certifications',
         'hourly_rate',
+        'monthly_fee',
         'commission_rate',
         'is_available',
         'joined_at',
@@ -27,6 +29,7 @@ class TrainerProfile extends Model
     {
         return [
             'hourly_rate' => 'decimal:2',
+            'monthly_fee' => 'decimal:2',
             'commission_rate' => 'decimal:2',
             'is_available' => 'boolean',
             'joined_at' => 'date',
