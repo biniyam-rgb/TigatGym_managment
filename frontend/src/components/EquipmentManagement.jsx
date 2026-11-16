@@ -731,6 +731,8 @@ const EquipmentIllustration = ({ name = '', category = '', imageUrl = null }) =>
       <img
         src={imageUrl}
         alt={name}
+        loading="lazy"
+        decoding="async"
         className="equip-thumb-img"
         style={{
           width: '100%',
@@ -753,6 +755,8 @@ const EquipmentIllustration = ({ name = '', category = '', imageUrl = null }) =>
       <img
         src={visual.thumb}
         alt={name}
+        loading="lazy"
+        decoding="async"
         className="equip-thumb-img"
         style={{
           width: '100%',

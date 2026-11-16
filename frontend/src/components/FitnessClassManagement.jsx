@@ -2751,6 +2751,8 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                       <img
                         src={c.image_url || visual.image}
                         alt={c.name}
+                        loading="lazy"
+                        decoding="async"
                         className="class-card-hero-img"
                         onError={(e) => { e.currentTarget.src = visual.image; }}
                       />
@@ -3004,6 +3006,8 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                             <img
                               src={c.image_url || visual.image}
                               alt={c.name}
+                              loading="lazy"
+                              decoding="async"
                               className="table-class-thumb"
                               onError={(e) => { e.currentTarget.src = visual.image; }}
                             />
