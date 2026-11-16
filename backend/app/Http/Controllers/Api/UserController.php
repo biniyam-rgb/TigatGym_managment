@@ -8,6 +8,9 @@ use App\Models\MemberProfile;
 use App\Models\Role;
 use App\Models\TrainerProfile;
 use App\Models\User;
+use App\Rules\ValidHumanName;
+use App\Rules\ValidMoneyAmount;
+use App\Rules\ValidPhone;
 use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -75,22 +78,22 @@ class UserController extends Controller
         $this->authorize('create', [User::class, $targetRole]);
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', new ValidHumanName(2, 100)],
             'email' => ['required', 'string', 'email:rfc', 'max:255', 'unique:users,email'],
-            'phone' => ['nullable', 'string', 'max:30'],
+            'phone' => ['nullable', 'string', new ValidPhone(true)],
             'password' => ['required', 'string', 'min:8'],
             'role' => ['required', 'string', 'exists:roles,name'],
             'status' => ['sometimes', 'string', 'in:active,inactive,suspended'],
             // Staff specific credentials (receptionist, admin, trainer)
-            'work_shift' => ['nullable', 'string', 'max:60'],
+            'work_shift' => ['nullable', 'string', 'max:100'],
             'desk_station' => ['nullable', 'string', 'max:100'],
             'emergency_contact' => ['nullable', 'string', 'max:100'],
-            'employee_id_number' => ['nullable', 'string', 'max:50'],
+            'employee_id_number' => ['nullable', 'string', 'max:50', 'unique:users,employee_id_number'],
             // Trainer specific credentials
             'specialization' => ['nullable', 'string', 'max:150'],
             'bio' => ['nullable', 'string', 'max:1000'],
             'certifications' => ['nullable', 'string', 'max:500'],
-            'hourly_rate' => ['nullable', 'numeric', 'min:0'],
+            'hourly_rate' => ['nullable', new ValidMoneyAmount(0, 100000, true)],
         ], [
             'name.required' => 'Full name is required.',
             'email.required' => 'Email address is required.',
@@ -98,6 +101,7 @@ class UserController extends Controller
             'email.unique' => 'The email address is already taken by another account.',
             'password.required' => 'Password is required.',
             'password.min' => 'Password must be at least 8 characters.',
+            'employee_id_number.unique' => 'This employee ID number is already assigned to another staff member.',
         ]);
 
         if (! empty($validated['phone'])) {
@@ -195,19 +199,21 @@ class UserController extends Controller
         $this->authorize('update', $user);
 
         $validated = $request->validate([
-            'name' => ['sometimes', 'string', 'max:255'],
+            'name' => ['sometimes', 'string', new ValidHumanName(2, 100)],
             'email' => ['sometimes', 'string', 'email:rfc', 'max:255', 'unique:users,email,' . $user->id],
-            'phone' => ['nullable', 'string', 'max:30'],
-            'work_shift' => ['nullable', 'string', 'max:60'],
+            'phone' => ['nullable', 'string', new ValidPhone(true)],
+            'work_shift' => ['nullable', 'string', 'max:100'],
             'desk_station' => ['nullable', 'string', 'max:100'],
             'emergency_contact' => ['nullable', 'string', 'max:100'],
-            'employee_id_number' => ['nullable', 'string', 'max:50'],
+            'employee_id_number' => ['nullable', 'string', 'max:50', 'unique:users,employee_id_number,' . $user->id],
             'status' => ['sometimes', 'string', 'in:active,inactive,suspended'],
-            'suspension_reason' => ['nullable', 'string', 'max:1000'],
+            'suspension_reason' => ['required_if:status,suspended', 'nullable', 'string', 'min:3', 'max:1000'],
             'avatar' => ['nullable', 'string'],
         ], [
             'email.unique' => 'The email address is already taken by another account.',
             'email.email' => 'Please enter a valid email address.',
+            'suspension_reason.required_if' => 'A reason is required when suspending a user account.',
+            'employee_id_number.unique' => 'This employee ID number is already assigned to another staff member.',
         ]);
 
         if (! empty($validated['phone'])) {

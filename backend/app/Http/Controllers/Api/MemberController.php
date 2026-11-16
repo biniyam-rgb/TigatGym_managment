@@ -8,6 +8,9 @@ use App\Models\MemberProfile;
 use App\Models\Role;
 use App\Models\TrainerAssignment;
 use App\Models\User;
+use App\Rules\ValidDateOfBirth;
+use App\Rules\ValidHumanName;
+use App\Rules\ValidPhone;
 use App\Services\AuditLogger;
 use App\Services\GymMailService;
 use Illuminate\Http\JsonResponse;
@@ -66,7 +69,11 @@ class MemberController extends Controller
         $this->authorize('viewAny', MemberProfile::class);
 
         $currentUser = $request->user();
-        $query = MemberProfile::with(['user', 'subscriptions.membershipPlan']);
+        $query = MemberProfile::with([
+            'user.suspender:id,name',
+            'user.currentTrainerAssignment.trainer.trainerProfile',
+            'subscriptions.membershipPlan',
+        ]);
 
         // Trainers can only view members actively assigned to them
         if ($currentUser->hasRole('trainer') && ! $currentUser->hasAnyRole('owner', 'admin', 'receptionist')) {
@@ -139,26 +146,27 @@ class MemberController extends Controller
         $this->authorize('create', MemberProfile::class);
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'min:2', 'max:255'],
+            'name' => ['required', 'string', new ValidHumanName(2, 100)],
             'email' => ['nullable', 'string', 'email:rfc', 'max:255', 'unique:users,email'],
-            'phone' => ['required', 'string', 'min:9', 'max:30'],
+            'phone' => ['required', 'string', new ValidPhone()],
             'password' => ['nullable', 'string', 'min:8'],
-            'date_of_birth' => ['nullable', 'date', 'before:today', 'after:1920-01-01'],
+            'date_of_birth' => ['nullable', 'date', new ValidDateOfBirth(10, 110)],
             'gender' => ['nullable', 'string', 'in:male,female,other'],
             'blood_type' => ['nullable', 'string', 'in:A+,A-,B+,B-,AB+,AB-,O+,O-'],
             'address' => ['nullable', 'string', 'max:500'],
-            'emergency_contact_name' => ['nullable', 'string', 'max:100'],
-            'emergency_contact_phone' => ['nullable', 'string', 'min:9', 'max:30'],
+            'emergency_contact_name' => ['nullable', 'string', new ValidHumanName(2, 100, true)],
+            'emergency_contact_phone' => ['nullable', 'string', new ValidPhone(true)],
             'emergency_contact_relationship' => ['nullable', 'string', 'max:50'],
             'fitness_goals' => ['nullable', 'string', 'max:1000'],
             'health_conditions' => ['nullable', 'string', 'max:1000'],
+            'rfid_card_number' => ['nullable', 'string', 'max:50', 'unique:member_profiles,rfid_card_number'],
+            'assigned_trainer_id' => ['nullable', 'integer', 'exists:trainer_profiles,id'],
         ], [
             'name.required' => 'Full name is required.',
             'phone.required' => 'Phone number is required.',
             'email.email' => 'Please enter a valid email address.',
             'email.unique' => 'The email address is already taken by another account.',
-            'date_of_birth.before' => 'Date of birth must be a past date.',
-            'date_of_birth.after' => 'Please enter a realistic birth year (after 1920).',
+            'rfid_card_number.unique' => 'This RFID card is already assigned to another gym member.',
         ]);
 
         // Explicit check: ensure phone number is not taken by another user/member
@@ -274,7 +282,7 @@ class MemberController extends Controller
         $this->authorize('view', $member);
 
         return response()->json([
-            'member' => new MemberResource($member->load(['user', 'subscriptions.membershipPlan'])),
+            'member' => new MemberResource($member->load(['user.suspender:id,name', 'user.currentTrainerAssignment.trainer.trainerProfile', 'subscriptions.membershipPlan'])),
         ], Response::HTTP_OK);
     }
 
@@ -293,25 +301,27 @@ class MemberController extends Controller
         }
 
         $validated = $request->validate([
-            'name' => ['sometimes', 'string', 'min:2', 'max:255'],
+            'name' => ['sometimes', 'string', new ValidHumanName(2, 100)],
             'email' => ['nullable', 'string', 'email:rfc', 'max:255', 'unique:users,email,' . $member->user_id],
-            'phone' => ['sometimes', 'string', 'min:9', 'max:30'],
+            'phone' => ['sometimes', 'string', new ValidPhone()],
             'status' => ['sometimes', 'string', 'in:active,inactive,suspended'],
-            'suspension_reason' => ['nullable', 'string', 'max:1000'],
-            'date_of_birth' => ['nullable', 'date', 'before:today', 'after:1920-01-01'],
+            'suspension_reason' => ['required_if:status,suspended', 'nullable', 'string', 'min:3', 'max:1000'],
+            'date_of_birth' => ['nullable', 'date', new ValidDateOfBirth(10, 110)],
             'gender' => ['nullable', 'string', 'in:male,female,other'],
             'blood_type' => ['nullable', 'string', 'in:A+,A-,B+,B-,AB+,AB-,O+,O-'],
             'address' => ['nullable', 'string', 'max:500'],
-            'emergency_contact_name' => ['nullable', 'string', 'max:100'],
-            'emergency_contact_phone' => ['nullable', 'string', 'min:9', 'max:30'],
+            'emergency_contact_name' => ['nullable', 'string', new ValidHumanName(2, 100, true)],
+            'emergency_contact_phone' => ['nullable', 'string', new ValidPhone(true)],
             'emergency_contact_relationship' => ['nullable', 'string', 'max:50'],
             'fitness_goals' => ['nullable', 'string', 'max:1000'],
             'health_conditions' => ['nullable', 'string', 'max:1000'],
+            'rfid_card_number' => ['nullable', 'string', 'max:50', 'unique:member_profiles,rfid_card_number,' . $member->id],
+            'assigned_trainer_id' => ['nullable', 'integer', 'exists:trainer_profiles,id'],
         ], [
             'email.unique' => 'The email address is already taken by another account.',
             'email.email' => 'Please enter a valid email address.',
-            'date_of_birth.before' => 'Date of birth must be a past date.',
-            'date_of_birth.after' => 'Please enter a realistic birth year (after 1920).',
+            'suspension_reason.required_if' => 'A valid reason is required when suspending a member account.',
+            'rfid_card_number.unique' => 'This RFID card is already assigned to another gym member.',
         ]);
 
         // Explicit check: ensure phone number is not taken by another user/member
