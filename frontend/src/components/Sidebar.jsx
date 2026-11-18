@@ -225,13 +225,12 @@ export default function Sidebar({
   ];
 
   // Specific Trainer / Fitness Coach navigation:
-  // Focused on Coaching, Athletes, Workouts, Classes, Schedule, and Profile
+  // Strictly respects permissions: No financial management, no membership plan management, no other trainers' private info
   const trainerNavItems = [
     { id: 'dashboard', label: 'Overview' },
     { id: 'members', label: 'My Athletes' },
     { id: 'classes', label: 'Classes' },
     { id: 'workouts', label: 'Workouts' },
-    { id: 'trainers', label: 'Coaching Staff' },
     { id: 'notifications', label: 'Notifications' },
     { id: 'profile', label: 'My Profile' },
   ];

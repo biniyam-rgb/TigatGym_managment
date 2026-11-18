@@ -11,6 +11,8 @@ use App\Models\Role;
 use App\Models\TrainerAssignment;
 use App\Models\TrainerProfile;
 use App\Models\TrainingSession;
+use App\Models\WorkoutAssignment;
+use App\Models\WorkoutPlan;
 use App\Models\User;
 use App\Rules\ValidHumanName;
 use App\Rules\ValidMoneyAmount;
@@ -882,10 +884,26 @@ class TrainerController extends Controller
         // 4. Upcoming PT Sessions (next 7 days)
         $upcomingSessions = TrainingSession::with(['member.memberProfile'])
             ->where('trainer_id', $trainer->id)
-            ->where('scheduled_start', '>', Carbon::now())
+            ->where(function ($q) {
+                $q->where('scheduled_start', '>', Carbon::now())
+                  ->orWhere(function ($sq) {
+                      $sq->whereDate('scheduled_start', '>=', Carbon::today())
+                         ->where('status', 'scheduled');
+                  });
+            })
             ->orderBy('scheduled_start')
             ->limit(10)
             ->get();
+
+        $upcomingSessionsCount = TrainingSession::where('trainer_id', $trainer->id)
+            ->where(function ($q) {
+                $q->where('scheduled_start', '>', Carbon::now())
+                  ->orWhere(function ($sq) {
+                      $sq->whereDate('scheduled_start', '>=', Carbon::today())
+                         ->where('status', 'scheduled');
+                  });
+            })
+            ->count();
 
         // 5. Total completed sessions
         $completedSessionsCount = TrainingSession::where('trainer_id', $trainer->id)
@@ -905,7 +923,8 @@ class TrainerController extends Controller
                     'name' => $c->name,
                     'category' => $c->category,
                     'room' => $c->room ?? 'Main Studio',
-                    'day_of_week' => $c->day_of_week,
+                    'recurrence' => $c->recurrence,
+                    'day_of_week' => $c->start_time ? Carbon::parse($c->start_time)->format('l') : 'Flexible',
                     'start_time' => $c->start_time,
                     'end_time' => $c->end_time,
                     'capacity' => $c->capacity,
@@ -913,6 +932,46 @@ class TrainerController extends Controller
                     'status' => $c->status,
                 ];
             });
+
+        // 7. Today's Group Classes query & list
+        $todayClassesQuery = FitnessClass::where('trainer_id', $trainer->id)
+            ->where(function ($q) {
+                $q->whereDate('start_time', Carbon::today())
+                  ->orWhere('recurrence', 'daily')
+                  ->orWhere(function ($sq) {
+                      $sq->where('recurrence', 'weekly')
+                         ->whereRaw('DAYOFWEEK(start_time) = ?', [Carbon::today()->dayOfWeekIso + 1]);
+                  });
+            })
+            ->withCount(['bookings as booked_count' => function ($q) {
+                $q->whereIn('status', ['confirmed', 'attended']);
+            }])
+            ->orderBy('start_time');
+
+        $todayClassesList = $todayClassesQuery->get()->map(function ($c) {
+            return [
+                'id' => $c->id,
+                'name' => $c->name,
+                'category' => $c->category,
+                'room' => $c->room ?? 'Main Studio',
+                'recurrence' => $c->recurrence,
+                'day_of_week' => $c->start_time ? Carbon::parse($c->start_time)->format('l') : 'Flexible',
+                'start_time' => $c->start_time,
+                'end_time' => $c->end_time,
+                'capacity' => $c->capacity,
+                'booked_count' => $c->booked_count ?? 0,
+                'status' => $c->status,
+            ];
+        });
+        $todayClasses = $todayClassesList->count();
+
+        // 8. Active Workout Plans count
+        $activeWorkoutPlans = WorkoutAssignment::where('trainer_id', $trainer->id)
+            ->where('status', 'active')
+            ->count();
+        if ($activeWorkoutPlans === 0) {
+            $activeWorkoutPlans = WorkoutPlan::where('is_active', true)->count();
+        }
 
         return response()->json([
             'status' => 'success',
@@ -935,11 +994,15 @@ class TrainerController extends Controller
                     'mentees_capacity' => 15,
                     'today_sessions' => $todaySessions->count(),
                     'today_completed' => $todaySessions->where('status', 'completed')->count(),
+                    'today_classes' => $todayClasses,
+                    'active_workout_plans' => $activeWorkoutPlans,
+                    'upcoming_sessions' => $upcomingSessionsCount,
                     'total_completed' => $completedSessionsCount,
                     'classes_count' => $classes->count(),
                     'mentees_checked_in_today' => $menteesCheckedInToday,
                 ],
                 'today_sessions' => $todaySessions,
+                'today_classes_list' => $todayClassesList,
                 'upcoming_sessions' => $upcomingSessions,
                 'assigned_members' => $activeMentees,
                 'my_classes' => $classes,

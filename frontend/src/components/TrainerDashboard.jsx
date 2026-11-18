@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '../context/useAuth';
 import apiClient from '../services/api';
 import './TrainerDashboard.css';
@@ -92,15 +92,38 @@ const Icons = {
       <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
     </svg>
   ),
+  Filter: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+    </svg>
+  ),
+  ChevronDown: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  ),
+  ChevronRight: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  ),
+  ArrowRight: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="5" y1="12" x2="19" y2="12" />
+      <polyline points="12 5 19 12 12 19" />
+    </svg>
+  ),
 };
 
 export default function TrainerDashboard({ onNavigate }) {
   const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('schedule');
+  const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [sessionFilter, setSessionFilter] = useState('all');
+  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+  const filterDropdownRef = useRef(null);
   const [toast, setToast] = useState(null);
 
   // Modals
@@ -152,6 +175,17 @@ export default function TrainerDashboard({ onNavigate }) {
     return () => window.removeEventListener('gymcore:trainer-updated', handleSync);
   }, [fetchDashboard]);
 
+  // Close filter dropdown on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target)) {
+        setIsFilterDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
   // Trainer profile & stats defensive parsing
   const trainer = data?.trainer || {
     name: user?.name || 'Coach',
@@ -169,6 +203,9 @@ export default function TrainerDashboard({ onNavigate }) {
     mentees_capacity: 15,
     today_sessions: data?.today_sessions?.length || 0,
     today_completed: data?.today_sessions?.filter((s) => s.status === 'completed')?.length || 0,
+    today_classes: 0,
+    active_workout_plans: 0,
+    upcoming_sessions: data?.upcoming_sessions?.length || 0,
     classes_count: data?.my_classes?.length || 0,
     mentees_checked_in_today: 0,
   };
@@ -179,6 +216,10 @@ export default function TrainerDashboard({ onNavigate }) {
 
   const todaySessions = useMemo(() => {
     return Array.isArray(data?.today_sessions) ? data.today_sessions : [];
+  }, [data]);
+
+  const todayClassesList = useMemo(() => {
+    return Array.isArray(data?.today_classes_list) ? data.today_classes_list : [];
   }, [data]);
 
   const upcomingSessions = useMemo(() => {
@@ -354,145 +395,75 @@ export default function TrainerDashboard({ onNavigate }) {
         </div>
       )}
 
-      {/* ─── Header Banner (Matches Existing Dashboard Overview) ────────── */}
-      <div className="reception-header-banner" style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div
-            style={{
-              position: 'relative',
-              width: 52,
-              height: 52,
-              borderRadius: '50%',
-              border: '2.5px solid #ff7a00',
-              overflow: 'hidden',
-              flexShrink: 0,
-              boxShadow: '0 2px 8px rgba(255, 122, 0, 0.25)',
-              background: '#f1f5f9',
-            }}
-          >
-            <img
-              src={trainer.avatar || 'https://images.unsplash.com/photo-1567013127542-490d757e51fc?w=300&auto=format&fit=crop&q=80'}
-              alt={trainer.name}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              onError={(e) => {
-                e.currentTarget.src = 'https://images.unsplash.com/photo-1567013127542-490d757e51fc?w=300&auto=format&fit=crop&q=80';
-              }}
-            />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <h1 className="reception-welcome-title" style={{ margin: 0 }}>
-                Welcome back, Coach {trainer.name}!
-              </h1>
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  fontSize: 11.5,
-                  fontWeight: 700,
-                  padding: '3px 10px',
-                  borderRadius: 20,
-                  background: 'rgba(34, 197, 94, 0.12)',
-                  color: '#16a34a',
-                  border: '1px solid rgba(34, 197, 94, 0.25)',
-                }}
-              >
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-                On Duty & Available
-              </span>
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: '#ea580c',
-                  background: 'rgba(234, 88, 12, 0.08)',
-                  padding: '3px 10px',
-                  borderRadius: 16,
-                  border: '1px solid rgba(234, 88, 12, 0.2)',
-                }}
-              >
-                <Icons.Clock size={12} color="#ea580c" />
-                <span>{shiftText}</span>
-              </span>
-            </div>
-            <p className="reception-welcome-desc" style={{ marginTop: 4 }}>
-              Certified Fitness Coach · {trainer.specialization || 'Strength & Conditioning'} · Assigned Athlete Mentorship & Class Operations
-            </p>
-          </div>
-        </div>
-
-        <div className="clean-dash-actions">
-          <button
-            type="button"
-            className="btn-clean-add-member"
-            onClick={() => setActiveTab('workout_log')}
-            title="Log athlete workout notes, exercises or progress milestones"
-          >
-            <Icons.Dumbbell size={15} />
-            <span>Log Athlete Workout</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ─── 4 Core Coaching Metric Cards (Standard Clean KPI Grid) ────────── */}
-      <section className="clean-kpi-grid" style={{ marginBottom: 16 }}>
-        {/* Metric 1: Active Athletes */}
+      {/* ─── 5 Core Coaching Metric Cards (Unified Clean KPI Grid) ────────── */}
+      <section className="clean-kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginBottom: 16 }}>
+        {/* Metric 1: Assigned Members */}
         <div className="clean-kpi-card">
           <div className="clean-kpi-top">
-            <span className="kpi-label">Active Athletes Mentored</span>
-            <div className="clean-kpi-icon" title="Active Athletes Mentored" style={{ color: '#ff7a00', background: 'rgba(255, 122, 0, 0.1)' }}>
+            <span className="kpi-label">Assigned Members</span>
+            <div className="clean-kpi-icon" title="Assigned Members" style={{ color: '#ff7a00', background: 'rgba(255, 122, 0, 0.1)' }}>
               <Icons.Users size={16} />
             </div>
           </div>
-          <div className="kpi-value">{stats.active_mentees}</div>
+          <div className="kpi-value">{stats.active_mentees ?? 0}</div>
           <span className="kpi-trend trend-positive">
-            {stats.active_mentees} / {stats.mentees_capacity || 15} Capacity ({Math.max(0, (stats.mentees_capacity || 15) - stats.active_mentees)} open spots)
+            {stats.active_mentees ?? 0} / {stats.mentees_capacity || 15} Capacity ({Math.max(0, (stats.mentees_capacity || 15) - (stats.active_mentees ?? 0))} open)
           </span>
         </div>
 
         {/* Metric 2: Today's Sessions */}
         <div className="clean-kpi-card">
           <div className="clean-kpi-top">
-            <span className="kpi-label">Today's PT Sessions</span>
-            <div className="clean-kpi-icon" title="Today's PT Sessions" style={{ color: '#3b82f6', background: 'rgba(59, 130, 246, 0.1)' }}>
+            <span className="kpi-label">Today's Sessions</span>
+            <div className="clean-kpi-icon" title="Today's Sessions" style={{ color: '#3b82f6', background: 'rgba(59, 130, 246, 0.1)' }}>
               <Icons.Calendar size={16} />
             </div>
           </div>
-          <div className="kpi-value">{stats.today_sessions}</div>
+          <div className="kpi-value">{stats.today_sessions ?? 0}</div>
           <span className="kpi-trend trend-positive">
-            {stats.today_completed} Completed · {Math.max(0, stats.today_sessions - stats.today_completed)} Upcoming
+            {stats.today_completed ?? 0} Completed · {Math.max(0, (stats.today_sessions ?? 0) - (stats.today_completed ?? 0))} Scheduled
           </span>
         </div>
 
-        {/* Metric 3: Classes Instructed */}
+        {/* Metric 3: Today's Group Classes */}
         <div className="clean-kpi-card">
           <div className="clean-kpi-top">
-            <span className="kpi-label">Fitness Classes</span>
-            <div className="clean-kpi-icon" title="Fitness Classes" style={{ color: '#a855f7', background: 'rgba(168, 85, 247, 0.1)' }}>
+            <span className="kpi-label">Today's Group Classes</span>
+            <div className="clean-kpi-icon" title="Today's Group Classes" style={{ color: '#a855f7', background: 'rgba(168, 85, 247, 0.1)' }}>
               <Icons.Dumbbell size={16} />
             </div>
           </div>
-          <div className="kpi-value">{stats.classes_count}</div>
+          <div className="kpi-value">{stats.today_classes ?? 0}</div>
           <span className="kpi-trend trend-neutral">
-            Group classes assigned to your schedule
+            {stats.classes_count ?? 0} total on weekly schedule
           </span>
         </div>
 
-        {/* Metric 4: Mentees in Gym Today */}
+        {/* Metric 4: Active Workout Plans */}
         <div className="clean-kpi-card">
           <div className="clean-kpi-top">
-            <span className="kpi-label">Mentees In Gym Today</span>
-            <div className="clean-kpi-icon" title="Mentees In Gym Today" style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.1)' }}>
-              <Icons.UserCheck size={16} />
+            <span className="kpi-label">Active Workout Plans</span>
+            <div className="clean-kpi-icon" title="Active Workout Plans" style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.1)' }}>
+              <Icons.Activity size={16} />
             </div>
           </div>
-          <div className="kpi-value">{stats.mentees_checked_in_today}</div>
+          <div className="kpi-value">{stats.active_workout_plans ?? 0}</div>
           <span className="kpi-trend trend-positive">
-            Checked in at turnstile today
+            Assigned & active routines
+          </span>
+        </div>
+
+        {/* Metric 5: Upcoming Sessions */}
+        <div className="clean-kpi-card">
+          <div className="clean-kpi-top">
+            <span className="kpi-label">Upcoming Sessions</span>
+            <div className="clean-kpi-icon" title="Upcoming Sessions" style={{ color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)' }}>
+              <Icons.Clock size={16} />
+            </div>
+          </div>
+          <div className="kpi-value">{stats.upcoming_sessions ?? 0}</div>
+          <span className="kpi-trend trend-neutral">
+            Future 1-on-1 PT bookings
           </span>
         </div>
       </section>
@@ -501,21 +472,21 @@ export default function TrainerDashboard({ onNavigate }) {
       <div className="iron-dashboard-subtabs" style={{ marginBottom: 16 }}>
         <button
           type="button"
+          className={`subtab-pill ${activeTab === 'overview' ? 'active' : ''}`}
+          onClick={() => setActiveTab('overview')}
+        >
+          <Icons.Activity size={15} />
+          <span>Overview</span>
+        </button>
+
+        <button
+          type="button"
           className={`subtab-pill ${activeTab === 'schedule' ? 'active' : ''}`}
           onClick={() => setActiveTab('schedule')}
         >
           <Icons.Calendar size={15} />
           <span>Daily Coaching Schedule</span>
           {todaySessions.length > 0 && <span className="coach-tab-badge">{todaySessions.length}</span>}
-        </button>
-
-        <button
-          type="button"
-          className={`subtab-pill ${activeTab === 'athletes' ? 'active' : ''}`}
-          onClick={() => setActiveTab('athletes')}
-        >
-          <Icons.Users size={15} />
-          <span>My Athletes ({assignedMembers.length})</span>
         </button>
 
         <button
@@ -539,7 +510,7 @@ export default function TrainerDashboard({ onNavigate }) {
 
       {/* ─── Search & Quick Filter Bar ───────────────────────────────────── */}
       {(activeTab === 'schedule' || activeTab === 'athletes') && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
           <div style={{ position: 'relative', minWidth: 260, flex: '1 1 300px' }}>
             <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>
               <Icons.Search size={15} />
@@ -555,28 +526,350 @@ export default function TrainerDashboard({ onNavigate }) {
           </div>
 
           {activeTab === 'schedule' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {['all', 'scheduled', 'completed'].map((st) => (
-                <button
-                  key={st}
-                  type="button"
-                  onClick={() => setSessionFilter(st)}
-                  className={`btn-clean-schedule ${sessionFilter === st ? 'active' : ''}`}
+            <div style={{ position: 'relative' }} ref={filterDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsFilterDropdownOpen((prev) => !prev)}
+                className="btn-clean-schedule"
+                style={{
+                  height: 38,
+                  fontSize: 12.5,
+                  padding: '0 14px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  borderColor: sessionFilter !== 'all' ? '#ff7a00' : undefined,
+                  color: sessionFilter !== 'all' ? '#ff7a00' : undefined,
+                  fontWeight: sessionFilter !== 'all' ? 700 : 600,
+                  cursor: 'pointer',
+                  borderRadius: 8,
+                  background: isFilterDropdownOpen ? 'rgba(255, 122, 0, 0.08)' : undefined,
+                }}
+              >
+                <Icons.Filter size={14} color={sessionFilter !== 'all' ? '#ff7a00' : 'currentColor'} />
+                <span>
+                  {sessionFilter === 'all' ? 'All Sessions' : sessionFilter === 'scheduled' ? 'Scheduled' : 'Completed'}
+                </span>
+                <Icons.ChevronDown size={14} />
+              </button>
+
+              {isFilterDropdownOpen && (
+                <div
                   style={{
-                    height: 34,
-                    fontSize: 12,
-                    textTransform: 'capitalize',
-                    padding: '0 12px',
-                    borderColor: sessionFilter === st ? '#ff7a00' : undefined,
-                    color: sessionFilter === st ? '#ff7a00' : undefined,
-                    fontWeight: sessionFilter === st ? 700 : 500,
+                    position: 'absolute',
+                    right: 0,
+                    top: 'calc(100% + 4px)',
+                    zIndex: 50,
+                    minWidth: 165,
+                    background: 'var(--gym-card-bg, #ffffff)',
+                    border: '1px solid var(--gym-card-border, #e2e8f0)',
+                    borderRadius: 8,
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2)',
+                    padding: '4px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2,
                   }}
                 >
-                  {st === 'all' ? 'All Sessions' : st}
-                </button>
-              ))}
+                  {[
+                    { id: 'all', label: 'All Sessions' },
+                    { id: 'scheduled', label: 'Scheduled' },
+                    { id: 'completed', label: 'Completed' },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        setSessionFilter(opt.id);
+                        setIsFilterDropdownOpen(false);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 12px',
+                        fontSize: 12.5,
+                        borderRadius: 6,
+                        border: 'none',
+                        background: sessionFilter === opt.id ? 'rgba(255, 122, 0, 0.12)' : 'transparent',
+                        color: sessionFilter === opt.id ? '#ff7a00' : 'var(--gym-text-primary, #0f172a)',
+                        fontWeight: sessionFilter === opt.id ? 700 : 500,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        width: '100%',
+                      }}
+                    >
+                      <span>{opt.label}</span>
+                      {sessionFilter === opt.id && <Icons.Check size={14} color="#ff7a00" />}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ─── TAB 0: OVERVIEW (Separated Today's Coaching Schedule) ── */}
+      {activeTab === 'overview' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Today's Coaching Schedule Section (Strictly Separated PT Sessions & Group Classes) */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--gym-text-primary, #0f172a)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Icons.Calendar size={18} color="#ff7a00" />
+                  <span>Today's Coaching Schedule</span>
+                </h3>
+                <div style={{ fontSize: 12, color: 'var(--gym-text-muted, #64748b)', marginTop: 2 }}>
+                  Personal training sessions and group classes are managed separately
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('schedule')}
+                  style={{ background: 'transparent', border: 'none', color: '#ff7a00', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                >
+                  <span>Full Calendar</span>
+                  <Icons.ArrowRight size={13} />
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 16 }}>
+              {/* Column 1: Today's 1-on-1 PT Sessions */}
+              <div className="coach-tab-panel" style={{ margin: 0, padding: 18 }}>
+                <div className="coach-panel-header" style={{ marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--gym-card-border, #e2e8f0)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 6, background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icons.Calendar size={15} />
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--gym-text-primary, #0f172a)' }}>
+                        1-on-1 Personal Training
+                      </h4>
+                      <span style={{ fontSize: 11, color: 'var(--gym-text-muted, #64748b)' }}>Individual athlete sessions</span>
+                    </div>
+                  </div>
+                  <span className="coach-tag" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)', fontSize: 11, fontWeight: 700 }}>
+                    {todaySessions.length} {todaySessions.length === 1 ? 'Session' : 'Sessions'}
+                  </span>
+                </div>
+
+                {todaySessions.length === 0 ? (
+                  <div className="coach-empty-box" style={{ padding: '28px 16px' }}>
+                    <Icons.Calendar size={22} color="#94a3b8" />
+                    <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--gym-text-primary, #0f172a)', marginTop: 6 }}>No 1-on-1 PT Sessions Today</div>
+                    <p style={{ margin: 0, fontSize: 12, color: 'var(--gym-text-muted, #64748b)' }}>
+                      New sessions are scheduled and assigned by Reception & Admin.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {todaySessions.map((session) => {
+                      const athlete = session.member || {};
+                      const isCompleted = session.status === 'completed';
+                      return (
+                        <div
+                          key={session.id}
+                          style={{
+                            padding: '12px 14px',
+                            borderRadius: 10,
+                            border: '1px solid var(--gym-card-border, #e2e8f0)',
+                            background: 'var(--gym-bg, #f8fafc)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 12,
+                            flexWrap: 'wrap',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                            <div
+                              style={{
+                                width: 38,
+                                height: 38,
+                                borderRadius: '50%',
+                                background: 'linear-gradient(135deg, #ff7a00, #ea580c)',
+                                color: '#ffffff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontWeight: 700,
+                                fontSize: 14,
+                                flexShrink: 0,
+                              }}
+                            >
+                              {athlete.name ? athlete.name.charAt(0).toUpperCase() : 'A'}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--gym-text-primary, #0f172a)' }}>
+                                {athlete.name || 'Assigned Member'}
+                              </div>
+                              <div style={{ fontSize: 11.5, color: 'var(--gym-text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <Icons.Clock size={12} />
+                                <span>
+                                  {session.scheduled_start
+                                    ? new Date(session.scheduled_start).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                                    : 'Flexible'}
+                                </span>
+                                <span>•</span>
+                                <span style={{ color: '#ff7a00', fontWeight: 600 }}>{session.focus_area || 'General Coaching'}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span className={`coach-tag coach-tag-${session.status || 'scheduled'}`} style={{ fontSize: 11 }}>
+                              {session.status}
+                            </span>
+                            {!isCompleted && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenCompleteModal(session)}
+                                style={{
+                                  height: 28,
+                                  padding: '0 10px',
+                                  fontSize: 11.5,
+                                  fontWeight: 600,
+                                  borderRadius: 6,
+                                  border: 'none',
+                                  background: '#10b981',
+                                  color: '#ffffff',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                }}
+                              >
+                                <Icons.Check size={12} />
+                                <span>Complete</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Column 2: Today's Group Fitness Classes */}
+              <div className="coach-tab-panel" style={{ margin: 0, padding: 18 }}>
+                <div className="coach-panel-header" style={{ marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--gym-card-border, #e2e8f0)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 6, background: 'rgba(168, 85, 247, 0.1)', color: '#a855f7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icons.Dumbbell size={15} />
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--gym-text-primary, #0f172a)' }}>
+                        Today's Group Classes
+                      </h4>
+                      <span style={{ fontSize: 11, color: 'var(--gym-text-muted, #64748b)' }}>Studio group workouts & drills</span>
+                    </div>
+                  </div>
+                  <span className="coach-tag" style={{ background: 'rgba(168, 85, 247, 0.1)', color: '#a855f7', border: '1px solid rgba(168, 85, 247, 0.2)', fontSize: 11, fontWeight: 700 }}>
+                    {todayClassesList.length} {todayClassesList.length === 1 ? 'Class' : 'Classes'}
+                  </span>
+                </div>
+
+                {todayClassesList.length === 0 ? (
+                  <div className="coach-empty-box" style={{ padding: '28px 16px' }}>
+                    <Icons.Dumbbell size={22} color="#94a3b8" />
+                    <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--gym-text-primary, #0f172a)', marginTop: 6 }}>No Group Classes Today</div>
+                    <p style={{ margin: 0, fontSize: 12, color: 'var(--gym-text-muted, #64748b)' }}>
+                      No studio classes scheduled for your shift today.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {todayClassesList.map((cls) => (
+                      <div
+                        key={cls.id}
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: 10,
+                          border: '1px solid var(--gym-card-border, #e2e8f0)',
+                          background: 'var(--gym-bg, #f8fafc)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 12,
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                          <div
+                            style={{
+                              width: 38,
+                              height: 38,
+                              borderRadius: 8,
+                              background: 'rgba(168, 85, 247, 0.1)',
+                              color: '#a855f7',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <Icons.Dumbbell size={18} />
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--gym-text-primary, #0f172a)' }}>
+                              {cls.name}
+                            </div>
+                            <div style={{ fontSize: 11.5, color: 'var(--gym-text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <Icons.Clock size={12} />
+                              <span>
+                                {cls.start_time
+                                  ? new Date(cls.start_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                                  : 'TBD'}
+                              </span>
+                              <span>•</span>
+                              <span>{cls.room || 'Main Studio'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span
+                            style={{
+                              fontSize: 11,
+                              padding: '3px 8px',
+                              borderRadius: 6,
+                              fontWeight: 600,
+                              background: 'rgba(59, 130, 246, 0.1)',
+                              color: '#3b82f6',
+                            }}
+                          >
+                            {cls.booked_count || 0} / {cls.capacity} Enrolled
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenRosterModal(cls)}
+                            style={{
+                              height: 28,
+                              padding: '0 10px',
+                              fontSize: 11.5,
+                              fontWeight: 600,
+                              borderRadius: 6,
+                              border: '1px solid rgba(168, 85, 247, 0.3)',
+                              background: 'rgba(168, 85, 247, 0.08)',
+                              color: '#a855f7',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Roster
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

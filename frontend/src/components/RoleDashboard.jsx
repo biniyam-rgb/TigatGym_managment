@@ -537,7 +537,7 @@ export default function RoleDashboard({ onNavigate }) {
 
   // ── Monthly Summary (chart + trends) ─────────────────────────────────────
   useEffect(() => {
-    if (primaryRole === 'receptionist') return;
+    if (primaryRole === 'receptionist' || primaryRole === 'trainer' || hasRole('trainer') || hasRole('receptionist')) return;
     let ignore = false;
 
     const fetchMonthlySummary = () => {
