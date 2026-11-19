@@ -659,6 +659,10 @@ export const apiClient = {
     return this.get(`/classes/${classId}/roster`);
   },
 
+  getClassRoster(classId) {
+    return this.getFitnessClassRoster(classId);
+  },
+
   checkInClassBooking(classId, bookingId, status) {
     return this.patch(`/classes/${classId}/bookings/${bookingId}/check-in`, { status });
   },
