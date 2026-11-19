@@ -22,27 +22,48 @@ use Symfony\Component\HttpFoundation\Response;
 class FitnessClassController extends Controller
 {
     /**
-     * Get aggregate statistics for fitness classes (Manager / Admin).
+     * Get aggregate statistics for fitness classes (Manager / Admin, or scoped to assigned classes for Trainers).
      */
     public function stats(Request $request): JsonResponse
     {
-        $data = Cache::remember('fitness_classes_stats_v1', 30, function () {
+        $currentUser = $request->user();
+        $isTrainer = $currentUser && $currentUser->hasRole('trainer') && ! $currentUser->hasAnyRole('owner', 'admin');
+
+        $cacheKey = $isTrainer ? ('fitness_classes_stats_trainer_' . $currentUser->id) : 'fitness_classes_stats_v1';
+
+        $data = Cache::remember($cacheKey, 30, function () use ($isTrainer, $currentUser) {
             $today = Carbon::today();
 
-            $totalClasses = FitnessClass::count();
-            $todayClasses = FitnessClass::whereDate('start_time', $today)
+            $baseQuery = FitnessClass::query();
+            if ($isTrainer) {
+                $baseQuery->where('trainer_id', $currentUser->id);
+            }
+
+            $totalClasses = (clone $baseQuery)->count();
+            $todayClasses = (clone $baseQuery)->whereDate('start_time', $today)
                 ->whereIn('status', ['scheduled', 'ongoing'])
                 ->count();
 
-            $totalBookings = ClassBooking::whereIn('status', ['reserved', 'attended'])->count();
-            $attendedCount = ClassBooking::where('status', 'attended')->count();
-
-            $activeClasses = FitnessClass::whereIn('status', ['scheduled', 'ongoing'])
+            $activeClasses = (clone $baseQuery)->whereIn('status', ['scheduled', 'ongoing'])
                 ->select(['id', 'capacity', 'trainer_id'])
                 ->get();
 
             $totalCapacity = $activeClasses->sum('capacity');
             $activeClassIds = $activeClasses->pluck('id');
+            $allClassIds = (clone $baseQuery)->pluck('id');
+
+            $totalBookings = $allClassIds->isNotEmpty()
+                ? ClassBooking::whereIn('fitness_class_id', $allClassIds)
+                    ->whereIn('status', ['reserved', 'attended'])
+                    ->count()
+                : 0;
+
+            $attendedCount = $allClassIds->isNotEmpty()
+                ? ClassBooking::whereIn('fitness_class_id', $allClassIds)
+                    ->where('status', 'attended')
+                    ->count()
+                : 0;
+
             $activeBookings = $activeClassIds->isNotEmpty()
                 ? ClassBooking::whereIn('fitness_class_id', $activeClassIds)
                     ->whereIn('status', ['reserved', 'attended'])
@@ -50,7 +71,7 @@ class FitnessClassController extends Controller
                 : 0;
 
             $occupancyRate = $totalCapacity > 0 ? round(($activeBookings / $totalCapacity) * 100, 1) : 0;
-            $activeTrainers = $activeClasses->pluck('trainer_id')->filter()->unique()->count();
+            $activeTrainers = $isTrainer ? ($totalClasses > 0 ? 1 : 0) : $activeClasses->pluck('trainer_id')->filter()->unique()->count();
 
             return [
                 'total_classes' => $totalClasses,
@@ -140,6 +161,13 @@ class FitnessClassController extends Controller
             ->withCount(['bookings as attended_count' => function ($q) {
                 $q->where('status', 'attended');
             }]);
+
+        // Trainer role scoping: Trainers can ONLY see their own assigned classes
+        if ($currentUser && $currentUser->hasRole('trainer') && ! $currentUser->hasAnyRole('owner', 'admin')) {
+            $query->where('trainer_id', $currentUser->id);
+        } elseif ($request->filled('trainer_id')) {
+            $query->where('trainer_id', $request->trainer_id);
+        }
 
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
