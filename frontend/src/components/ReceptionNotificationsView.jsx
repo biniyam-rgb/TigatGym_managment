@@ -100,10 +100,21 @@ export default function ReceptionNotificationsView({ onNavigate }) {
     let ignore = false;
 
     if (isTrainer) {
-      setTimeout(() => {
-        if (!ignore) {
-          setData({
-            activity_notifications: [
+      apiClient.getTrainerDashboard()
+        .then((res) => {
+          if (!ignore && res?.data) {
+            const alerts = Array.isArray(res.data.athlete_alerts) ? res.data.athlete_alerts : [];
+            const notifs = [
+              ...alerts.map((alt) => ({
+                id: alt.id,
+                title: alt.title,
+                message: alt.message,
+                time: 'Attention Needed',
+                type: alt.type === 'suspended' ? 'suspended' : 'warning',
+                badge: alt.type === 'suspended' ? 'Suspended Athlete' : 'Inactive Pass',
+                actionText: 'View in My Athletes',
+                actionView: 'members',
+              })),
               {
                 id: 'tr_notif_1',
                 title: 'Coach Duty Schedule',
@@ -118,13 +129,34 @@ export default function ReceptionNotificationsView({ onNavigate }) {
                 time: 'Today',
                 type: 'info',
               },
-            ],
-            membership_alerts: [],
-          });
-          setIsLoading(false);
-        }
-      }, 0);
-      return;
+            ];
+
+            const memberAlerts = alerts.map((alt) => ({
+              id: alt.id,
+              name: alt.name,
+              member_code: alt.member_code,
+              type: alt.type === 'suspended' ? 'suspended' : 'inactive',
+              status_label: alt.type === 'suspended' ? 'Suspended by Admin' : 'Inactive Pass',
+              suspension_reason: alt.reason,
+              suspended_by: alt.suspended_by,
+              plan_name: alt.type === 'suspended' ? 'Account Suspended' : 'Pass Inactive',
+            }));
+
+            setData({
+              activity_notifications: notifs,
+              membership_alerts: memberAlerts,
+            });
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to load trainer alerts:', err);
+        })
+        .finally(() => {
+          if (!ignore) setIsLoading(false);
+        });
+      return () => {
+        ignore = true;
+      };
     }
 
     apiClient.getReceptionDashboard()
