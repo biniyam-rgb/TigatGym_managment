@@ -127,6 +127,21 @@ function NavIcon({ id }) {
           <rect x="18" y="7" width="2" height="10" rx="1" />
         </svg>
       );
+    case 'exercises':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m6.5 6.5 11 11" />
+          <path d="m21 21-1-1a2 2 0 0 0-2.83 0l-1.41 1.41a2 2 0 0 1-2.83 0l-1.41-1.41a2 2 0 0 0-2.83 0L7 22.5" />
+          <path d="m3 3 1 1a2 2 0 0 0 2.83 0l1.41-1.41a2 2 0 0 1 2.83 0l1.41 1.41a2 2 0 0 0 2.83 0L17 1.5" />
+        </svg>
+      );
+    case 'progress':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+          <polyline points="16 7 22 7 22 13" />
+        </svg>
+      );
     case 'workouts':
       return (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -201,8 +216,8 @@ export default function Sidebar({
     { id: 'memberships', label: 'Memberships', roles: ['owner', 'admin', 'member'] },
     { id: 'payments', label: 'Payments', roles: ['owner', 'admin', 'member'] },
     { id: 'trainers', label: 'Trainers', roles: ['owner', 'admin', 'trainer'] },
-    { id: 'workouts', label: 'Workouts', roles: ['trainer', 'member'] },
     { id: 'classes', label: 'Classes', roles: ['owner', 'admin', 'trainer', 'member'] },
+    { id: 'workouts', label: 'Workouts', roles: ['trainer', 'member'] },
     { id: 'equipment', label: 'Equipment', roles: ['owner', 'admin'] },
     { id: 'expenses', label: 'Expenses', roles: ['owner'] },
     { id: 'users', label: 'Staff Accounts', roles: ['owner', 'admin'] },
@@ -229,7 +244,9 @@ export default function Sidebar({
   const trainerNavItems = [
     { id: 'dashboard', label: 'Overview' },
     { id: 'members', label: 'My Athletes' },
-    { id: 'classes', label: 'Classes' },
+    { id: 'classes', label: 'My Classes' },
+    { id: 'exercises', label: 'Exercise Library' },
+    { id: 'progress', label: 'Member Progress' },
     { id: 'workouts', label: 'Workouts' },
     { id: 'notifications', label: 'Notifications' },
     { id: 'profile', label: 'My Profile' },
@@ -238,7 +255,7 @@ export default function Sidebar({
   // Filter items based on active role
   const visibleNav = primaryRole === 'receptionist'
     ? receptionNavItems
-    : primaryRole === 'trainer'
+    : (primaryRole === 'trainer' || (!hasRole('admin') && !hasRole('owner') && hasRole('trainer')))
     ? trainerNavItems
     : defaultNavItems.filter((item) => item.roles.some((r) => hasRole(r)));
 
