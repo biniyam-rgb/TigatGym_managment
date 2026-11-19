@@ -242,10 +242,12 @@ const formatTime = (isoString) => {
 };
 
 export default function FitnessClassManagement({ initialOpenSchedule = false }) {
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, primaryRole } = useAuth();
+  const userId = user?.id;
   const canSchedule = hasRole('owner') || hasRole('admin');
   const canBookForOthers = hasRole('owner') || hasRole('admin') || hasRole('receptionist');
   const canViewRoster = hasRole('owner') || hasRole('admin') || hasRole('trainer') || hasRole('receptionist');
+  const isTrainer = (primaryRole === 'trainer' || hasRole('trainer')) && !hasRole('owner') && !hasRole('admin');
   const isStaff = canSchedule || canBookForOthers || hasRole('trainer');
 
   // Core Data
@@ -478,6 +480,7 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
     setError(null);
     try {
       const params = {};
+      if (isTrainer && userId) params.trainer_id = userId;
       if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
       if (dateFilter) params.date = dateFilter;
       if (searchQuery.trim()) params.search = searchQuery.trim();
@@ -501,14 +504,14 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
     } finally {
       setIsLoading(false);
     }
-  }, [statusFilter, dateFilter, searchQuery]);
+  }, [isTrainer, userId, statusFilter, dateFilter, searchQuery]);
 
   // Initial Load of Trainers & Members
   useEffect(() => {
     let ignore = false;
 
     Promise.allSettled([
-      apiClient.getTrainers(),
+      canSchedule ? apiClient.getTrainers() : Promise.resolve({ data: [] }),
       canBookForOthers ? apiClient.getMembers({ per_page: 100 }) : Promise.resolve({ data: [] }),
     ]).then(([tResult, mResult]) => {
       if (!ignore) {
@@ -530,7 +533,7 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
     return () => {
       ignore = true;
     };
-  }, [canBookForOthers]);
+  }, [canSchedule, canBookForOthers]);
 
   // Ensure members list is populated if book modal opens
   useEffect(() => {
@@ -930,16 +933,24 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
 
   // Filtered in-memory search for real-time responsiveness
   const filteredClasses = useMemo(() => {
-    if (!searchQuery.trim()) return classes;
+    let list = classes;
+    // Trainer role scoping: in My Classes, only show classes assigned to this trainer (applies to both cards and table)
+    if (isTrainer && userId) {
+      list = list.filter((c) => {
+        const cTrainerId = c.trainer_id || c.trainer?.id;
+        return String(cTrainerId) === String(userId);
+      });
+    }
+    if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase();
-    return classes.filter(
+    return list.filter(
       (c) =>
         c.name?.toLowerCase().includes(q) ||
         c.room?.toLowerCase().includes(q) ||
         c.trainer?.name?.toLowerCase().includes(q) ||
         c.description?.toLowerCase().includes(q)
     );
-  }, [classes, searchQuery]);
+  }, [classes, isTrainer, userId, searchQuery]);
 
   // Filtered attendees inside Roster View
   const filteredRosterBookings = useMemo(() => {
@@ -1526,8 +1537,8 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
           <div className="clean-kpi-grid" style={{ marginBottom: 20 }}>
             <div className="clean-kpi-card">
               <div className="clean-kpi-top">
-                <span className="kpi-label">Scheduled Classes</span>
-                <div className="clean-kpi-icon" title="Scheduled Classes" style={{ background: 'rgba(255, 122, 0, 0.12)', color: '#ff7a00' }}>
+                <span className="kpi-label">{isTrainer ? 'My Classes' : 'Scheduled Classes'}</span>
+                <div className="clean-kpi-icon" title={isTrainer ? 'My Classes' : 'Scheduled Classes'} style={{ background: 'rgba(255, 122, 0, 0.12)', color: '#ff7a00' }}>
                   <Icons.Calendar size={16} color="#ff7a00" />
                 </div>
               </div>
@@ -1537,35 +1548,35 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
 
             <div className="clean-kpi-card">
               <div className="clean-kpi-top">
-                <span className="kpi-label">Active Bookings</span>
-                <div className="clean-kpi-icon" title="Active Bookings" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6' }}>
+                <span className="kpi-label">{isTrainer ? 'Enrolled Members' : 'Active Bookings'}</span>
+                <div className="clean-kpi-icon" title={isTrainer ? 'Enrolled Members' : 'Active Bookings'} style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6' }}>
                   <Icons.Users size={16} color="#3b82f6" />
                 </div>
               </div>
               <div className="kpi-value">{stats.total_bookings ?? 0}</div>
-              <span className="kpi-trend" style={{ color: '#64748b' }}>Enrolled participants</span>
+              <span className="kpi-trend" style={{ color: '#64748b' }}>{isTrainer ? 'Enrolled in your classes' : 'Enrolled participants'}</span>
             </div>
 
             <div className="clean-kpi-card">
               <div className="clean-kpi-top">
-                <span className="kpi-label">Occupancy Rate</span>
-                <div className="clean-kpi-icon" title="Occupancy Rate" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10b981' }}>
+                <span className="kpi-label">{isTrainer ? 'Class Occupancy' : 'Occupancy Rate'}</span>
+                <div className="clean-kpi-icon" title={isTrainer ? 'Class Occupancy' : 'Occupancy Rate'} style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10b981' }}>
                   <Icons.TrendingUp size={16} color="#10b981" />
                 </div>
               </div>
               <div className="kpi-value" style={{ color: '#10b981' }}>{stats.occupancy_rate ?? 0}%</div>
-              <span className="kpi-trend trend-positive">Average capacity filled</span>
+              <span className="kpi-trend trend-positive">{isTrainer ? 'Avg capacity in your sessions' : 'Average capacity filled'}</span>
             </div>
 
             <div className="clean-kpi-card">
               <div className="clean-kpi-top">
-                <span className="kpi-label">Active Coaches</span>
-                <div className="clean-kpi-icon" title="Active Coaches" style={{ background: 'rgba(168, 85, 247, 0.12)', color: '#a855f7' }}>
-                  <Icons.Activity size={16} color="#a855f7" />
+                <span className="kpi-label">{isTrainer ? 'Attended Members' : 'Active Coaches'}</span>
+                <div className="clean-kpi-icon" title={isTrainer ? 'Attended Members' : 'Active Coaches'} style={{ background: isTrainer ? 'rgba(16, 185, 129, 0.12)' : 'rgba(168, 85, 247, 0.12)', color: isTrainer ? '#10b981' : '#a855f7' }}>
+                  {isTrainer ? <Icons.CheckCircle size={16} color="#10b981" /> : <Icons.Activity size={16} color="#a855f7" />}
                 </div>
               </div>
-              <div className="kpi-value">{stats.active_trainers ?? trainers.length ?? 0}</div>
-              <span className="kpi-trend" style={{ color: '#64748b' }}>Assigned instructors</span>
+              <div className="kpi-value">{isTrainer ? (stats.attended_count ?? 0) : (stats.active_trainers ?? trainers.length ?? 0)}</div>
+              <span className="kpi-trend" style={{ color: '#64748b' }}>{isTrainer ? 'Checked in to your classes' : 'Assigned instructors'}</span>
             </div>
           </div>
 
@@ -1578,9 +1589,9 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                   <Icons.Calendar size={18} color="#ff7a00" />
                 </div>
                 <div>
-                  <h3 className="classes-controls-title">Group Class Timetable</h3>
+                  <h3 className="classes-controls-title">{isTrainer ? 'My Assigned Classes' : 'Group Class Timetable'}</h3>
                   <span className="classes-controls-subtitle">
-                    {filteredClasses.length} session{filteredClasses.length !== 1 ? 's' : ''} available
+                    {filteredClasses.length} session{filteredClasses.length !== 1 ? 's' : ''} {isTrainer ? 'assigned to you' : 'available'}
                   </span>
                 </div>
               </div>
@@ -1648,7 +1659,7 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                 <input
                   type="text"
                   className="classes-modern-search-input"
-                  placeholder="Search by class name, coach, or studio room..."
+                  placeholder={isTrainer ? "Search my classes by name or studio room..." : "Search by class name, coach, or studio room..."}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -1665,47 +1676,49 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
               </div>
 
               <div className="classes-modern-filters-group">
-                <div className="classes-date-segmented-control">
-                  <button
-                    type="button"
-                    className={`classes-date-segment ${quickDate === 'all' && !dateFilter ? 'active' : ''}`}
-                    onClick={() => handleQuickDateSelect('all')}
+                {/* Unified Date Filter Button (All Dates, Today, Tomorrow & Custom Date in one) */}
+                <div className="classes-status-select-wrap">
+                  <select
+                    value={quickDate === 'custom' && dateFilter ? 'custom' : quickDate}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === 'custom') {
+                        const customInput = document.getElementById('classes-custom-date-native-input');
+                        if (customInput) {
+                          if (customInput.showPicker) {
+                            customInput.showPicker();
+                          } else {
+                            customInput.focus();
+                          }
+                        }
+                      } else {
+                        handleQuickDateSelect(val);
+                      }
+                    }}
+                    className="classes-modern-status-select"
+                    title="Filter classes by date"
+                    style={{ minWidth: 145 }}
                   >
-                    All Dates
-                  </button>
-                  <button
-                    type="button"
-                    className={`classes-date-segment ${quickDate === 'today' ? 'active' : ''}`}
-                    onClick={() => handleQuickDateSelect('today')}
-                  >
-                    Today
-                  </button>
-                  <button
-                    type="button"
-                    className={`classes-date-segment ${quickDate === 'tomorrow' ? 'active' : ''}`}
-                    onClick={() => handleQuickDateSelect('tomorrow')}
-                  >
-                    Tomorrow
-                  </button>
-
-                  <div
-                    className={`classes-date-custom-wrap ${quickDate === 'custom' && dateFilter ? 'active' : ''}`}
-                    title="Pick specific date"
-                  >
-                    <Icons.Calendar size={13} color="currentColor" />
-                    <span style={{ fontSize: 11.5 }}>
-                      {dateFilter ? formatIsoDate(dateFilter) : 'Pick Date'}
-                    </span>
-                    <input
-                      type="date"
-                      className="classes-custom-date-native"
-                      value={dateFilter}
-                      onChange={(e) => {
-                        setDateFilter(e.target.value);
-                        setQuickDate(e.target.value ? 'custom' : 'all');
-                      }}
-                    />
-                  </div>
+                    <option value="all">📅 All Dates</option>
+                    <option value="today">📅 Today</option>
+                    <option value="tomorrow">📅 Tomorrow</option>
+                    <option value="custom">
+                      {dateFilter && quickDate === 'custom' ? `📅 ${formatIsoDate(dateFilter)}` : '📅 Pick Custom Date...'}
+                    </option>
+                  </select>
+                  <span className="classes-status-select-icon">
+                    <Icons.ChevronDown size={13} />
+                  </span>
+                  <input
+                    id="classes-custom-date-native-input"
+                    type="date"
+                    style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
+                    value={dateFilter}
+                    onChange={(e) => {
+                      setDateFilter(e.target.value);
+                      setQuickDate(e.target.value ? 'custom' : 'all');
+                    }}
+                  />
                 </div>
 
                 <div className="classes-status-select-wrap">
@@ -2695,9 +2708,13 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
               <div className="empty-state-icon-wrap" style={{ display: 'flex', justifyContent: 'center', marginBottom: 14, color: '#ff7a00' }}>
                 <Icons.Dumbbell size={52} />
               </div>
-              <h4 style={{ fontSize: 19, fontWeight: 800, margin: '0 0 6px' }}>No Fitness Classes Found</h4>
+              <h4 style={{ fontSize: 19, fontWeight: 800, margin: '0 0 6px' }}>
+                {isTrainer ? 'No Classes Assigned' : 'No Fitness Classes Found'}
+              </h4>
               <p style={{ color: '#64748b', fontSize: 13, maxWidth: 460, margin: '0 auto 18px' }}>
-                There are no classes matching your current filter criteria. You can clear the search or publish a new session.
+                {isTrainer
+                  ? 'You do not have any assigned classes scheduled at this time. Classes assigned to you by management will appear here.'
+                  : 'There are no classes matching your current filter criteria. You can clear the search or publish a new session.'}
               </p>
               {canSchedule && (
                 <button
@@ -3031,7 +3048,9 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                             <div className="class-coach-avatar" style={{ width: 24, height: 24, fontSize: 10.5, borderRadius: 5 }}>
                               {c.trainer?.name?.charAt(0).toUpperCase() || 'T'}
                             </div>
-                            <span style={{ fontWeight: 700, fontSize: 12 }}>{c.trainer?.name || 'Tigat Coach'}</span>
+                            <span style={{ fontWeight: 700, fontSize: 12 }}>
+                              {isTrainer ? 'You (Lead Coach)' : (c.trainer?.name || 'Tigat Coach')}
+                            </span>
                           </div>
                         </td>
                         <td>
