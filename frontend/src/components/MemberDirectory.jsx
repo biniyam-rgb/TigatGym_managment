@@ -152,7 +152,7 @@ const CHAPA_PROVIDERS = [
 ];
 
 export default function MemberDirectory({ initialOpenRegister = false, initialSearch = '' }) {
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, primaryRole } = useAuth();
   const [members, setMembers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState(initialSearch);
@@ -336,6 +336,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
 
   const isStaff = hasRole('owner') || hasRole('admin') || hasRole('receptionist');
   const isManagement = hasRole('owner') || hasRole('admin');
+  const isTrainer = (primaryRole === 'trainer' || hasRole('trainer')) && !hasRole('owner') && !hasRole('admin');
 
   // Member Suspension Reason Modal state
   const [suspendModalMember, setSuspendModalMember] = useState(null);
@@ -1472,9 +1473,14 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
       {/* Header Action Bar matching Dashboard */}
       <section className="clean-dash-header-row" style={{ marginBottom: 12 }}>
         <div>
-          <h1 className="clean-dash-title">Membership Management</h1>
+          <h1 className="clean-dash-title">{isTrainer ? 'My Athletes' : 'Membership Management'}</h1>
+          {isTrainer && (
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--gym-text-muted, #64748b)' }}>
+              Assigned athlete roster under your personal coaching & mentorship
+            </p>
+          )}
         </div>
-        {isStaff && (
+        {isStaff && !isTrainer && (
           <div className="clean-dash-actions">
             <button
               type="button"
@@ -1488,6 +1494,50 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
           </div>
         )}
       </section>
+
+      {/* Trainer Notification Bar: Suspended or Inactive Athletes */}
+      {isTrainer && members.some((m) => m.status === 'suspended' || m.status === 'inactive') && (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: '12px 18px',
+            borderRadius: 10,
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: '#ef4444',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 18 }}>⚠️</span>
+            <div>
+              <strong style={{ fontSize: 13, display: 'block' }}>
+                Coaching Alert: {members.filter((m) => m.status === 'suspended').length} Suspended & {members.filter((m) => m.status === 'inactive').length} Inactive Athletes
+              </strong>
+              <span style={{ fontSize: 12, opacity: 0.9 }}>
+                Members marked as suspended or inactive cannot be admitted for training sessions until cleared by management.
+              </span>
+            </div>
+          </div>
+          <span
+            style={{
+              padding: '4px 10px',
+              borderRadius: 6,
+              background: '#ef4444',
+              color: '#ffffff',
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+            }}
+          >
+            ACTION REQUIRED
+          </span>
+        </div>
+      )}
 
       {/* 4 Top Stat KPI Cards (Unified Clean TigatGym Design) */}
       <div className="clean-kpi-grid" style={{ marginBottom: 20 }}>
