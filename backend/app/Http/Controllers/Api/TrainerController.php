@@ -614,6 +614,9 @@ class TrainerController extends Controller
                 'phone' => $member?->phone,
                 'avatar' => $member?->avatar,
                 'gender' => $member?->memberProfile?->gender,
+                'member_status' => $member?->status ?? 'active',
+                'is_suspended' => $member?->status === 'suspended',
+                'suspension_reason' => $member?->suspension_reason,
                 'plan_name' => $activeSub?->plan?->name ?? 'No active plan',
                 'plan_expires' => $activeSub?->end_date?->toDateString(),
                 'start_date' => $a->start_date?->toDateString(),
@@ -846,7 +849,7 @@ class TrainerController extends Controller
         $profile = $trainer->trainerProfile;
 
         // 1. Active assigned members
-        $assignedQuery = TrainerAssignment::with(['member.memberProfile', 'member.subscriptions.plan'])
+        $assignedQuery = TrainerAssignment::with(['member.memberProfile', 'member.suspender:id,name', 'member.subscriptions.plan'])
             ->where('trainer_id', $trainer->id)
             ->where('status', 'active');
 
@@ -862,6 +865,9 @@ class TrainerController extends Controller
                 'member_code' => $member?->memberProfile?->member_code,
                 'phone' => $member?->phone,
                 'avatar' => $member?->avatar,
+                'status' => $member?->status ?? 'active',
+                'is_suspended' => $member?->status === 'suspended',
+                'suspension_reason' => $member?->suspension_reason,
                 'plan_name' => $activeSub?->plan?->name ?? 'Standard Gym Plan',
                 'plan_expires' => $activeSub?->end_date?->toDateString(),
                 'start_date' => $a->start_date?->toDateString(),
@@ -870,6 +876,40 @@ class TrainerController extends Controller
                 'notes' => $a->notes,
             ];
         });
+
+        // 1b. Athlete Alerts: identify assigned athletes who are suspended or have inactive passes
+        $athleteAlerts = TrainerAssignment::with(['member.memberProfile', 'member.suspender:id,name', 'member.subscriptions.plan'])
+            ->where('trainer_id', $trainer->id)
+            ->where('status', 'active')
+            ->get()
+            ->filter(function ($a) {
+                $member = $a->member;
+                if (! $member) return false;
+                $activeSub = $member->activeSubscription();
+                return $member->status === 'suspended' || $member->status === 'inactive' || (! $activeSub && $member->subscriptions->isNotEmpty());
+            })
+            ->map(function ($a) {
+                $member = $a->member;
+                $isSuspended = $member->status === 'suspended';
+                $code = $member->memberProfile?->member_code ?? "ID-{$member->id}";
+                return [
+                    'id' => 'alert_member_' . $member->id,
+                    'member_id' => $member->id,
+                    'name' => $member->name,
+                    'member_code' => $code,
+                    'phone' => $member->phone,
+                    'status' => $member->status,
+                    'type' => $isSuspended ? 'suspended' : 'inactive',
+                    'title' => $isSuspended ? "Athlete Account Suspended: {$member->name}" : "Athlete Pass Inactive: {$member->name}",
+                    'message' => $isSuspended
+                        ? "Athlete {$member->name} ({$code}) was suspended by management. Reason: " . ($member->suspension_reason ?: 'Access paused by gym admin') . ". Coaching sessions are paused."
+                        : "Athlete {$member->name} ({$code}) has an inactive or expired membership pass.",
+                    'reason' => $member->suspension_reason ?: ($isSuspended ? 'Account suspended by management' : 'Subscription pass inactive'),
+                    'suspended_by' => $member->suspender?->name ?? 'Gym Administration',
+                    'suspended_at' => $member->suspended_at ? Carbon::parse($member->suspended_at)->toIso8601String() : null,
+                ];
+            })
+            ->values();
 
         $activeMenteeIds = $activeMentees->pluck('member_id')->filter()->values();
 
@@ -914,15 +954,21 @@ class TrainerController extends Controller
             })
             ->count();
 
-        // 5. Total completed sessions
+        // 5. Total completed sessions & all sessions for calendar view
         $completedSessionsCount = TrainingSession::where('trainer_id', $trainer->id)
             ->where('status', 'completed')
             ->count();
 
+        $allSessions = TrainingSession::with(['member.memberProfile'])
+            ->where('trainer_id', $trainer->id)
+            ->orderBy('scheduled_start')
+            ->limit(500)
+            ->get();
+
         // 6. Fitness Classes instructed by this coach
         $classes = FitnessClass::where('trainer_id', $trainer->id)
             ->withCount(['bookings as booked_count' => function ($q) {
-                $q->whereIn('status', ['confirmed', 'attended']);
+                $q->whereIn('status', ['reserved', 'attended']);
             }])
             ->orderBy('start_time')
             ->get()
@@ -953,7 +999,7 @@ class TrainerController extends Controller
                   });
             })
             ->withCount(['bookings as booked_count' => function ($q) {
-                $q->whereIn('status', ['confirmed', 'attended']);
+                $q->whereIn('status', ['reserved', 'attended']);
             }])
             ->orderBy('start_time');
 
@@ -1009,10 +1055,15 @@ class TrainerController extends Controller
                     'total_completed' => $completedSessionsCount,
                     'classes_count' => $classes->count(),
                     'mentees_checked_in_today' => $menteesCheckedInToday,
+                    'suspended_mentees_count' => $athleteAlerts->where('type', 'suspended')->count(),
+                    'inactive_mentees_count' => $athleteAlerts->where('type', 'inactive')->count(),
+                    'total_alerts' => $athleteAlerts->count(),
                 ],
+                'athlete_alerts' => $athleteAlerts,
                 'today_sessions' => $todaySessions,
                 'today_classes_list' => $todayClassesList,
                 'upcoming_sessions' => $upcomingSessions,
+                'all_sessions' => $allSessions,
                 'assigned_members' => $activeMentees,
                 'my_classes' => $classes,
             ],
