@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Exercise;
+use App\Models\TrainerAssignment;
 use App\Models\WorkoutLog;
 use App\Models\WorkoutPlan;
 use Illuminate\Http\JsonResponse;
@@ -144,6 +145,21 @@ class WorkoutController extends Controller
 
         $memberId = $validated['member_id'] ?? $currentUser->id;
 
+        if ($currentUser->hasRole('trainer') && ! $currentUser->hasAnyRole('owner', 'admin')) {
+            if ((int) $memberId !== (int) $currentUser->id) {
+                $isAssigned = TrainerAssignment::where('trainer_id', $currentUser->id)
+                    ->where('member_id', $memberId)
+                    ->where('status', 'active')
+                    ->exists();
+
+                if (! $isAssigned) {
+                    return response()->json([
+                        'message' => 'Unauthorized. Trainers can only log workouts for their assigned athletes.',
+                    ], Response::HTTP_FORBIDDEN);
+                }
+            }
+        }
+
         $log = WorkoutLog::create([
             'member_id' => $memberId,
             'exercise_id' => $validated['exercise_id'],
@@ -173,11 +189,26 @@ class WorkoutController extends Controller
         $currentUser = $request->user();
         $memberId = $request->input('member_id', $currentUser->id);
 
+        if ($currentUser->hasRole('trainer') && ! $currentUser->hasAnyRole('owner', 'admin')) {
+            if ((int) $memberId !== (int) $currentUser->id) {
+                $isAssigned = TrainerAssignment::where('trainer_id', $currentUser->id)
+                    ->where('member_id', $memberId)
+                    ->where('status', 'active')
+                    ->exists();
+
+                if (! $isAssigned) {
+                    return response()->json([
+                        'message' => 'Unauthorized. Trainers can only access progress logs for their assigned athletes.',
+                    ], Response::HTTP_FORBIDDEN);
+                }
+            }
+        }
+
         $logs = WorkoutLog::with('exercise')
             ->where('member_id', $memberId)
             ->orderByDesc('logged_date')
             ->orderByDesc('id')
-            ->limit(30)
+            ->limit(50)
             ->get();
 
         return response()->json([
