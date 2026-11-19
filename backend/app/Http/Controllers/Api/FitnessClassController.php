@@ -239,8 +239,17 @@ class FitnessClassController extends Controller
     /**
      * Show single fitness class details.
      */
-    public function show(FitnessClass $fitnessClass): JsonResponse
+    public function show(Request $request, FitnessClass $fitnessClass): JsonResponse
     {
+        $currentUser = $request->user();
+        if ($currentUser && $currentUser->hasRole('trainer') && ! $currentUser->hasAnyRole('owner', 'admin')) {
+            if ((int) $fitnessClass->trainer_id !== (int) $currentUser->id) {
+                return response()->json([
+                    'message' => 'Unauthorized. Trainers can only view their own assigned classes.',
+                ], Response::HTTP_FORBIDDEN);
+            }
+        }
+
         if ($fitnessClass->status !== 'cancelled') {
             $now = now();
             $autoStatus = ($fitnessClass->end_time && $now->gte($fitnessClass->end_time))
@@ -496,8 +505,18 @@ class FitnessClassController extends Controller
      */
     public function roster(Request $request, FitnessClass $fitnessClass): JsonResponse
     {
-        if (! $request->user()->hasAnyRole('owner', 'admin', 'trainer', 'receptionist')) {
+        $currentUser = $request->user();
+        if (! $currentUser->hasAnyRole('owner', 'admin', 'trainer', 'receptionist')) {
             return response()->json(['message' => 'Unauthorized to view roster.'], Response::HTTP_FORBIDDEN);
+        }
+
+        // Trainer role scoping: Trainers can ONLY view rosters for their own assigned classes
+        if ($currentUser->hasRole('trainer') && ! $currentUser->hasAnyRole('owner', 'admin', 'receptionist')) {
+            if ((int) $fitnessClass->trainer_id !== (int) $currentUser->id) {
+                return response()->json([
+                    'message' => 'Unauthorized. Trainers can only view the roster for their own assigned classes.',
+                ], Response::HTTP_FORBIDDEN);
+            }
         }
 
         if ($fitnessClass->status !== 'cancelled') {
@@ -536,7 +555,7 @@ class FitnessClassController extends Controller
                         'id' => $b->member->id,
                         'name' => $b->member->name,
                         'email' => $b->member->email,
-                        'phone' => $b->member->memberProfile?->phone_number ?? 'N/A',
+                        'phone' => $b->member->memberProfile?->phone_number ?? $b->member->phone ?? 'N/A',
                         'photo' => $b->member->memberProfile?->photo_url,
                         'plan_name' => $sub?->plan?->name ?? 'Standard Pass',
                         'membership_status' => $sub?->status ?? 'none',
@@ -575,8 +594,18 @@ class FitnessClassController extends Controller
      */
     public function checkInBooking(Request $request, FitnessClass $fitnessClass, ClassBooking $classBooking): JsonResponse
     {
-        if (! $request->user()->hasAnyRole('owner', 'admin', 'trainer', 'receptionist')) {
+        $currentUser = $request->user();
+        if (! $currentUser->hasAnyRole('owner', 'admin', 'trainer', 'receptionist')) {
             return response()->json(['message' => 'Unauthorized to update attendance.'], Response::HTTP_FORBIDDEN);
+        }
+
+        // Trainer role scoping: Trainers can ONLY manage attendance for their own assigned classes
+        if ($currentUser->hasRole('trainer') && ! $currentUser->hasAnyRole('owner', 'admin', 'receptionist')) {
+            if ((int) $fitnessClass->trainer_id !== (int) $currentUser->id) {
+                return response()->json([
+                    'message' => 'Unauthorized. Trainers can only manage attendance for their own assigned classes.',
+                ], Response::HTTP_FORBIDDEN);
+            }
         }
 
         if ((int) $classBooking->fitness_class_id !== (int) $fitnessClass->id) {
