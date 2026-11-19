@@ -1886,7 +1886,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                 >
                   EXPIRY <span style={{ opacity: sortField === 'expiry' ? 1 : 0.4, fontSize: 11 }}>{sortField === 'expiry' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
                 </th>
-                <th className="text-right" style={{ minWidth: 200 }}>ACTIONS</th>
+                <th className="text-right" style={{ minWidth: isTrainer ? 90 : 200 }}>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
@@ -1973,9 +1973,17 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                                 border: '1px solid rgba(230, 124, 0, 0.3)',
                                 marginTop: 4,
                               }}
-                              title={`Coach: ${m.assigned_trainer.name} (${m.assigned_trainer.specialization || 'Personal Trainer'}) — ${m.assigned_trainer.days_remaining ?? 30} days remaining`}
+                              title={
+                                isTrainer
+                                  ? `1-on-1 Coached Athlete — ${m.assigned_trainer.days_remaining ?? 30} days coaching remaining`
+                                  : `Coach: ${m.assigned_trainer.name} (${m.assigned_trainer.specialization || 'Personal Trainer'}) — ${m.assigned_trainer.days_remaining ?? 30} days remaining`
+                              }
                             >
-                              🏋️ Coach {m.assigned_trainer.name?.split(' ')[0]} ({m.assigned_trainer.days_remaining ?? 30}d)
+                              {isTrainer ? (
+                                `🏋️ 1-on-1 Coaching (${m.assigned_trainer.days_remaining ?? 30}d left)`
+                              ) : (
+                                `🏋️ Coach ${m.assigned_trainer.name?.split(' ')[0]} (${m.assigned_trainer.days_remaining ?? 30}d)`
+                              )}
                             </span>
                           ) : (
                             <span
@@ -1997,22 +2005,44 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                               🧘 Normal Gymer
                             </span>
                           )}
-                          {m.status === 'suspended' && m.suspension_reason && (
+                          {m.status === 'suspended' && (
                             <span
                               style={{
-                                fontSize: 11,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '2px 8px',
+                                borderRadius: 10,
+                                fontSize: 10.5,
+                                fontWeight: 700,
+                                background: 'rgba(239, 68, 68, 0.15)',
                                 color: '#ef4444',
-                                fontWeight: 600,
-                                display: 'block',
-                                marginTop: 3,
-                                maxWidth: 170,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
+                                border: '1px solid rgba(239, 68, 68, 0.35)',
+                                marginTop: 4,
                               }}
-                              title={`Reason: ${m.suspension_reason}`}
+                              title={m.suspension_reason ? `Suspended: ${m.suspension_reason}` : 'Account suspended by management'}
                             >
-                              ⚠️ {m.suspension_reason}
+                              ⚠️ Suspended {m.suspension_reason ? `· ${m.suspension_reason}` : ''}
+                            </span>
+                          )}
+                          {m.status === 'inactive' && (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '2px 8px',
+                                borderRadius: 10,
+                                fontSize: 10.5,
+                                fontWeight: 700,
+                                background: 'rgba(245, 158, 11, 0.15)',
+                                color: '#d97706',
+                                border: '1px solid rgba(245, 158, 11, 0.35)',
+                                marginTop: 4,
+                              }}
+                              title="Membership pass inactive or expired"
+                            >
+                              ⚠️ Inactive Pass
                             </span>
                           )}
                         </div>
@@ -2044,8 +2074,9 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                             <span>Pass</span>
                           </button>
 
-                          {/* 3. More Actions Dropdown Menu (No Duplicates) */}
-                          <div className="gymflow-dropdown-wrap">
+                          {/* 3. More Actions Dropdown Menu (Staff Only - Hidden for Trainer in My Athletes) */}
+                          {isStaff && !isTrainer && (
+                            <div className="gymflow-dropdown-wrap">
                             <button
                               type="button"
                               className={`btn-tbl-more ${openMenuMemberId === m.id ? 'active' : ''}`}
@@ -2193,6 +2224,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                               </div>
                             )}
                           </div>
+                        )}
                         </div>
                       </td>
                     </tr>
@@ -2232,11 +2264,25 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                   <div className={expiry.color}><strong>Expiry:</strong> {expiry.text}</div>
                   {m.assigned_trainer ? (
                     <div style={{ color: '#ea580c', fontWeight: 700, fontSize: 11.5, marginTop: 4 }}>
-                      🏋️ Coach {m.assigned_trainer.name} ({m.assigned_trainer.days_remaining ?? 30}d left)
+                      {isTrainer ? (
+                        `🏋️ 1-on-1 Coaching (${m.assigned_trainer.days_remaining ?? 30}d left)`
+                      ) : (
+                        `🏋️ Coach ${m.assigned_trainer.name} (${m.assigned_trainer.days_remaining ?? 30}d left)`
+                      )}
                     </div>
                   ) : (
                     <div style={{ color: '#64748b', fontSize: 11, marginTop: 4 }}>
                       🧘 Normal Gymer (Self-Workout)
+                    </div>
+                  )}
+                  {m.status === 'suspended' && (
+                    <div style={{ color: '#ef4444', fontWeight: 700, fontSize: 11, marginTop: 3 }}>
+                      ⚠️ Suspended: {m.suspension_reason || 'Management block'}
+                    </div>
+                  )}
+                  {m.status === 'inactive' && (
+                    <div style={{ color: '#d97706', fontWeight: 700, fontSize: 11, marginTop: 3 }}>
+                      ⚠️ Inactive / Expired Pass
                     </div>
                   )}
                 </div>
@@ -2251,7 +2297,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                       <Icons.QrCode size={13} /> QR Pass
                     </span>
                   </button>
-                  {isStaff && (
+                  {isStaff && !isTrainer && (
                     !m.assigned_trainer ? (
                       <button
                         type="button"
@@ -2276,7 +2322,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                       </button>
                     )
                   )}
-                  {isStaff && (
+                  {isStaff && !isTrainer && (
                     <button
                       type="button"
                       className="btn btn-secondary btn-xs"
@@ -2287,7 +2333,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                       </span>
                     </button>
                   )}
-                  {isStaff && (
+                  {isStaff && !isTrainer && (
                     <button
                       type="button"
                       className="btn btn-secondary btn-xs"
