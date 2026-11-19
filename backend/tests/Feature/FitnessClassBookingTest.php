@@ -571,4 +571,193 @@ class FitnessClassBookingTest extends TestCase
         // Assert recent class is NOT deleted
         $this->assertNotSoftDeleted('fitness_classes', ['id' => $recentCompleted->id]);
     }
+
+    public function test_trainer_can_only_see_their_own_assigned_classes_in_index(): void
+    {
+        [$trainerA, $tokenA] = $this->createUserWithRole('trainer');
+        [$trainerB, $tokenB] = $this->createUserWithRole('trainer');
+        [$admin, $adminToken] = $this->createUserWithRole('admin');
+
+        $classA = FitnessClass::create([
+            'name' => 'Coach A Morning Yoga',
+            'slug' => 'coach-a-yoga-' . uniqid(),
+            'trainer_id' => $trainerA->id,
+            'room' => 'Studio A',
+            'capacity' => 20,
+            'start_time' => Carbon::now()->addDay(),
+            'end_time' => Carbon::now()->addDay()->addHour(),
+            'status' => 'scheduled',
+            'price' => 0,
+        ]);
+
+        $classB = FitnessClass::create([
+            'name' => 'Coach B Power Lifting',
+            'slug' => 'coach-b-lifting-' . uniqid(),
+            'trainer_id' => $trainerB->id,
+            'room' => 'Studio B',
+            'capacity' => 15,
+            'start_time' => Carbon::now()->addDay(),
+            'end_time' => Carbon::now()->addDay()->addHour(),
+            'status' => 'scheduled',
+            'price' => 0,
+        ]);
+
+        // Trainer A only sees their own assigned class
+        $resA = $this->withHeader('Authorization', "Bearer {$tokenA}")
+            ->getJson('/api/classes');
+        $resA->assertStatus(200);
+        $idsA = collect($resA->json('data'))->pluck('id')->all();
+        $this->assertContains($classA->id, $idsA);
+        $this->assertNotContains($classB->id, $idsA);
+
+        // Trainer A cannot bypass scoping by passing trainer_id parameter for another trainer
+        $resABypass = $this->withHeader('Authorization', "Bearer {$tokenA}")
+            ->getJson("/api/classes?trainer_id={$trainerB->id}");
+        $resABypass->assertStatus(200);
+        $idsABypass = collect($resABypass->json('data'))->pluck('id')->all();
+        $this->assertContains($classA->id, $idsABypass);
+        $this->assertNotContains($classB->id, $idsABypass);
+
+        // Switch to Trainer B
+        $this->app['auth']->forgetGuards();
+
+        // Trainer B only sees their own class
+        $resB = $this->withHeader('Authorization', "Bearer {$tokenB}")
+            ->getJson('/api/classes');
+        $resB->assertStatus(200);
+        $idsB = collect($resB->json('data'))->pluck('id')->all();
+        $this->assertContains($classB->id, $idsB);
+        $this->assertNotContains($classA->id, $idsB);
+
+        // Switch to Admin
+        $this->app['auth']->forgetGuards();
+
+        // Admin can see both classes
+        $resAdmin = $this->withHeader('Authorization', "Bearer {$adminToken}")
+            ->getJson('/api/classes');
+        $resAdmin->assertStatus(200);
+        $idsAdmin = collect($resAdmin->json('data'))->pluck('id')->all();
+        $this->assertContains($classA->id, $idsAdmin);
+        $this->assertContains($classB->id, $idsAdmin);
+    }
+
+    public function test_trainer_cannot_view_other_trainers_class_details_or_roster(): void
+    {
+        [$trainerA, $tokenA] = $this->createUserWithRole('trainer');
+        [$trainerB, $tokenB] = $this->createUserWithRole('trainer');
+        [$member, ] = $this->createMemberWithActivePass();
+
+        $classA = FitnessClass::create([
+            'name' => 'Coach A Pilates',
+            'slug' => 'coach-a-pilates-' . uniqid(),
+            'trainer_id' => $trainerA->id,
+            'room' => 'Studio A',
+            'capacity' => 20,
+            'start_time' => Carbon::now()->addDay(),
+            'end_time' => Carbon::now()->addDay()->addHour(),
+            'status' => 'scheduled',
+            'price' => 0,
+        ]);
+
+        $classB = FitnessClass::create([
+            'name' => 'Coach B Boxing',
+            'slug' => 'coach-b-boxing-' . uniqid(),
+            'trainer_id' => $trainerB->id,
+            'room' => 'Studio B',
+            'capacity' => 20,
+            'start_time' => Carbon::now()->addDay(),
+            'end_time' => Carbon::now()->addDay()->addHour(),
+            'status' => 'scheduled',
+            'price' => 0,
+        ]);
+
+        $bookingA = ClassBooking::create([
+            'fitness_class_id' => $classA->id,
+            'member_id' => $member->id,
+            'status' => 'reserved',
+        ]);
+
+        $bookingB = ClassBooking::create([
+            'fitness_class_id' => $classB->id,
+            'member_id' => $member->id,
+            'status' => 'reserved',
+        ]);
+
+        // Trainer A viewing Class A details and roster: Allowed
+        $this->withHeader('Authorization', "Bearer {$tokenA}")
+            ->getJson("/api/classes/{$classA->id}")
+            ->assertStatus(200);
+
+        $resRosterA = $this->withHeader('Authorization', "Bearer {$tokenA}")
+            ->getJson("/api/classes/{$classA->id}/roster");
+        $resRosterA->assertStatus(200);
+        $this->assertEquals($member->id, $resRosterA->json('data.bookings.0.member.id'));
+
+        // Trainer A viewing Class B details and roster: Forbidden (403)
+        $this->withHeader('Authorization', "Bearer {$tokenA}")
+            ->getJson("/api/classes/{$classB->id}")
+            ->assertStatus(403);
+
+        $this->withHeader('Authorization', "Bearer {$tokenA}")
+            ->getJson("/api/classes/{$classB->id}/roster")
+            ->assertStatus(403);
+
+        // Trainer A updating attendance in Class B: Forbidden (403)
+        $this->withHeader('Authorization', "Bearer {$tokenA}")
+            ->patchJson("/api/classes/{$classB->id}/bookings/{$bookingB->id}/check-in", ['status' => 'attended'])
+            ->assertStatus(403);
+
+        // Trainer A updating attendance in own Class A: Allowed (200)
+        $this->withHeader('Authorization', "Bearer {$tokenA}")
+            ->patchJson("/api/classes/{$classA->id}/bookings/{$bookingA->id}/check-in", ['status' => 'attended'])
+            ->assertStatus(200);
+        $this->assertEquals('attended', $bookingA->fresh()->status);
+    }
+
+    public function test_trainer_stats_are_scoped_to_assigned_classes_only(): void
+    {
+        [$trainerA, $tokenA] = $this->createUserWithRole('trainer');
+        [$trainerB, ] = $this->createUserWithRole('trainer');
+        [$admin, $adminToken] = $this->createUserWithRole('admin');
+
+        FitnessClass::create([
+            'name' => 'Coach A Spinning',
+            'slug' => 'coach-a-spin-' . uniqid(),
+            'trainer_id' => $trainerA->id,
+            'room' => 'Studio A',
+            'capacity' => 20,
+            'start_time' => Carbon::now()->addDay(),
+            'end_time' => Carbon::now()->addDay()->addHour(),
+            'status' => 'scheduled',
+            'price' => 0,
+        ]);
+
+        FitnessClass::create([
+            'name' => 'Coach B Crossfit',
+            'slug' => 'coach-b-crossfit-' . uniqid(),
+            'trainer_id' => $trainerB->id,
+            'room' => 'Studio B',
+            'capacity' => 25,
+            'start_time' => Carbon::now()->addDay(),
+            'end_time' => Carbon::now()->addDay()->addHour(),
+            'status' => 'scheduled',
+            'price' => 0,
+        ]);
+
+        // Trainer A stats should only reflect Coach A's class
+        $resStatsA = $this->withHeader('Authorization', "Bearer {$tokenA}")
+            ->getJson('/api/classes/stats');
+        $resStatsA->assertStatus(200);
+        $this->assertEquals(1, $resStatsA->json('data.total_classes'));
+
+        // Switch to Admin and flush cache
+        $this->app['auth']->forgetGuards();
+        \Illuminate\Support\Facades\Cache::flush();
+
+        // Admin stats reflect all classes
+        $resStatsAdmin = $this->withHeader('Authorization', "Bearer {$adminToken}")
+            ->getJson('/api/classes/stats');
+        $resStatsAdmin->assertStatus(200);
+        $this->assertGreaterThanOrEqual(2, $resStatsAdmin->json('data.total_classes'));
+    }
 }
