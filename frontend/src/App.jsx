@@ -19,6 +19,8 @@ const AttendanceScanner = lazy(() => import('./components/AttendanceScanner'));
 const TrainerManagement = lazy(() => import('./components/TrainerManagement'));
 const FitnessClassManagement = lazy(() => import('./components/FitnessClassManagement'));
 const WorkoutManagement = lazy(() => import('./components/WorkoutManagement'));
+const ExerciseLibrary = lazy(() => import('./components/ExerciseLibrary'));
+const MemberProgress = lazy(() => import('./components/MemberProgress'));
 const EquipmentManagement = lazy(() => import('./components/EquipmentManagement'));
 const ReceptionNotificationsView = lazy(() => import('./components/ReceptionNotificationsView'));
 const ReceptionProfileView = lazy(() => import('./components/ReceptionProfileView'));
@@ -157,10 +159,12 @@ function GymCoreApp() {
     memberships: { title: 'Membership Plans', subtitle: '' },
     payments: { title: 'Payments', subtitle: '' },
     attendance: { title: 'Attendance', subtitle: '' },
-    classes: { title: 'Classes', subtitle: '' },
+    classes: { title: primaryRole === 'trainer' ? 'My Classes' : 'Classes', subtitle: '' },
     notifications: { title: 'Notifications', subtitle: '' },
     profile: { title: 'Profile', subtitle: '' },
     trainers: { title: 'Trainers', subtitle: '' },
+    exercises: { title: 'Exercise Library', subtitle: '' },
+    progress: { title: 'Member Progress', subtitle: '' },
     workouts: { title: 'Workouts', subtitle: '' },
     equipment: { title: 'Equipment', subtitle: '' },
     expenses: { title: 'Expenses', subtitle: '' },
@@ -234,6 +238,14 @@ function GymCoreApp() {
               />
             )}
             {activeView === 'workouts' && <WorkoutManagement />}
+            {activeView === 'exercises' && <ExerciseLibrary onNavigate={handleNavigate} />}
+            {activeView === 'progress' && (
+              <MemberProgress
+                onNavigate={handleNavigate}
+                initialMemberId={navParams?.member_id}
+                initialExerciseId={navParams?.exercise_id}
+              />
+            )}
             {activeView === 'equipment' && <EquipmentManagement />}
             {activeView === 'users' && <UserManagement />}
             {activeView === 'audit' && <AuditLogViewer />}
