@@ -760,7 +760,16 @@ class TrainerController extends Controller
             $query->where('status', $request->status);
         }
 
-        $sessions = $query->orderByDesc('scheduled_start')->limit(50)->get();
+        if ($request->filled('from_date')) {
+            $query->whereDate('scheduled_start', '>=', $request->from_date);
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate('scheduled_start', '<=', $request->to_date);
+        }
+
+        $limit = (int) $request->input('limit', 100);
+        $sessions = $query->orderBy('scheduled_start')->limit(min($limit, 500))->get();
 
         return response()->json([
             'status' => 'success',
