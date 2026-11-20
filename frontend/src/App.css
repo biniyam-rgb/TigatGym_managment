@@ -3246,11 +3246,11 @@ body.theme-light .dot-unoccupied,
   align-items: stretch;
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 24px;
+  border-radius: 20px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
-  height: 40px;
+  height: 34px;
   box-sizing: border-box;
 }
 
@@ -3264,17 +3264,17 @@ body.theme-light .dot-unoccupied,
 .gymflow-export-action-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 12px 0 16px;
+  gap: 6px;
+  padding: 0 10px 0 13px;
   background: transparent;
   border: none;
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-weight: 700;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.3px;
   color: #475569;
   cursor: pointer;
   transition: all 0.2s;
-  border-radius: 24px 0 0 24px;
+  border-radius: 20px 0 0 20px;
   user-select: none;
 }
 
@@ -3284,11 +3284,11 @@ body.theme-light .dot-unoccupied,
 }
 
 .gymflow-export-format-tag {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.5px;
-  padding: 2px 6px;
-  border-radius: 6px;
+  letter-spacing: 0.4px;
+  padding: 1.5px 5px;
+  border-radius: 5px;
   background: #ecfdf5;
   color: #059669;
   border: 1px solid rgba(5, 150, 105, 0.25);
@@ -3306,14 +3306,14 @@ body.theme-light .dot-unoccupied,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 12px 0 8px;
+  padding: 0 9px 0 7px;
   background: transparent;
   border: none;
   border-left: 1px solid #f1f5f9;
   color: #94a3b8;
   cursor: pointer;
   transition: all 0.2s;
-  border-radius: 0 24px 24px 0;
+  border-radius: 0 20px 20px 0;
 }
 
 .gymflow-export-pill:hover .gymflow-export-toggle-btn,

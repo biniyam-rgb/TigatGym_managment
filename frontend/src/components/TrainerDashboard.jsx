@@ -99,6 +99,12 @@ const Icons = {
       <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
     </svg>
   ),
+  MapPin: ({ size = 14, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  ),
   AlertTriangle: ({ size = 16, color = 'currentColor' }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
@@ -435,7 +441,7 @@ export default function TrainerDashboard({ onNavigate }) {
       showToast('Please select a mentee to log workout notes for', 'error');
       return;
     }
-    showToast(`✓ Workout notes recorded for athlete! Great session.`, 'success');
+    showToast('Workout notes recorded for athlete! Great session.', 'success');
     setWorkoutLogForm({
       member_id: '',
       exercise_name: 'Chest & Triceps Focus',
@@ -1253,9 +1259,10 @@ export default function TrainerDashboard({ onNavigate }) {
                   type="submit"
                   className="coach-btn-success"
                   disabled={isSubmittingComplete}
-                  style={{ height: 34, padding: '0 16px' }}
+                  style={{ height: 34, padding: '0 16px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
-                  {isSubmittingComplete ? 'Saving...' : '✓ Mark Session Completed'}
+                  <Icons.Check size={14} />
+                  <span>{isSubmittingComplete ? 'Saving...' : 'Mark Session Completed'}</span>
                 </button>
               </div>
             </form>
@@ -1354,13 +1361,22 @@ export default function TrainerDashboard({ onNavigate }) {
                     </span>
                   </div>
                   <div style={{ fontSize: 12.5, color: 'var(--gym-text-muted, #64748b)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span>📍 {selectedClassForRoster.room || 'Main Studio'}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Icons.MapPin size={12} color="#ff7a00" />
+                      {selectedClassForRoster.room || 'Main Studio'}
+                    </span>
                     <span>·</span>
-                    <span>👥 Max Capacity: {selectedClassForRoster.capacity || 20} Athletes</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Icons.Users size={12} color="#64748b" />
+                      Max Capacity: {selectedClassForRoster.capacity || 20} Athletes
+                    </span>
                     {selectedClassForRoster.start_time && (
                       <>
                         <span>·</span>
-                        <span>⏰ {new Date(selectedClassForRoster.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <Icons.Clock size={12} color="#64748b" />
+                          {new Date(selectedClassForRoster.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
                       </>
                     )}
                   </div>

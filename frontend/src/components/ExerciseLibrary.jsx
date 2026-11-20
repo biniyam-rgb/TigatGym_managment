@@ -46,6 +46,24 @@ const Icons = {
       <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
     </svg>
   ),
+  Check: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  ),
+  AlertTriangle: ({ size = 16, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  ),
+  Settings: ({ size = 13, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  ),
 };
 
 function ExerciseLibrarySkeleton() {
@@ -127,6 +145,17 @@ const CATEGORIES = [
   'Cardio',
 ];
 
+const EQUIPMENT_CATEGORY_LABELS = {
+  free_weights: 'Free Weights & Dumbbells',
+  strength: 'Strength & Resistance Machines',
+  cardio: 'Cardio Equipment',
+  accessories: 'Functional & Accessories',
+  recovery: 'Recovery & Mobility',
+  machines: 'Selectorized Machines',
+  audio_visual: 'Audio / Visual Equipment',
+  other: 'General Facility Equipment',
+};
+
 export default function ExerciseLibrary({ onNavigate }) {
   const { hasRole } = useAuth();
   const canManage = hasRole('trainer') || hasRole('owner') || hasRole('admin');
@@ -140,7 +169,57 @@ export default function ExerciseLibrary({ onNavigate }) {
   const [muscleFilter, setMuscleFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState('');
+  const [equipmentFilter, setEquipmentFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState('table');
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Gym Equipment Inventory (loaded live from Admin Equipment Management)
+  const [equipmentList, setEquipmentList] = useState([]);
+  const [isLoadingEquipment, setIsLoadingEquipment] = useState(false);
+  const [isCustomEquipment, setIsCustomEquipment] = useState(false);
+  const [customEquipmentName, setCustomEquipmentName] = useState('');
+
+  useEffect(() => {
+    const handleOutsideClick = () => setShowExportMenu(false);
+    if (showExportMenu) {
+      window.addEventListener('click', handleOutsideClick);
+    }
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, [showExportMenu]);
+
+  // Load gym assets registered by Admin in Equipment Management
+  const loadEquipment = useCallback(async () => {
+    setIsLoadingEquipment(true);
+    try {
+      const res = await apiClient.getEquipment();
+      const items = res?.data || res || [];
+      if (Array.isArray(items)) {
+        setEquipmentList(items);
+      }
+    } catch (err) {
+      console.error('Failed to load gym equipment inventory:', err);
+    } finally {
+      setIsLoadingEquipment(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadEquipment();
+  }, [loadEquipment]);
+
+  // Group equipment by category for organized optgroups
+  const groupedEquipment = useMemo(() => {
+    const groups = {};
+    equipmentList.forEach((eq) => {
+      const cat = eq.category || 'other';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(eq);
+    });
+    return groups;
+  }, [equipmentList]);
 
   // Add Exercise Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -150,10 +229,20 @@ export default function ExerciseLibrary({ onNavigate }) {
     name: '',
     category: 'Barbell',
     muscle_group: 'Chest',
-    equipment_needed: 'Olympic Barbell & Bench',
+    equipment_needed: 'Bodyweight / No Equipment',
     difficulty: 'intermediate',
     instructions: '',
   });
+
+  const openAddMovementModal = () => {
+    setIsAddModalOpen(true);
+    setIsCustomEquipment(false);
+    setCustomEquipmentName('');
+    setExerciseForm((prev) => ({
+      ...prev,
+      equipment_needed: prev.equipment_needed || (equipmentList[0]?.name ? equipmentList[0].name : 'Bodyweight / No Equipment'),
+    }));
+  };
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -184,6 +273,66 @@ export default function ExerciseLibrary({ onNavigate }) {
     return () => clearTimeout(timer);
   }, [loadExercises]);
 
+  const handleExportData = async (format = 'excel') => {
+    setIsExporting(true);
+    setShowExportMenu(false);
+    try {
+      const dateStamp = new Date().toISOString().slice(0, 10);
+      const rows = filteredExercises.map((ex) => ({
+        'Exercise Name': ex.name || '',
+        'Target Muscle': ex.muscle_group || '',
+        'Category': ex.category || '',
+        'Difficulty': ex.difficulty || '',
+        'Equipment Needed': ex.equipment_needed || '',
+        'Instructions': ex.instructions || '',
+      }));
+
+      if (format === 'excel') {
+        const XLSX = await import('xlsx');
+        const worksheet = XLSX.utils.json_to_sheet(rows);
+        worksheet['!cols'] = [
+          { wch: 25 }, // Exercise Name
+          { wch: 18 }, // Target Muscle
+          { wch: 18 }, // Category
+          { wch: 15 }, // Difficulty
+          { wch: 25 }, // Equipment Needed
+          { wch: 45 }, // Instructions
+        ];
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Exercise Library');
+        XLSX.writeFile(workbook, `exercise_library_${dateStamp}.xlsx`);
+        showToast(`Successfully exported ${filteredExercises.length} movements to Microsoft Excel (.xlsx)!`);
+      } else {
+        const headers = ['Exercise Name', 'Target Muscle', 'Category', 'Difficulty', 'Equipment Needed', 'Instructions'];
+        const csvContent = [
+          headers.join(','),
+          ...rows.map((r) =>
+            headers
+              .map((h) => {
+                const val = (r[h] ?? '').toString().replace(/"/g, '""');
+                return `"${val}"`;
+              })
+              .join(',')
+          ),
+        ].join('\r\n');
+
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute('download', `exercise_library_${dateStamp}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast(`Successfully exported ${filteredExercises.length} movements to CSV!`);
+      }
+    } catch (err) {
+      console.error('Export failed:', err);
+      showToast('Export failed. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleCreateExercise = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -192,11 +341,13 @@ export default function ExerciseLibrary({ onNavigate }) {
       await apiClient.createExercise(exerciseForm);
       showToast(`Movement "${exerciseForm.name}" added to Exercise Library.`);
       setIsAddModalOpen(false);
+      setIsCustomEquipment(false);
+      setCustomEquipmentName('');
       setExerciseForm({
         name: '',
         category: 'Barbell',
         muscle_group: 'Chest',
-        equipment_needed: 'Olympic Barbell & Bench',
+        equipment_needed: equipmentList[0]?.name || 'Bodyweight / No Equipment',
         difficulty: 'intermediate',
         instructions: '',
       });
@@ -208,13 +359,18 @@ export default function ExerciseLibrary({ onNavigate }) {
     }
   };
 
-  // Filtered view by difficulty in memory if selected
+  // Filtered view by difficulty and equipment in memory if selected
   const filteredExercises = useMemo(() => {
     return exercises.filter((ex) => {
       if (difficultyFilter && ex.difficulty !== difficultyFilter) return false;
+      if (equipmentFilter) {
+        const needed = (ex.equipment_needed || '').toLowerCase();
+        const target = equipmentFilter.toLowerCase();
+        if (!needed.includes(target)) return false;
+      }
       return true;
     });
-  }, [exercises, difficultyFilter]);
+  }, [exercises, difficultyFilter, equipmentFilter]);
 
   const muscleGroupsCount = useMemo(() => {
     return new Set(exercises.map((e) => e.muscle_group).filter(Boolean)).size || 6;
@@ -250,7 +406,10 @@ export default function ExerciseLibrary({ onNavigate }) {
             gap: 8,
           }}
         >
-          <span>✓ {toastMessage}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Icons.Check size={15} color="#10b981" />
+            {toastMessage}
+          </span>
         </div>
       )}
 
@@ -266,30 +425,11 @@ export default function ExerciseLibrary({ onNavigate }) {
           </p>
         </div>
         <div className="clean-dash-actions">
-          {onNavigate && (
-            <button
-              type="button"
-              className="btn-clean-schedule"
-              onClick={() => onNavigate('dashboard')}
-            >
-              <span>← Trainer Overview</span>
-            </button>
-          )}
-          {onNavigate && (
-            <button
-              type="button"
-              className="btn-clean-schedule"
-              onClick={() => onNavigate('progress')}
-            >
-              <Icons.Activity size={14} color="#3b82f6" />
-              <span>Member Progress →</span>
-            </button>
-          )}
           {canManage && (
             <button
               type="button"
               className="btn-clean-add-member"
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={openAddMovementModal}
             >
               <Icons.Plus size={15} />
               <span>+ Add Movement</span>
@@ -352,83 +492,256 @@ export default function ExerciseLibrary({ onNavigate }) {
       {/* Error Banner */}
       {error && (
         <div className="alert alert-danger" style={{ marginBottom: 16 }}>
-          <span>⚠️ {error}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Icons.AlertTriangle size={15} color="#ea580c" />
+            {error}
+          </span>
           <button type="button" className="close-btn" onClick={() => setError(null)}>×</button>
         </div>
       )}
 
-      {/* Search & Muscle Group Toolbar */}
-      <div className="coach-tab-panel" style={{ padding: '16px 20px', marginBottom: 18 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 14 }}>
-          {/* Muscle Group Chips */}
-          <div className="muscle-pills-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {MUSCLE_GROUPS.map((m) => {
-              const isActive = (m === 'All' && !muscleFilter) || muscleFilter === m;
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  className={`filter-chip ${isActive ? 'active' : ''}`}
-                  onClick={() => setMuscleFilter(m === 'All' ? '' : m)}
-                  style={{
-                    padding: '5px 12px',
-                    borderRadius: 9999,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  {m}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Quick Search */}
-          <div className="search-bar-wrapper" style={{ minWidth: 260, position: 'relative' }}>
-            <input
-              type="text"
-              placeholder="Search exercise, barbell, machine..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="form-input search-input-field"
-              style={{
-                paddingLeft: 36,
-                paddingRight: 14,
-                width: '100%',
-                height: 38,
-                fontSize: 13,
-                borderRadius: 8,
-              }}
-            />
-            <span
-              className="search-bar-icon"
+      {/* Search & Filter Controls Toolbar matching Member Directory */}
+      <div className="gymflow-controls-bar">
+        {/* Search Input matching Member Directory and Membership */}
+        <div className="search-bar-wrapper" style={{ flex: 1, position: 'relative' }}>
+          <input
+            type="text"
+            className="form-input search-input-field"
+            placeholder="Search exercises by name, muscle, equipment, or technique..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              paddingLeft: 36,
+              paddingRight: search ? 34 : 14,
+              width: '100%',
+              height: 42,
+              minHeight: 42,
+              boxSizing: 'border-box',
+              fontSize: 13.5,
+              borderRadius: 8,
+            }}
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
               style={{
                 position: 'absolute',
-                left: 12,
+                right: 10,
                 top: '50%',
                 transform: 'translateY(-50%)',
-                display: 'flex',
-                alignItems: 'center',
-                pointerEvents: 'none',
-                color: '#94a3b8',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--gym-text-muted, #94a3b8)',
+                fontSize: 15,
+                padding: '4px 6px',
+                borderRadius: 4,
+                lineHeight: 1,
               }}
+              title="Clear search"
             >
-              <Icons.Search size={15} />
-            </span>
-          </div>
+              <Icons.X size={14} />
+            </button>
+          )}
+          <span
+            className="search-bar-icon"
+            style={{
+              position: 'absolute',
+              left: 12,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              display: 'flex',
+              alignItems: 'center',
+              pointerEvents: 'none',
+            }}
+          >
+            <Icons.Search size={15} />
+          </span>
         </div>
 
-        {/* Secondary Category & Difficulty Selectors */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gym-text-muted, #64748b)' }}>Category:</span>
+        {/* Filter Toggle Button */}
+        <button
+          type="button"
+          className={`gymflow-filter-btn ${showFilters ? 'active' : ''}`}
+          onClick={() => setShowFilters(!showFilters)}
+          title="Toggle category, difficulty and target muscle filters"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+          </svg>
+          <span>FILTERS</span>
+          {(categoryFilter || difficultyFilter || muscleFilter || equipmentFilter) && (
+            <span
+              style={{
+                background: '#ff7a00',
+                color: '#ffffff',
+                fontSize: 10,
+                fontWeight: 800,
+                padding: '1px 6px',
+                borderRadius: 10,
+                marginLeft: 4,
+              }}
+            >
+              {[categoryFilter, difficultyFilter, muscleFilter, equipmentFilter].filter(Boolean).length}
+            </span>
+          )}
+        </button>
+
+        {/* Modern Interactive Export Pill & Popover */}
+        <div style={{ position: 'relative' }}>
+          <div className={`gymflow-export-pill ${showExportMenu ? 'active' : ''}`}>
+            {/* Primary Action Button: Immediately downloads Excel (.xlsx) */}
+            <button
+              type="button"
+              className="gymflow-export-action-btn"
+              onClick={() => handleExportData('excel')}
+              disabled={isExporting}
+              title="Download all exercises in Microsoft Excel (.xlsx)"
+            >
+              <svg width="13.5" height="13.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: isExporting ? 'spin 1s linear infinite' : 'none' }}>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>{isExporting ? 'EXPORTING...' : 'EXPORT'}</span>
+              <span className="gymflow-export-format-tag">XLSX</span>
+            </button>
+
+            {/* Toggle Dropdown Arrow */}
+            <button
+              type="button"
+              className="gymflow-export-toggle-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowExportMenu((prev) => !prev);
+              }}
+              disabled={isExporting}
+              title="Choose download format: Excel (.xlsx) or CSV"
+            >
+              <svg className={`export-chevron-icon ${showExportMenu ? 'open' : ''}`} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Luxury Floating Popover */}
+          {showExportMenu && (
+            <div className="gymflow-export-popover" onClick={(e) => e.stopPropagation()}>
+              <div className="export-popover-header">
+                <span>EXPORT MOVEMENTS</span>
+                <span className="export-count-pill">{filteredExercises.length} exercises</span>
+              </div>
+
+              {/* Option 1: Microsoft Excel */}
+              <button
+                type="button"
+                className="export-format-tile tile-excel"
+                onClick={() => handleExportData('excel')}
+              >
+                <div className="export-tile-icon icon-excel">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="8" y1="13" x2="16" y2="13" />
+                    <line x1="8" y1="17" x2="16" y2="17" />
+                    <polyline points="10 9 9 9 8 9" />
+                  </svg>
+                </div>
+                <div className="export-tile-meta">
+                  <div className="export-tile-title-row">
+                    <span className="export-tile-title">Microsoft Excel</span>
+                    <span className="export-badge-recommended">RECOMMENDED</span>
+                  </div>
+                  <div className="export-tile-desc">Formatted .xlsx workbook with auto-fitted columns</div>
+                </div>
+                <svg className="export-tile-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+
+              {/* Option 2: CSV Spreadsheet */}
+              <button
+                type="button"
+                className="export-format-tile tile-csv"
+                onClick={() => handleExportData('csv')}
+              >
+                <div className="export-tile-icon icon-csv">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                    <line x1="10" y1="9" x2="8" y2="9" />
+                  </svg>
+                </div>
+                <div className="export-tile-meta">
+                  <div className="export-tile-title-row">
+                    <span className="export-tile-title">CSV Document</span>
+                    <span className="export-badge-universal">UNIVERSAL</span>
+                  </div>
+                  <div className="export-tile-desc">UTF-8 BOM comma-separated spreadsheet (.csv)</div>
+                </div>
+                <svg className="export-tile-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+
+              <div className="export-popover-footer">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ff7a00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                </svg>
+                <span>Exports all active filter results in one file</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Table / Cards View Mode Switcher */}
+        <div className="gymflow-view-switcher">
+          <button
+            type="button"
+            className={`view-mode-btn ${viewMode === 'table' ? 'active' : ''}`}
+            onClick={() => setViewMode('table')}
+            title="Table View"
+          >
+            TABLE
+          </button>
+          <button
+            type="button"
+            className={`view-mode-btn ${viewMode === 'cards' ? 'active' : ''}`}
+            onClick={() => setViewMode('cards')}
+            title="Cards View"
+          >
+            CARDS
+          </button>
+        </div>
+      </div>
+
+      {/* Collapsible Filter Dropdowns matching Member Directory */}
+      {showFilters && (
+        <div className="gymflow-expanded-filters" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20 }}>
+          <div className="filter-group">
+            <label style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--gym-text-muted, #64748b)' }}>Muscle Group:</label>
             <select
+              className="gymflow-select"
+              value={muscleFilter}
+              onChange={(e) => setMuscleFilter(e.target.value)}
+            >
+              {MUSCLE_GROUPS.map((m) => (
+                <option key={m} value={m === 'All' ? '' : m}>
+                  {m === 'All' ? 'All Muscle Groups' : m}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--gym-text-muted, #64748b)' }}>Category:</label>
+            <select
+              className="gymflow-select"
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="filter-input-search"
-              style={{ height: 32, fontSize: 12, borderRadius: 6 }}
             >
               {CATEGORIES.map((cat) => (
                 <option key={cat} value={cat === 'All Categories' ? '' : cat}>
@@ -438,13 +751,12 @@ export default function ExerciseLibrary({ onNavigate }) {
             </select>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gym-text-muted, #64748b)' }}>Difficulty:</span>
+          <div className="filter-group">
+            <label style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--gym-text-muted, #64748b)' }}>Difficulty:</label>
             <select
+              className="gymflow-select"
               value={difficultyFilter}
               onChange={(e) => setDifficultyFilter(e.target.value)}
-              className="filter-input-search"
-              style={{ height: 32, fontSize: 12, borderRadius: 6 }}
             >
               <option value="">All Difficulties</option>
               <option value="beginner">Beginner</option>
@@ -453,25 +765,43 @@ export default function ExerciseLibrary({ onNavigate }) {
             </select>
           </div>
 
-          {(muscleFilter || categoryFilter || difficultyFilter || search) && (
+          <div className="filter-group">
+            <label style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--gym-text-muted, #64748b)' }}>Equipment:</label>
+            <select
+              className="gymflow-select"
+              value={equipmentFilter}
+              onChange={(e) => setEquipmentFilter(e.target.value)}
+            >
+              <option value="">All Equipment</option>
+              <option value="Bodyweight">Bodyweight / No Equipment</option>
+              {equipmentList.map((eq) => (
+                <option key={eq.id} value={eq.name}>
+                  {eq.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {(categoryFilter || difficultyFilter || muscleFilter || equipmentFilter || search) && (
             <button
               type="button"
-              className="coach-btn-secondary"
+              className="btn btn-secondary btn-xs"
               onClick={() => {
-                setMuscleFilter('');
                 setCategoryFilter('');
                 setDifficultyFilter('');
+                setMuscleFilter('');
+                setEquipmentFilter('');
                 setSearch('');
               }}
-              style={{ height: 30, fontSize: 11.5, padding: '0 10px', marginLeft: 'auto' }}
+              style={{ marginLeft: 'auto', padding: '6px 12px', fontSize: 12 }}
             >
               Reset Filters
             </button>
           )}
         </div>
-      </div>
+      )}
 
-      {/* Exercises Grid */}
+      {/* Main Content Area: Exercises in Table or Cards view */}
       {isLoading ? (
         <div className="exercises-grid">
           {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -505,7 +835,7 @@ export default function ExerciseLibrary({ onNavigate }) {
             <button
               type="button"
               className="coach-btn-primary"
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={openAddMovementModal}
               style={{ height: 34, fontSize: 12.5 }}
             >
               <Icons.Plus size={14} />
@@ -513,7 +843,110 @@ export default function ExerciseLibrary({ onNavigate }) {
             </button>
           )}
         </div>
+      ) : viewMode === 'table' ? (
+        /* TABLE VIEW */
+        <div className="gymflow-table-wrapper" style={{ overflowX: 'auto', marginBottom: 24 }}>
+          <table className="gymflow-table">
+            <thead>
+              <tr>
+                <th style={{ minWidth: 220 }}>MOVEMENT / EXERCISE</th>
+                <th>TARGET MUSCLE</th>
+                <th>CATEGORY</th>
+                <th>DIFFICULTY</th>
+                <th>EQUIPMENT</th>
+                <th style={{ minWidth: 220 }}>INSTRUCTIONS / TECHNIQUE</th>
+                <th style={{ textAlign: 'right', minWidth: 100 }}>ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredExercises.map((ex) => (
+                <tr key={ex.id}>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 9,
+                          background: 'rgba(255, 122, 0, 0.1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#ff7a00',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <Icons.Dumbbell size={17} />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--gym-text-primary, #0f172a)' }}>
+                          {ex.name}
+                        </div>
+                        <div style={{ fontSize: 11.5, color: 'var(--gym-text-muted, #64748b)' }}>
+                          Movement #{ex.id}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span className="muscle-tag" style={{ display: 'inline-block' }}>
+                      {ex.muscle_group}
+                    </span>
+                  </td>
+                  <td>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gym-text-primary, #1e293b)' }}>
+                      {ex.category || 'General'}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`difficulty-badge difficulty-${ex.difficulty}`}>
+                      {ex.difficulty}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--gym-text-muted, #64748b)' }}>
+                      <Icons.Settings size={13} color="#64748b" />
+                      <span>{ex.equipment_needed || 'Standard Gear'}</span>
+                    </div>
+                  </td>
+                  <td style={{ maxWidth: 280 }}>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: 12,
+                        color: 'var(--gym-text-muted, #64748b)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                      title={ex.instructions}
+                    >
+                      {ex.instructions || 'Standard form and repetition tempo'}
+                    </p>
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    <div className="gymflow-table-actions" style={{ justifyContent: 'flex-end' }}>
+                      {onNavigate && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-xs"
+                          onClick={() => onNavigate('progress', { exercise_id: ex.id })}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          title="Log sets with this exercise in Member Progress"
+                        >
+                          <span>Track</span>
+                          <Icons.ArrowRight size={12} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
+        /* CARDS VIEW */
         <div className="exercises-grid">
           {filteredExercises.map((ex) => (
             <div key={ex.id} className="exercise-card">
@@ -526,8 +959,9 @@ export default function ExerciseLibrary({ onNavigate }) {
 
               <h4 className="exercise-name">{ex.name}</h4>
 
-              <div className="exercise-equipment">
-                ⚙️ <span>{ex.equipment_needed || 'Standard Gear'}</span>
+              <div className="exercise-equipment" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Icons.Settings size={13} color="#64748b" />
+                <span>{ex.equipment_needed || 'Standard Gear'}</span>
               </div>
 
               {ex.instructions && (
@@ -661,17 +1095,67 @@ export default function ExerciseLibrary({ onNavigate }) {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 5 }}>
-                      Equipment Needed
-                    </label>
-                    <input
-                      type="text"
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+                      <label style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>
+                        Equipment Needed *
+                      </label>
+                      {equipmentList.length > 0 && (
+                        <span style={{ fontSize: 10.5, color: '#ff7a00', fontWeight: 600 }}>
+                          {equipmentList.length} in Gym Inventory
+                        </span>
+                      )}
+                    </div>
+                    <select
                       className="filter-input-search"
                       style={{ width: '100%', height: 38, borderRadius: 8, fontSize: 13 }}
-                      value={exerciseForm.equipment_needed}
-                      onChange={(e) => setExerciseForm({ ...exerciseForm, equipment_needed: e.target.value })}
-                      placeholder="e.g. Barbell, Squat Rack, Dumbbells"
-                    />
+                      value={isCustomEquipment ? '__custom__' : (exerciseForm.equipment_needed || 'Bodyweight / No Equipment')}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '__custom__') {
+                          setIsCustomEquipment(true);
+                          setExerciseForm({ ...exerciseForm, equipment_needed: customEquipmentName || '' });
+                        } else {
+                          setIsCustomEquipment(false);
+                          setExerciseForm({ ...exerciseForm, equipment_needed: val });
+                        }
+                      }}
+                    >
+                      <option value="Bodyweight / No Equipment">Bodyweight / No Equipment (None)</option>
+
+                      {isLoadingEquipment ? (
+                        <option disabled>Loading gym equipment inventory...</option>
+                      ) : (
+                        Object.entries(groupedEquipment).map(([catKey, items]) => (
+                          <optgroup
+                            key={catKey}
+                            label={EQUIPMENT_CATEGORY_LABELS[catKey] || catKey.replace('_', ' ').toUpperCase()}
+                          >
+                            {items.map((eq) => (
+                              <option key={eq.id} value={eq.name}>
+                                {eq.name} {eq.brand ? `(${eq.brand})` : ''}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))
+                      )}
+
+                      <option value="__custom__">+ Other / Custom Equipment...</option>
+                    </select>
+
+                    {isCustomEquipment && (
+                      <input
+                        type="text"
+                        className="filter-input-search"
+                        style={{ width: '100%', height: 36, borderRadius: 8, fontSize: 13, marginTop: 8 }}
+                        placeholder="Type custom equipment name..."
+                        value={customEquipmentName}
+                        onChange={(e) => {
+                          setCustomEquipmentName(e.target.value);
+                          setExerciseForm({ ...exerciseForm, equipment_needed: e.target.value });
+                        }}
+                        autoFocus
+                      />
+                    )}
                   </div>
 
                   <div>
@@ -718,9 +1202,10 @@ export default function ExerciseLibrary({ onNavigate }) {
                   type="submit"
                   className="coach-btn-primary"
                   disabled={isSubmitting || !exerciseForm.name.trim()}
-                  style={{ height: 36, padding: '0 18px' }}
+                  style={{ height: 36, padding: '0 18px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
-                  {isSubmitting ? 'Saving...' : '✓ Add Exercise'}
+                  <Icons.Plus size={14} />
+                  <span>{isSubmitting ? 'Saving...' : 'Add Exercise'}</span>
                 </button>
               </div>
             </form>

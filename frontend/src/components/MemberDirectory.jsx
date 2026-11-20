@@ -142,6 +142,31 @@ const Icons = {
       <line x1="21" y1="21" x2="16.65" y2="16.65" />
     </svg>
   ),
+  Dumbbell: ({ size = 14, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m6.5 6.5 11 11" />
+      <path d="m21 21-1-1a2 2 0 0 0-2.83 0l-1.41 1.41a2 2 0 0 1-2.83 0l-1.41-1.41a2 2 0 0 0-2.83 0L7 22.5" />
+      <path d="m3 3 1 1a2 2 0 0 0 2.83 0l1.41-1.41a2 2 0 0 1 2.83 0l1.41 1.41a2 2 0 0 0 2.83 0L17 1.5" />
+    </svg>
+  ),
+  User: ({ size = 14, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  ),
+  X: ({ size = 14, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  ),
+  RotateCw: ({ size = 14, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+      <path d="M21 3v5h-5" />
+    </svg>
+  ),
 };
 
 const CHAPA_PROVIDERS = [
@@ -1513,7 +1538,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 18 }}>⚠️</span>
+            <Icons.AlertTriangle size={18} color="#ea580c" />
             <div>
               <strong style={{ fontSize: 13, display: 'block' }}>
                 Coaching Alert: {members.filter((m) => m.status === 'suspended').length} Suspended & {members.filter((m) => m.status === 'inactive').length} Inactive Athletes
@@ -1655,7 +1680,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
               }}
               title="Clear search"
             >
-              ✕
+              <Icons.X size={14} />
             </button>
           )}
           <span
@@ -1698,7 +1723,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
               disabled={isExporting}
               title="Download all members in Microsoft Excel (.xlsx)"
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: isExporting ? 'spin 1s linear infinite' : 'none' }}>
+              <svg width="13.5" height="13.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: isExporting ? 'spin 1s linear infinite' : 'none' }}>
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="7 10 12 15 17 10" />
                 <line x1="12" y1="15" x2="12" y2="3" />
@@ -1718,7 +1743,7 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
               disabled={isExporting}
               title="Choose download format: Excel (.xlsx) or CSV"
             >
-              <svg className={`export-chevron-icon ${showExportMenu ? 'open' : ''}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg className={`export-chevron-icon ${showExportMenu ? 'open' : ''}`} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="6 9 12 15 18 9" />
               </svg>
             </button>
@@ -1886,19 +1911,21 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                 >
                   EXPIRY <span style={{ opacity: sortField === 'expiry' ? 1 : 0.4, fontSize: 11 }}>{sortField === 'expiry' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
                 </th>
-                <th className="text-right" style={{ minWidth: isTrainer ? 90 : 200 }}>ACTIONS</th>
+                {!isTrainer && (
+                  <th className="text-right" style={{ minWidth: 200 }}>ACTIONS</th>
+                )}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan="5" className="text-center py-5">
+                  <td colSpan={isTrainer ? 4 : 5} className="text-center py-5">
                     <span className="spinner"></span> Loading registered members...
                   </td>
                 </tr>
               ) : members.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="text-center py-5 text-muted">
+                  <td colSpan={isTrainer ? 4 : 5} className="text-center py-5 text-muted">
                     No gym members found matching criteria.
                   </td>
                 </tr>
@@ -1957,53 +1984,49 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                           <span className={`gymflow-status-pill pill-${m.status === 'active' ? 'active' : m.status === 'suspended' ? 'suspended' : m.status === 'inactive' ? 'at-risk' : 'lost'}`}>
                             • {m.status === 'active' ? 'ACTIVE' : m.status === 'suspended' ? 'SUSPENDED' : m.status === 'inactive' ? 'AT-RISK' : 'LOST'}
                           </span>
-                          {/* Personal Coach Status Badge */}
-                          {m.assigned_trainer ? (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 4,
-                                padding: '2px 8px',
-                                borderRadius: 10,
-                                fontSize: 10.5,
-                                fontWeight: 700,
-                                background: 'rgba(230, 124, 0, 0.12)',
-                                color: '#ea580c',
-                                border: '1px solid rgba(230, 124, 0, 0.3)',
-                                marginTop: 4,
-                              }}
-                              title={
-                                isTrainer
-                                  ? `1-on-1 Coached Athlete — ${m.assigned_trainer.days_remaining ?? 30} days coaching remaining`
-                                  : `Coach: ${m.assigned_trainer.name} (${m.assigned_trainer.specialization || 'Personal Trainer'}) — ${m.assigned_trainer.days_remaining ?? 30} days remaining`
-                              }
-                            >
-                              {isTrainer ? (
-                                `🏋️ 1-on-1 Coaching (${m.assigned_trainer.days_remaining ?? 30}d left)`
-                              ) : (
-                                `🏋️ Coach ${m.assigned_trainer.name?.split(' ')[0]} (${m.assigned_trainer.days_remaining ?? 30}d)`
-                              )}
-                            </span>
-                          ) : (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 4,
-                                padding: '2px 8px',
-                                borderRadius: 10,
-                                fontSize: 10.5,
-                                fontWeight: 600,
-                                background: 'rgba(100, 116, 139, 0.08)',
-                                color: '#64748b',
-                                border: '1px solid rgba(100, 116, 139, 0.2)',
-                                marginTop: 4,
-                              }}
-                              title="Normal gymer without personal coach (Self-Workout)"
-                            >
-                              🧘 Normal Gymer
-                            </span>
+                          {/* Personal Coach Status Badge (Staff only - hidden on trainer my athlete dashboard) */}
+                          {!isTrainer && (
+                            m.assigned_trainer ? (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  padding: '2px 8px',
+                                  borderRadius: 10,
+                                  fontSize: 10.5,
+                                  fontWeight: 700,
+                                  background: 'rgba(230, 124, 0, 0.12)',
+                                  color: '#ea580c',
+                                  border: '1px solid rgba(230, 124, 0, 0.3)',
+                                  marginTop: 4,
+                                }}
+                                title={`Coach: ${m.assigned_trainer.name} (${m.assigned_trainer.specialization || 'Personal Trainer'}) — ${m.assigned_trainer.days_remaining ?? 30} days remaining`}
+                              >
+                                <Icons.Dumbbell size={11} color="#ea580c" />
+                                <span>Coach {m.assigned_trainer.name?.split(' ')[0]} ({m.assigned_trainer.days_remaining ?? 30}d)</span>
+                              </span>
+                            ) : (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  padding: '2px 8px',
+                                  borderRadius: 10,
+                                  fontSize: 10.5,
+                                  fontWeight: 600,
+                                  background: 'rgba(100, 116, 139, 0.08)',
+                                  color: '#64748b',
+                                  border: '1px solid rgba(100, 116, 139, 0.2)',
+                                  marginTop: 4,
+                                }}
+                                title="Normal gymer without personal coach (Self-Workout)"
+                              >
+                                <Icons.User size={11} color="#64748b" />
+                                <span>Normal Gymer</span>
+                              </span>
+                            )
                           )}
                           {m.status === 'suspended' && (
                             <span
@@ -2022,7 +2045,8 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                               }}
                               title={m.suspension_reason ? `Suspended: ${m.suspension_reason}` : 'Account suspended by management'}
                             >
-                              ⚠️ Suspended {m.suspension_reason ? `· ${m.suspension_reason}` : ''}
+                              <Icons.AlertTriangle size={11} color="#ef4444" />
+                              <span>Suspended {m.suspension_reason ? `· ${m.suspension_reason}` : ''}</span>
                             </span>
                           )}
                           {m.status === 'inactive' && (
@@ -2042,7 +2066,8 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                               }}
                               title="Membership pass inactive or expired"
                             >
-                              ⚠️ Inactive Pass
+                              <Icons.Clock size={11} color="#d97706" />
+                              <span>Inactive Pass</span>
                             </span>
                           )}
                         </div>
@@ -2060,173 +2085,175 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                         </div>
                       </td>
 
-                      {/* Quick Action Buttons: Pass & 3-Dot Management */}
-                      <td className="text-right">
-                        <div className="gymflow-table-actions">
-                          {/* QR Pass Button */}
-                          <button
-                            type="button"
-                            className="btn-tbl-action btn-tbl-pass"
-                            onClick={() => setSelectedMember(m)}
-                            title="View 1-Year Permanent Member Card & QR Pass"
-                          >
-                            <Icons.QrCode size={13} />
-                            <span>Pass</span>
-                          </button>
-
-                          {/* 3. More Actions Dropdown Menu (Staff Only - Hidden for Trainer in My Athletes) */}
-                          {isStaff && !isTrainer && (
-                            <div className="gymflow-dropdown-wrap">
+                      {/* Quick Action Buttons: Pass & 3-Dot Management (Staff only - hidden on trainer dashboard) */}
+                      {!isTrainer && (
+                        <td className="text-right">
+                          <div className="gymflow-table-actions">
+                            {/* QR Pass Button */}
                             <button
                               type="button"
-                              className={`btn-tbl-more ${openMenuMemberId === m.id ? 'active' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuMemberId(openMenuMemberId === m.id ? null : m.id);
-                              }}
-                              title="More Management Actions"
-                              aria-label="More actions"
+                              className="btn-tbl-action btn-tbl-pass"
+                              onClick={() => setSelectedMember(m)}
+                              title="View 1-Year Permanent Member Card & QR Pass"
                             >
-                              ⋮
+                              <Icons.QrCode size={13} />
+                              <span>Pass</span>
                             </button>
 
-                            {openMenuMemberId === m.id && (
-                              <div className="gymflow-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                                {isStaff && (
-                                  <button
-                                    type="button"
-                                    className="dropdown-item"
-                                    onClick={() => {
-                                      setOpenMenuMemberId(null);
-                                      handleOpenEdit(m);
-                                    }}
-                                  >
-                                    <Icons.Edit size={14} />
-                                    <span>Edit Profile Details</span>
-                                  </button>
-                                )}
+                            {/* 3. More Actions Dropdown Menu */}
+                            {isStaff && (
+                              <div className="gymflow-dropdown-wrap">
+                                <button
+                                  type="button"
+                                  className={`btn-tbl-more ${openMenuMemberId === m.id ? 'active' : ''}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenMenuMemberId(openMenuMemberId === m.id ? null : m.id);
+                                  }}
+                                  title="More Management Actions"
+                                  aria-label="More actions"
+                                >
+                                  ⋮
+                                </button>
 
-                                {isStaff && (
-                                  <button
-                                    type="button"
-                                    className="dropdown-item"
-                                    onClick={() => {
-                                      setOpenMenuMemberId(null);
-                                      handleOpenRenewModal(m);
-                                    }}
-                                  >
-                                    <Icons.Refresh size={14} />
-                                    <span>Renew / Assign Plan</span>
-                                  </button>
-                                )}
-
-                                {/* Personal Coach Actions */}
-                                {isStaff && (
-                                  !m.assigned_trainer ? (
-                                    <button
-                                      type="button"
-                                      className="dropdown-item"
-                                      onClick={() => {
-                                        setOpenMenuMemberId(null);
-                                        handleOpenAssignCoach(m);
-                                      }}
-                                    >
-                                      <span style={{ fontSize: 13 }}>🏋️</span>
-                                      <span>Add Personal Coach (Trainer Fee Only)</span>
-                                    </button>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      className="dropdown-item"
-                                      onClick={() => {
-                                        setOpenMenuMemberId(null);
-                                        handleOpenChangeCoach(m);
-                                      }}
-                                    >
-                                      <span style={{ fontSize: 13 }}>🔄</span>
-                                      <span>Switch / Change Coach</span>
-                                    </button>
-                                  )
-                                )}
-
-                                {isStaff && m.status === 'active' && (
-                                  <button
-                                    type="button"
-                                    className="dropdown-item"
-                                    disabled={checkingInId === m.id}
-                                    onClick={() => {
-                                      setOpenMenuMemberId(null);
-                                      handleQuickCheckIn(m);
-                                    }}
-                                  >
-                                    <Icons.CheckCircle size={14} />
-                                    <span>{checkingInId === m.id ? 'Checking In...' : 'Quick Check-In'}</span>
-                                  </button>
-                                )}
-
-                                {isStaff && (
-                                  <button
-                                    type="button"
-                                    className="dropdown-item"
-                                    onClick={() => {
-                                      setOpenMenuMemberId(null);
-                                      handleRegenerateQr(m.id);
-                                    }}
-                                  >
-                                    <Icons.Zap size={14} />
-                                    <span>Regenerate QR Token</span>
-                                  </button>
-                                )}
-
-                                {isManagement && (
-                                  <>
-                                    <div className="dropdown-divider"></div>
-                                    {m.status === 'suspended' ? (
+                                {openMenuMemberId === m.id && (
+                                  <div className="gymflow-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                                    {isStaff && (
                                       <button
                                         type="button"
                                         className="dropdown-item"
-                                        style={{ color: '#16a34a' }}
                                         onClick={() => {
                                           setOpenMenuMemberId(null);
-                                          handleReactivateMember(m);
+                                          handleOpenEdit(m);
                                         }}
                                       >
-                                        <Icons.Check size={14} />
-                                        <span>Reactivate Account</span>
-                                      </button>
-                                    ) : (
-                                      <button
-                                        type="button"
-                                        className="dropdown-item"
-                                        style={{ color: '#dc2626' }}
-                                        onClick={() => {
-                                          setOpenMenuMemberId(null);
-                                          handlePromptSuspendMember(m);
-                                        }}
-                                      >
-                                        <Icons.AlertTriangle size={14} />
-                                        <span>Suspend Member</span>
+                                        <Icons.Edit size={14} />
+                                        <span>Edit Profile Details</span>
                                       </button>
                                     )}
-                                    <button
-                                      type="button"
-                                      className="dropdown-item dropdown-item-danger"
-                                      onClick={() => {
-                                        setOpenMenuMemberId(null);
-                                        handlePromptDeleteMember(m);
-                                      }}
-                                    >
-                                      <Icons.Trash size={14} />
-                                      <span>Delete Member</span>
-                                    </button>
-                                  </>
+
+                                    {isStaff && (
+                                      <button
+                                        type="button"
+                                        className="dropdown-item"
+                                        onClick={() => {
+                                          setOpenMenuMemberId(null);
+                                          handleOpenRenewModal(m);
+                                        }}
+                                      >
+                                        <Icons.Refresh size={14} />
+                                        <span>Renew / Assign Plan</span>
+                                      </button>
+                                    )}
+
+                                    {/* Personal Coach Actions */}
+                                    {isStaff && (
+                                      !m.assigned_trainer ? (
+                                        <button
+                                          type="button"
+                                          className="dropdown-item"
+                                          onClick={() => {
+                                            setOpenMenuMemberId(null);
+                                            handleOpenAssignCoach(m);
+                                          }}
+                                        >
+                                          <Icons.Dumbbell size={14} color="#ea580c" />
+                                          <span>Add Personal Coach (Trainer Fee Only)</span>
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          className="dropdown-item"
+                                          onClick={() => {
+                                            setOpenMenuMemberId(null);
+                                            handleOpenChangeCoach(m);
+                                          }}
+                                        >
+                                          <Icons.RotateCw size={14} color="#0284c7" />
+                                          <span>Switch / Change Coach</span>
+                                        </button>
+                                      )
+                                    )}
+
+                                    {isStaff && m.status === 'active' && (
+                                      <button
+                                        type="button"
+                                        className="dropdown-item"
+                                        disabled={checkingInId === m.id}
+                                        onClick={() => {
+                                          setOpenMenuMemberId(null);
+                                          handleQuickCheckIn(m);
+                                        }}
+                                      >
+                                        <Icons.CheckCircle size={14} />
+                                        <span>{checkingInId === m.id ? 'Checking In...' : 'Quick Check-In'}</span>
+                                      </button>
+                                    )}
+
+                                    {isStaff && (
+                                      <button
+                                        type="button"
+                                        className="dropdown-item"
+                                        onClick={() => {
+                                          setOpenMenuMemberId(null);
+                                          handleRegenerateQr(m.id);
+                                        }}
+                                      >
+                                        <Icons.Zap size={14} />
+                                        <span>Regenerate QR Token</span>
+                                      </button>
+                                    )}
+
+                                    {isManagement && (
+                                      <>
+                                        <div className="dropdown-divider"></div>
+                                        {m.status === 'suspended' ? (
+                                          <button
+                                            type="button"
+                                            className="dropdown-item"
+                                            style={{ color: '#16a34a' }}
+                                            onClick={() => {
+                                              setOpenMenuMemberId(null);
+                                              handleReactivateMember(m);
+                                            }}
+                                          >
+                                            <Icons.Check size={14} />
+                                            <span>Reactivate Account</span>
+                                          </button>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            className="dropdown-item"
+                                            style={{ color: '#dc2626' }}
+                                            onClick={() => {
+                                              setOpenMenuMemberId(null);
+                                              handlePromptSuspendMember(m);
+                                            }}
+                                          >
+                                            <Icons.AlertTriangle size={14} />
+                                            <span>Suspend Member</span>
+                                          </button>
+                                        )}
+                                        <button
+                                          type="button"
+                                          className="dropdown-item dropdown-item-danger"
+                                          onClick={() => {
+                                            setOpenMenuMemberId(null);
+                                            handlePromptDeleteMember(m);
+                                          }}
+                                        >
+                                          <Icons.Trash size={14} />
+                                          <span>Delete Member</span>
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
                                 )}
                               </div>
                             )}
                           </div>
-                        )}
-                        </div>
-                      </td>
+                        </td>
+                      )}
                     </tr>
                   );
                 })
@@ -2262,101 +2289,107 @@ export default function MemberDirectory({ initialOpenRegister = false, initialSe
                   <div><strong>Phone:</strong> {m.phone}</div>
                   <div><strong>Plan:</strong> {m.active_subscription?.plan_name || 'Standard'}</div>
                   <div className={expiry.color}><strong>Expiry:</strong> {expiry.text}</div>
-                  {m.assigned_trainer ? (
-                    <div style={{ color: '#ea580c', fontWeight: 700, fontSize: 11.5, marginTop: 4 }}>
-                      {isTrainer ? (
-                        `🏋️ 1-on-1 Coaching (${m.assigned_trainer.days_remaining ?? 30}d left)`
-                      ) : (
-                        `🏋️ Coach ${m.assigned_trainer.name} (${m.assigned_trainer.days_remaining ?? 30}d left)`
-                      )}
-                    </div>
-                  ) : (
-                    <div style={{ color: '#64748b', fontSize: 11, marginTop: 4 }}>
-                      🧘 Normal Gymer (Self-Workout)
-                    </div>
+                  {!isTrainer && (
+                    m.assigned_trainer ? (
+                      <div style={{ color: '#ea580c', fontWeight: 700, fontSize: 11.5, marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <Icons.Dumbbell size={12} color="#ea580c" />
+                        <span>Coach {m.assigned_trainer.name} ({m.assigned_trainer.days_remaining ?? 30}d left)</span>
+                      </div>
+                    ) : (
+                      <div style={{ color: '#64748b', fontSize: 11, marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <Icons.User size={12} color="#64748b" />
+                        <span>Normal Gymer (Self-Workout)</span>
+                      </div>
+                    )
                   )}
                   {m.status === 'suspended' && (
-                    <div style={{ color: '#ef4444', fontWeight: 700, fontSize: 11, marginTop: 3 }}>
-                      ⚠️ Suspended: {m.suspension_reason || 'Management block'}
+                    <div style={{ color: '#ef4444', fontWeight: 700, fontSize: 11, marginTop: 3, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Icons.AlertTriangle size={12} color="#ef4444" />
+                      <span>Suspended: {m.suspension_reason || 'Management block'}</span>
                     </div>
                   )}
                   {m.status === 'inactive' && (
-                    <div style={{ color: '#d97706', fontWeight: 700, fontSize: 11, marginTop: 3 }}>
-                      ⚠️ Inactive / Expired Pass
+                    <div style={{ color: '#d97706', fontWeight: 700, fontSize: 11, marginTop: 3, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Icons.Clock size={12} color="#d97706" />
+                      <span>Inactive / Expired Pass</span>
                     </div>
                   )}
                 </div>
 
-                <div className="card-item-bottom">
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-xs"
-                    onClick={() => setSelectedMember(m)}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <Icons.QrCode size={13} /> QR Pass
-                    </span>
-                  </button>
-                  {isStaff && !isTrainer && (
-                    !m.assigned_trainer ? (
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-xs"
-                        onClick={() => handleOpenAssignCoach(m)}
-                        title="Add Personal Coach (Trainer Fee Only)"
-                      >
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                          🏋️ +Coach
-                        </span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-xs"
-                        onClick={() => handleOpenChangeCoach(m)}
-                        title="Switch / Change Coach"
-                      >
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                          🔄 Coach
-                        </span>
-                      </button>
-                    )
-                  )}
-                  {isStaff && !isTrainer && (
+                {!isTrainer && (
+                  <div className="card-item-bottom">
                     <button
                       type="button"
                       className="btn btn-secondary btn-xs"
-                      onClick={() => handleOpenEdit(m)}
+                      onClick={() => setSelectedMember(m)}
                     >
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                        <Icons.Edit size={13} /> Edit
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <Icons.QrCode size={13} /> QR Pass
                       </span>
                     </button>
-                  )}
-                  {isStaff && !isTrainer && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-xs"
-                      onClick={() => handleOpenRenewModal(m)}
-                      title="Renew / Assign Plan"
-                    >
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                        <Icons.Refresh size={13} /> Renew
-                      </span>
-                    </button>
-                  )}
-                  {isManagement && (
-                    <button
-                      type="button"
-                      className="btn-action-icon btn-danger-icon"
-                      onClick={() => handlePromptDeleteMember(m)}
-                      title="Delete member record"
-                      aria-label="Delete member record"
-                    >
-                      <Icons.Trash size={14} />
-                    </button>
-                  )}
-                </div>
+                    {isStaff && (
+                      !m.assigned_trainer ? (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-xs"
+                          onClick={() => handleOpenAssignCoach(m)}
+                          title="Add Personal Coach (Trainer Fee Only)"
+                        >
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <Icons.Dumbbell size={12} />
+                            <span>+Coach</span>
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-xs"
+                          onClick={() => handleOpenChangeCoach(m)}
+                          title="Switch / Change Coach"
+                        >
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <Icons.RotateCw size={12} />
+                            <span>Coach</span>
+                          </span>
+                        </button>
+                      )
+                    )}
+                    {isStaff && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-xs"
+                        onClick={() => handleOpenEdit(m)}
+                      >
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <Icons.Edit size={13} /> Edit
+                        </span>
+                      </button>
+                    )}
+                    {isStaff && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-xs"
+                        onClick={() => handleOpenRenewModal(m)}
+                        title="Renew / Assign Plan"
+                      >
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <Icons.Refresh size={13} /> Renew
+                        </span>
+                      </button>
+                    )}
+                    {isManagement && (
+                      <button
+                        type="button"
+                        className="btn-action-icon btn-danger-icon"
+                        onClick={() => handlePromptDeleteMember(m)}
+                        title="Delete member record"
+                        aria-label="Delete member record"
+                      >
+                        <Icons.Trash size={14} />
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}

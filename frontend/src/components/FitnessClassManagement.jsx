@@ -152,6 +152,64 @@ const Icons = {
       <path d="M16 21h5v-5" />
     </svg>
   ),
+  Flame: ({ size = 15, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+    </svg>
+  ),
+  Zap: ({ size = 15, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  ),
+  CreditCard: ({ size = 15, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="20" height="14" x="2" y="5" rx="2" />
+      <line x1="2" x2="22" y1="10" y2="10" />
+    </svg>
+  ),
+  Info: ({ size = 15, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="16" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12.01" y2="8" />
+    </svg>
+  ),
+  User: ({ size = 14, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  ),
+  Bike: ({ size = 15, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="5.5" cy="17.5" r="3.5" />
+      <circle cx="18.5" cy="17.5" r="3.5" />
+      <path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5V14l-3-3 4-3 2 3h4" />
+    </svg>
+  ),
+  Heart: ({ size = 15, color = 'currentColor' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+    </svg>
+  ),
+};
+
+const renderCategoryIcon = (iconType, size = 13, color = 'currentColor') => {
+  switch (iconType) {
+    case 'spin':
+      return <Icons.Bike size={size} color={color} />;
+    case 'yoga':
+      return <Icons.Heart size={size} color={color} />;
+    case 'olympic':
+    case 'strength':
+      return <Icons.Dumbbell size={size} color={color} />;
+    case 'core':
+      return <Icons.Flame size={size} color={color} />;
+    case 'hiit':
+    default:
+      return <Icons.Zap size={size} color={color} />;
+  }
 };
 
 // Dynamic visual matcher for classes to give luxury photo headers
@@ -164,7 +222,8 @@ const getClassVisual = (className = '', room = '') => {
       intensity: 'High Cadence',
       badgeColor: '#06b6d4',
       duration: '45-60 min',
-      icon: '🚴',
+      iconType: 'spin',
+      icon: renderCategoryIcon('spin', 13),
     };
   }
   if (n.includes('yoga') || n.includes('mobility') || n.includes('zen') || n.includes('stretch') || n.includes('pilates')) {
@@ -174,7 +233,8 @@ const getClassVisual = (className = '', room = '') => {
       intensity: 'All Levels',
       badgeColor: '#10b981',
       duration: '60 min',
-      icon: '🧘',
+      iconType: 'yoga',
+      icon: renderCategoryIcon('yoga', 13),
     };
   }
   if (n.includes('olympic') || n.includes('lifting') || n.includes('snatch') || n.includes('barbell')) {
@@ -184,7 +244,8 @@ const getClassVisual = (className = '', room = '') => {
       intensity: 'Advanced Clinic',
       badgeColor: '#f59e0b',
       duration: '90 min',
-      icon: '🏋️',
+      iconType: 'olympic',
+      icon: renderCategoryIcon('olympic', 13),
     };
   }
   if (n.includes('strength') || n.includes('circuit') || n.includes('kettlebell') || n.includes('turf')) {
@@ -194,7 +255,8 @@ const getClassVisual = (className = '', room = '') => {
       intensity: 'Compound Intervals',
       badgeColor: '#ea580c',
       duration: '60 min',
-      icon: '💪',
+      iconType: 'strength',
+      icon: renderCategoryIcon('strength', 13),
     };
   }
   if (n.includes('core') || n.includes('ab') || n.includes('abs') || n.includes('blast')) {
@@ -204,7 +266,8 @@ const getClassVisual = (className = '', room = '') => {
       intensity: 'Direct Hypertrophy',
       badgeColor: '#8b5cf6',
       duration: '45 min',
-      icon: '🔥',
+      iconType: 'core',
+      icon: renderCategoryIcon('core', 13),
     };
   }
   // Default to HIIT
@@ -214,7 +277,8 @@ const getClassVisual = (className = '', room = '') => {
     intensity: 'High Caloric Burn',
     badgeColor: '#ff7a00',
     duration: '50-60 min',
-    icon: '⚡',
+    iconType: 'hiit',
+    icon: renderCategoryIcon('hiit', 13),
   };
 };
 
@@ -290,21 +354,21 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
 
   // Evaluates live class status based on current time & session timestamps
   const getComputedClassStatus = (c) => {
-    if (!c) return { status: 'scheduled', label: '● Scheduled', tagClass: 'scheduled', isOngoing: false, isCompleted: false, isCancelled: false, isStarted: false };
+    if (!c) return { status: 'scheduled', label: 'Scheduled', tagClass: 'scheduled', isOngoing: false, isCompleted: false, isCancelled: false, isStarted: false };
     if (c.status === 'cancelled') {
-      return { status: 'cancelled', label: '✕ Cancelled', tagClass: 'cancelled', isOngoing: false, isCompleted: false, isCancelled: true, isStarted: true };
+      return { status: 'cancelled', label: 'Cancelled', tagClass: 'cancelled', isOngoing: false, isCompleted: false, isCancelled: true, isStarted: true };
     }
     const nowTime = currentTimestamp;
     const st = c.start_time ? new Date(c.start_time).getTime() : 0;
     const et = c.end_time ? new Date(c.end_time).getTime() : (st + 3600000);
 
     if (et > 0 && nowTime >= et) {
-      return { status: 'completed', label: '✓ Completed', tagClass: 'completed', isOngoing: false, isCompleted: true, isCancelled: false, isStarted: true };
+      return { status: 'completed', label: 'Completed', tagClass: 'completed', isOngoing: false, isCompleted: true, isCancelled: false, isStarted: true };
     }
     if (st > 0 && nowTime >= st && (et === 0 || nowTime < et)) {
-      return { status: 'ongoing', label: '🔥 Happening Now', tagClass: 'ongoing', isOngoing: true, isCompleted: false, isCancelled: false, isStarted: true };
+      return { status: 'ongoing', label: 'Happening Now', tagClass: 'ongoing', isOngoing: true, isCompleted: false, isCancelled: false, isStarted: true };
     }
-    return { status: 'scheduled', label: '● Scheduled', tagClass: 'scheduled', isOngoing: false, isCompleted: false, isCancelled: false, isStarted: false };
+    return { status: 'scheduled', label: 'Scheduled', tagClass: 'scheduled', isOngoing: false, isCompleted: false, isCancelled: false, isStarted: false };
   };
 
   // Calculates remaining time to start if the session is scheduled today
@@ -350,7 +414,7 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('');
   const [quickDate, setQuickDate] = useState('all');
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
+  const [viewMode, setViewMode] = useState('table'); // 'table' | 'grid'
 
   // In-Page Views & Panels State
   const [isScheduleOpen, setIsScheduleOpen] = useState(initialOpenSchedule);
@@ -739,7 +803,7 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
     );
     try {
       await apiClient.checkInClassBooking(rosterClass.id, bookingId, nextStatus);
-      setSuccessMessage(nextStatus === 'attended' ? '✓ Attendee marked as Attended' : 'Attendee status reverted to Reserved');
+      setSuccessMessage(nextStatus === 'attended' ? 'Attendee marked as Attended' : 'Attendee status reverted to Reserved');
       loadData();
     } catch (err) {
       // Revert optimistic update on failure
@@ -1057,7 +1121,7 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', fontSize: 12.5, fontWeight: 700 }}
                       >
                         <Icons.UserPlus size={15} />
-                        <span>{isBookModalOpen ? '✕ Close Form' : '+ Book Member'}</span>
+                        <span>{isBookModalOpen ? 'Close Form' : '+ Book Member'}</span>
                       </button>
                     )}
                   </div>
@@ -1084,17 +1148,20 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                         </span>
                       </div>
                       <div className="roster-hero-meta-line">
-                        <span className="roster-hero-pill" style={{ color: '#ff7a00', background: 'rgba(255, 122, 0, 0.1)' }}>
+                        <span className="roster-hero-pill" style={{ color: '#ff7a00', background: 'rgba(255, 122, 0, 0.1)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                           {visual.icon} {visual.category}
                         </span>
-                        <span className="roster-hero-pill">
-                          📍 {rosterClass.room || 'Studio A (Main Hall)'}
+                        <span className="roster-hero-pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <Icons.MapPin size={12} color="#ff7a00" />
+                          <span>{rosterClass.room || 'Studio A (Main Hall)'}</span>
                         </span>
-                        <span className="roster-hero-pill">
-                          👤 Coach: <strong>{rosterClass.trainer?.name || 'Dawit Trainer'}</strong>
+                        <span className="roster-hero-pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <Icons.User size={12} color="#64748b" />
+                          <span>Coach: <strong>{rosterClass.trainer?.name || 'Dawit Trainer'}</strong></span>
                         </span>
-                        <span className="roster-hero-pill">
-                          📅 {formatIsoDate(rosterClass.start_time)} • {formatTime(rosterClass.start_time)}
+                        <span className="roster-hero-pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <Icons.Calendar size={12} color="#64748b" />
+                          <span>{formatIsoDate(rosterClass.start_time)} • {formatTime(rosterClass.start_time)}</span>
                         </span>
                         <span className="roster-hero-pill" style={{ color: rosterClass.price > 0 ? '#ff7a00' : '#10b981', fontWeight: 800 }}>
                           {rosterClass.price > 0 ? `${Number(rosterClass.price).toLocaleString()} ETB` : 'FREE / Pass'}
@@ -1145,7 +1212,7 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                   onClick={() => setIsBookModalOpen(false)}
                   aria-label="Close"
                 >
-                  ✕
+                  <Icons.X size={15} />
                 </button>
               </div>
 
@@ -1236,7 +1303,10 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                               onChange={() => setBookingPaymentMethod('cash')}
                               style={{ accentColor: '#ff7a00' }}
                             />
-                            <span>💵 Cash (Front Desk)</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                              <Icons.CreditCard size={15} color="#ea580c" />
+                              <span>Cash (Front Desk)</span>
+                            </span>
                           </label>
 
                           {/* Chapa Option */}
@@ -1264,7 +1334,10 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                               onChange={() => setBookingPaymentMethod('chapa')}
                               style={{ accentColor: '#00a651' }}
                             />
-                            <span>⚡ Chapa (Digital / Online)</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                              <Icons.Zap size={15} color="#00a651" />
+                              <span>Chapa (Digital / Online)</span>
+                            </span>
                           </label>
                         </div>
 
@@ -1285,8 +1358,9 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                         )}
                       </div>
                     ) : (
-                      <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
-                        ✓ Standard class is included under the member's active gym subscription pass.
+                      <p style={{ margin: 0, fontSize: 12, color: '#059669', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <Icons.Check size={14} color="#10b981" />
+                        <span>Standard class is included under the member's active gym subscription pass.</span>
                       </p>
                     )}
                   </div>
@@ -1597,17 +1671,8 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
               </div>
 
               <div className="classes-controls-actions-wrap">
-                {/* View Mode Toggle */}
+                {/* View Mode Toggle: Table first, then Cards */}
                 <div className="classes-modern-view-switch">
-                  <button
-                    type="button"
-                    className={`classes-modern-view-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                    onClick={() => setViewMode('grid')}
-                    title="Visual Card Grid View"
-                  >
-                    <Icons.Grid size={14} />
-                    <span>Cards</span>
-                  </button>
                   <button
                     type="button"
                     className={`classes-modern-view-btn ${viewMode === 'table' ? 'active' : ''}`}
@@ -1616,6 +1681,15 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                   >
                     <Icons.List size={14} />
                     <span>Table</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`classes-modern-view-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                    onClick={() => setViewMode('grid')}
+                    title="Visual Card Grid View"
+                  >
+                    <Icons.Grid size={14} />
+                    <span>Cards</span>
                   </button>
                 </div>
 
@@ -1670,7 +1744,7 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                     onClick={() => setSearchQuery('')}
                     title="Clear search"
                   >
-                    ✕
+                    <Icons.X size={14} />
                   </button>
                 )}
               </div>
@@ -1699,11 +1773,11 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                     title="Filter classes by date"
                     style={{ minWidth: 145 }}
                   >
-                    <option value="all">📅 All Dates</option>
-                    <option value="today">📅 Today</option>
-                    <option value="tomorrow">📅 Tomorrow</option>
+                    <option value="all">All Dates</option>
+                    <option value="today">Today</option>
+                    <option value="tomorrow">Tomorrow</option>
                     <option value="custom">
-                      {dateFilter && quickDate === 'custom' ? `📅 ${formatIsoDate(dateFilter)}` : '📅 Pick Custom Date...'}
+                      {dateFilter && quickDate === 'custom' ? formatIsoDate(dateFilter) : 'Pick Custom Date...'}
                     </option>
                   </select>
                   <span className="classes-status-select-icon">
@@ -1727,11 +1801,11 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                     onChange={(e) => setStatusFilter(e.target.value)}
                     className="classes-modern-status-select"
                   >
-                    <option value="all">⚡ All Statuses</option>
-                    <option value="scheduled">● Scheduled</option>
-                    <option value="ongoing">🔥 Happening Now</option>
-                    <option value="completed">✓ Completed</option>
-                    <option value="cancelled">✕ Cancelled</option>
+                    <option value="all">All Statuses</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="ongoing">Happening Now</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
                   </select>
                   <span className="classes-status-select-icon">
                     <Icons.ChevronDown size={13} />
@@ -1785,7 +1859,7 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                   onClick={() => setIsScheduleOpen(false)}
                   aria-label="Close"
                 >
-                  ✕
+                  <Icons.X size={15} />
                 </button>
               </div>
 
@@ -1874,20 +1948,22 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                       {/* Presets Chips */}
                       <div className="class-preset-buttons-row">
                         {[
-                          { label: '⚡ HIIT', url: '/classes/hiit.jpg' },
-                          { label: '🚴 Spin', url: '/classes/spin.jpg' },
-                          { label: '💪 Strength', url: '/classes/strength.jpg' },
-                          { label: '🧘 Yoga', url: '/classes/yoga.jpg' },
-                          { label: '🏋️ Olympic', url: '/classes/olympic.jpg' },
-                          { label: '🔥 Core', url: '/classes/core.jpg' },
+                          { label: 'HIIT', url: '/classes/hiit.jpg', icon: <Icons.Zap size={12} /> },
+                          { label: 'Spin', url: '/classes/spin.jpg', icon: <Icons.Bike size={12} /> },
+                          { label: 'Strength', url: '/classes/strength.jpg', icon: <Icons.Dumbbell size={12} /> },
+                          { label: 'Yoga', url: '/classes/yoga.jpg', icon: <Icons.Heart size={12} /> },
+                          { label: 'Olympic', url: '/classes/olympic.jpg', icon: <Icons.Dumbbell size={12} /> },
+                          { label: 'Core', url: '/classes/core.jpg', icon: <Icons.Flame size={12} /> },
                         ].map((p) => (
                           <button
                             key={p.url}
                             type="button"
                             className={`btn-class-preset-chip ${scheduleForm.image_url === p.url ? 'active' : ''}`}
                             onClick={() => handleSelectPresetImage(p.url, false)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
                           >
-                            {p.label}
+                            {p.icon}
+                            <span>{p.label}</span>
                           </button>
                         ))}
                       </div>
@@ -1909,8 +1985,9 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                             </span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: 9.5, color: '#f1f5f9', fontWeight: 600 }}>
-                              📍 {scheduleForm.room || 'Studio A (Main Hall)'}
+                            <span style={{ fontSize: 9.5, color: '#f1f5f9', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <Icons.MapPin size={10} color="#ff7a00" />
+                              <span>{scheduleForm.room || 'Studio A (Main Hall)'}</span>
                             </span>
                             <span style={{ fontSize: 9, color: '#cbd5e1' }}>
                               Cover Visual Preview
@@ -2006,8 +2083,9 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                             style={{ accentColor: '#10b981' }}
                           />
                           <div>
-                            <strong style={{ fontSize: 13, color: scheduleForm.fee_type === 'free' ? '#059669' : '#334155', display: 'block' }}>
-                              ✓ Free Class (Pass)
+                            <strong style={{ fontSize: 13, color: scheduleForm.fee_type === 'free' ? '#059669' : '#334155', display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <Icons.Check size={13} color="#10b981" />
+                              <span>Free Class (Pass)</span>
                             </strong>
                             <span style={{ fontSize: 11, color: '#64748b' }}>
                               0 ETB — Included in pass
@@ -2027,8 +2105,9 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                             style={{ accentColor: '#ff7a00' }}
                           />
                           <div>
-                            <strong style={{ fontSize: 13, color: scheduleForm.fee_type === 'paid' ? '#ea580c' : '#334155', display: 'block' }}>
-                              💵 Paid Session
+                            <strong style={{ fontSize: 13, color: scheduleForm.fee_type === 'paid' ? '#ea580c' : '#334155', display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <Icons.CreditCard size={13} color="#ea580c" />
+                              <span>Paid Session</span>
                             </strong>
                             <span style={{ fontSize: 11, color: '#64748b' }}>
                               Requires fee to book
@@ -2073,14 +2152,16 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                           </div>
                         </div>
                       ) : (
-                        <div style={{ padding: '8px 12px', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 8, fontSize: 12, color: '#065f46' }}>
-                          ✓ Active Tigat Gym members can book this session for <strong>0 ETB</strong> using their membership pass.
+                        <div style={{ padding: '8px 12px', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 8, fontSize: 12, color: '#065f46', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Icons.Check size={14} color="#059669" />
+                          <span>Active Tigat Gym members can book this session for <strong>0 ETB</strong> using their membership pass.</span>
                         </div>
                       )}
                     </div>
 
-                    <div style={{ background: 'rgba(255, 122, 0, 0.08)', border: '1px solid rgba(255, 122, 0, 0.2)', padding: '10px 12px', borderRadius: 8, fontSize: 12, color: '#ff7a00', marginTop: 4 }}>
-                      💡 <strong>Notice:</strong> Members can book spots anytime before the scheduled start time.
+                    <div style={{ background: 'rgba(255, 122, 0, 0.08)', border: '1px solid rgba(255, 122, 0, 0.2)', padding: '10px 12px', borderRadius: 8, fontSize: 12, color: '#ff7a00', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Icons.Info size={14} color="#ff7a00" />
+                      <span><strong>Notice:</strong> Members can book spots anytime before the scheduled start time.</span>
                     </div>
                   </div>
                 </div>
@@ -2120,7 +2201,7 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                   onClick={() => setIsEditOpen(false)}
                   aria-label="Close"
                 >
-                  ✕
+                  <Icons.X size={15} />
                 </button>
               </div>
 
@@ -2206,20 +2287,22 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                       {/* Presets Chips */}
                       <div className="class-preset-buttons-row">
                         {[
-                          { label: '⚡ HIIT', url: '/classes/hiit.jpg' },
-                          { label: '🚴 Spin', url: '/classes/spin.jpg' },
-                          { label: '💪 Strength', url: '/classes/strength.jpg' },
-                          { label: '🧘 Yoga', url: '/classes/yoga.jpg' },
-                          { label: '🏋️ Olympic', url: '/classes/olympic.jpg' },
-                          { label: '🔥 Core', url: '/classes/core.jpg' },
+                          { label: 'HIIT', url: '/classes/hiit.jpg', icon: <Icons.Zap size={12} /> },
+                          { label: 'Spin', url: '/classes/spin.jpg', icon: <Icons.Bike size={12} /> },
+                          { label: 'Strength', url: '/classes/strength.jpg', icon: <Icons.Dumbbell size={12} /> },
+                          { label: 'Yoga', url: '/classes/yoga.jpg', icon: <Icons.Heart size={12} /> },
+                          { label: 'Olympic', url: '/classes/olympic.jpg', icon: <Icons.Dumbbell size={12} /> },
+                          { label: 'Core', url: '/classes/core.jpg', icon: <Icons.Flame size={12} /> },
                         ].map((p) => (
                           <button
                             key={p.url}
                             type="button"
                             className={`btn-class-preset-chip ${editForm.image_url === p.url ? 'active' : ''}`}
                             onClick={() => handleSelectPresetImage(p.url, true)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
                           >
-                            {p.label}
+                            {p.icon}
+                            <span>{p.label}</span>
                           </button>
                         ))}
                       </div>
@@ -2241,8 +2324,9 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                             </span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: 9.5, color: '#f1f5f9', fontWeight: 600 }}>
-                              📍 {editForm.room || 'Studio A (Main Hall)'}
+                            <span style={{ fontSize: 9.5, color: '#f1f5f9', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <Icons.MapPin size={10} color="#ff7a00" />
+                              <span>{editForm.room || 'Studio A (Main Hall)'}</span>
                             </span>
                             <span style={{ fontSize: 9, color: '#cbd5e1' }}>
                               Cover Visual Preview
@@ -2279,7 +2363,7 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                               })()
                             })
                           </option>
-                          <option value="cancelled">✕ Cancelled (Admin Cancel)</option>
+                          <option value="cancelled">Cancelled (Admin Cancel)</option>
                         </select>
                       </div>
 
@@ -2368,8 +2452,9 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                             style={{ accentColor: '#10b981' }}
                           />
                           <div>
-                            <strong style={{ fontSize: 13, color: editForm.fee_type === 'free' ? '#059669' : '#334155', display: 'block' }}>
-                              ✓ Free Class (Pass)
+                            <strong style={{ fontSize: 13, color: editForm.fee_type === 'free' ? '#059669' : '#334155', display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <Icons.Check size={13} color="#10b981" />
+                              <span>Free Class (Pass)</span>
                             </strong>
                             <span style={{ fontSize: 11, color: '#64748b' }}>
                               0 ETB — Included in pass
@@ -2389,8 +2474,9 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                             style={{ accentColor: '#ff7a00' }}
                           />
                           <div>
-                            <strong style={{ fontSize: 13, color: editForm.fee_type === 'paid' ? '#ea580c' : '#334155', display: 'block' }}>
-                              💵 Paid Session
+                            <strong style={{ fontSize: 13, color: editForm.fee_type === 'paid' ? '#ea580c' : '#334155', display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <Icons.CreditCard size={13} color="#ea580c" />
+                              <span>Paid Session</span>
                             </strong>
                             <span style={{ fontSize: 11, color: '#64748b' }}>
                               Requires fee to book
@@ -2435,8 +2521,9 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                           </div>
                         </div>
                       ) : (
-                        <div style={{ padding: '8px 12px', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 8, fontSize: 12, color: '#065f46' }}>
-                          ✓ Active Tigat Gym members can book this session for <strong>0 ETB</strong> using their membership pass.
+                        <div style={{ padding: '8px 12px', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 8, fontSize: 12, color: '#065f46', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Icons.Check size={14} color="#059669" />
+                          <span>Active Tigat Gym members can book this session for <strong>0 ETB</strong> using their membership pass.</span>
                         </div>
                       )}
                     </div>
@@ -2478,7 +2565,7 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                   onClick={() => setIsBookModalOpen(false)}
                   aria-label="Close"
                 >
-                  ✕
+                  <Icons.X size={15} />
                 </button>
               </div>
 
@@ -2569,7 +2656,10 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                               onChange={() => setBookingPaymentMethod('cash')}
                               style={{ accentColor: '#ff7a00' }}
                             />
-                            <span>💵 Cash (Front Desk)</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                              <Icons.CreditCard size={15} color="#ea580c" />
+                              <span>Cash (Front Desk)</span>
+                            </span>
                           </label>
 
                           {/* Chapa Option */}
@@ -2597,7 +2687,10 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                               onChange={() => setBookingPaymentMethod('chapa')}
                               style={{ accentColor: '#00a651' }}
                             />
-                            <span>⚡ Chapa (Digital / Online)</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                              <Icons.Zap size={15} color="#00a651" />
+                              <span>Chapa (Digital / Online)</span>
+                            </span>
                           </label>
                         </div>
 
@@ -2618,8 +2711,9 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                         )}
                       </div>
                     ) : (
-                      <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
-                        ✓ Standard class is included under the member's active gym subscription pass.
+                      <p style={{ margin: 0, fontSize: 12, color: '#059669', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <Icons.Check size={14} color="#10b981" />
+                        <span>Standard class is included under the member's active gym subscription pass.</span>
                       </p>
                     )}
                   </div>
@@ -2657,7 +2751,7 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                   onClick={() => setCancelTargetClass(null)}
                   aria-label="Close"
                 >
-                  ✕
+                  <Icons.X size={15} />
                 </button>
               </div>
 
@@ -2665,8 +2759,9 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                 <p style={{ margin: '0 0 12px', fontSize: 13, color: '#475569', lineHeight: 1.5 }}>
                   Are you sure you want to cancel this session?
                   {cancelTargetClass.booked_count > 0 && (
-                    <strong style={{ display: 'block', color: '#ea580c', marginTop: 4 }}>
-                      ⚠️ {cancelTargetClass.booked_count} member(s) currently hold reservations for this class.
+                    <strong style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#ea580c', marginTop: 6 }}>
+                      <Icons.AlertTriangle size={15} color="#ea580c" />
+                      <span>{cancelTargetClass.booked_count} member(s) currently hold reservations for this class.</span>
                     </strong>
                   )}
                 </p>
@@ -2755,7 +2850,8 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                       <div className="starting-class-banner">
                         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                           <span className="live-pulse-dot" />
-                          <span>🔥 HAPPENING NOW • SESSION IN PROGRESS</span>
+                          <Icons.Flame size={14} color="#ffffff" />
+                          <span>HAPPENING NOW • SESSION IN PROGRESS</span>
                         </div>
                         <span style={{ fontSize: 10.5, fontWeight: 700, opacity: 0.95 }}>
                           Ends {formatTime(c.end_time)}
@@ -3210,7 +3306,10 @@ export default function FitnessClassManagement({ initialOpenSchedule = false }) 
                                   disabled={isSubmitting}
                                   title="Cancel your reservation for this class"
                                 >
-                                  ✕ Cancel Spot
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                    <Icons.X size={12} />
+                                    <span>Cancel Spot</span>
+                                  </span>
                                 </button>
                               ) : (
                                 <button
